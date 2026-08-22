@@ -17,6 +17,12 @@ namespace EchoSim.Simulation
         public AgentRepository Agents { get; } = new AgentRepository();
         public LocationRepository Locations { get; } = new LocationRepository();
         public ResidentRegistry Residents { get; } = new ResidentRegistry();
+        /// <summary>Sprint 4: what can be done where (spec §4.5/§4.6).</summary>
+        public AffordanceRegistry Affordances { get; } = new AffordanceRegistry();
+        /// <summary>Sprint 4: timed travel between locations (Unity NavMesh adapter later).</summary>
+        public INavigationService Navigation { get; }
+        /// <summary>Sprint 4: seats/beds/counters with ownership and expiry.</summary>
+        public ReservationService Reservations { get; }
 
         internal SimulationWorld(SimulationClock clock, SimRandomProvider randoms, EventBus events, SimulationScheduler scheduler)
         {
@@ -24,9 +30,23 @@ namespace EchoSim.Simulation
             Randoms = randoms;
             Events = events;
             Scheduler = scheduler;
+            Reservations = new ReservationService(this);
+            Navigation = new TimedNavigationService(this);
         }
 
         public void RegisterLocation(LocationDefinition definition) => Locations.Add(definition);
+
+        /// <summary>
+        /// Removes a location that no agent occupies or navigates toward
+        /// (used by tests for target-destruction semantics; later, demolition).
+        /// </summary>
+        public void RemoveLocation(LocationId id)
+        {
+            var runtime = Locations.Get(id);
+            if (runtime.OccupiedCount > 0)
+                throw new InvalidOperationException($"Cannot remove '{id}': still occupied.");
+            Locations.Remove(id);
+        }
 
         /// <summary>
         /// Creates an agent and places them at their start location (start location,

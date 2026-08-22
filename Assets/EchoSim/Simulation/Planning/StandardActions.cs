@@ -12,6 +12,12 @@ namespace EchoSim.Simulation
         public LocationId? Store { get; init; }
         public LocationId? Square { get; init; }
         public LocationId? Workplace { get; init; }
+        /// <summary>
+        /// When true, object-gated actions (Sleep/bed, BuyFood/cafe counter,
+        /// GetFood/fridge) are only offered where the world's AffordanceRegistry
+        /// advertises them (spec §4.6). Default off for legacy fixtures.
+        /// </summary>
+        public bool GateByAffordances { get; init; }
 
         public static TownRoles DetectByConvention(SimulationWorld world)
         {
@@ -80,6 +86,11 @@ namespace EchoSim.Simulation
             var list = new List<PlanningAction>();
             var homeId = agent.HomeLocationId;
             bool hasHome = !string.IsNullOrEmpty(homeId.Value);
+            bool gate = roles.GateByAffordances;
+
+            bool AffordanceAllows(string actionKey, LocationId? provider)
+                => !gate || !provider.HasValue
+                    || world.Affordances.CanPerform(new ActionId(actionKey), provider.Value);
 
             // --- Movement ---
             if (hasHome)
@@ -88,7 +99,9 @@ namespace EchoSim.Simulation
                     new ActionId("act_go_home"), "GoHome",
                     preconditions: null,
                     effects: MoveEffects(world, LocationKey(homeId), includeHomeAlias: true),
-                    baseCost: 0.60f, durationMinutes: 15));
+                    baseCost: 0.60f, durationMinutes: 15,
+                    requiredLocation: homeId,
+                    isMovement: true));
             }
 
             foreach (var locId in world.Locations.OrderedIds)
@@ -100,11 +113,12 @@ namespace EchoSim.Simulation
                     preconditions: null,
                     effects: MoveEffects(world, LocationKey(locId), includeHomeAlias: false),
                     baseCost: 1.00f, durationMinutes: 15,
-                    requiredLocation: locId));
+                    requiredLocation: locId,
+                    isMovement: true));
             }
 
             // --- Food chain ---
-            if (roles.Cafe.HasValue)
+            if (roles.Cafe.HasValue && AffordanceAllows("act_buy_meal", roles.Cafe))
             {
                 var cafe = roles.Cafe.Value;
                 list.Add(new PlanningAction(
@@ -117,7 +131,7 @@ namespace EchoSim.Simulation
                     interruptible: false));
             }
 
-            if (roles.Store.HasValue)
+            if (roles.Store.HasValue && AffordanceAllows("act_buy_ingredients", roles.Store))
             {
                 var store = roles.Store.Value;
                 list.Add(new PlanningAction(
@@ -130,7 +144,7 @@ namespace EchoSim.Simulation
                     interruptible: false));
             }
 
-            if (hasHome)
+            if (hasHome && AffordanceAllows("act_get_ingredients", homeId))
             {
                 list.Add(new PlanningAction(
                     new ActionId("act_get_ingredients"), "GetFood",
@@ -170,7 +184,7 @@ namespace EchoSim.Simulation
                 relief: new[] { new ActivityRelief(NeedKind.Hunger, 55f) }));
 
             // --- Rest & leisure ---
-            if (hasHome)
+            if (hasHome && AffordanceAllows("act_sleep", homeId))
             {
                 list.Add(new PlanningAction(
                     new ActionId("act_sleep"), "Sleep",

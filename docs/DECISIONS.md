@@ -100,3 +100,14 @@ from survival needs and starved plans.
 preempt. An interrupting need a committed goal does not relieve breaks that
 commitment before re-selection.
 **Consequences.** Interruptions feel survival-first; tuning stays data-driven.
+
+## D12 — Navigation contract now, NavMesh later
+**Context.** The spec separates semantic movement from physical execution
+(§4.2), but the Unity editor round-trip isn't part of headless sprints.
+**Decision.** `INavigationService` is the seam; `TimedNavigationService`
+(authored travel minutes + scheduler arrivals) is the headless implementation.
+The future Unity adapter implements the same interface over NavMeshAgents.
+Callers always receive exactly one resolution per request (arrival, failure, or
+superseded) — verified by tests.
+**Consequences.** Planning/execution never changes when real navigation lands;
+travel times are authored data, trivially replaceable by pathfinding distances.

@@ -51,6 +51,8 @@ namespace EchoSim.Simulation
         public bool Interruptible { get; }
         /// <summary>Location this action must be performed at (null = anywhere).</summary>
         public LocationId? RequiredLocation { get; }
+        /// <summary>True for travel actions whose executor time is the navigation ETA.</summary>
+        public bool IsMovement { get; }
 
         public PlanningAction(ActionId id, string displayName,
             IEnumerable<FactCondition>? preconditions,
@@ -60,7 +62,8 @@ namespace EchoSim.Simulation
             LocationId? requiredLocation = null,
             IEnumerable<ActivityRelief>? relief = null,
             Func<ActionCostContext, float>? dynamicCost = null,
-            bool interruptible = true)
+            bool interruptible = true,
+            bool isMovement = false)
         {
             Id = id;
             DisplayName = displayName ?? throw new ArgumentNullException(nameof(displayName));
@@ -80,6 +83,7 @@ namespace EchoSim.Simulation
             Relief = relief?.ToList() ?? new List<ActivityRelief>();
             DynamicCost = dynamicCost;
             Interruptible = interruptible;
+            IsMovement = isMovement;
         }
 
         public bool IsApplicableIn(PlannerWorldState state) => state.SatisfiesAll(Preconditions);

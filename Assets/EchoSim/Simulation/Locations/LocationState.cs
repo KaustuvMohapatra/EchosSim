@@ -86,5 +86,12 @@ namespace EchoSim.Simulation
                 throw new KeyNotFoundException($"Unknown location '{id}'.");
             return state!;
         }
+
+        internal void Remove(LocationId id)
+        {
+            if (!_states.Remove(id))
+                throw new KeyNotFoundException($"Unknown location '{id}'.");
+            _order.Remove(id);
+        }
     }
 }

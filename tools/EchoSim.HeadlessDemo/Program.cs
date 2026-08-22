@@ -7,11 +7,11 @@ using EchoSim.Simulation;
 namespace EchoSim.HeadlessDemo
 {
     /// <summary>
-    /// Sprint 3 demo: GOAP planning under changing conditions.
-    ///   A: cafe open        -> GoToCafe > BuyFood > Eat
-    ///   B: cafe closed      -> GoHome > CookFood > Eat
-    ///   C: pantry empty too -> GoToStore > BuyIngredients > GoHome > CookFood > Eat
-    /// Plus a live executed day showing a critical interruption forcing a replan.
+    /// Sprint 4 demo: GOAP over a navigable town.
+    ///   A/B/C planning branches as before, plus:
+    ///   - authored travel minutes between locations (movement consumes them)
+    ///   - affordance-gated actions (bed, fridge, counters)
+    ///   - seat reservations with denial on conflict
     /// Deterministic for a given seed.
     /// </summary>
     internal static class Program
@@ -19,7 +19,7 @@ namespace EchoSim.HeadlessDemo
         private static void Main(string[] args)
         {
             ulong seed = args.Length > 0 && ulong.TryParse(args[0], out var s) ? s : 1234UL;
-            Console.Out.WriteLine($"EchoSim sprint-3 demo | seed={seed}");
+            Console.Out.WriteLine($"EchoSim sprint-4 demo | seed={seed}");
 
             ScenarioA(seed);
             ScenarioB(seed);
@@ -33,13 +33,29 @@ namespace EchoSim.HeadlessDemo
             world.RegisterLocation(new LocationDefinition(new LocationId("loc_home_dee"), "Dee's Home"));
             world.RegisterLocation(new LocationDefinition(new LocationId("loc_cafe"), "Corner Cafe"));
             world.RegisterLocation(new LocationDefinition(new LocationId("loc_store"), "General Store"));
+
+            // Sprint 4: authored travel minutes.
+            var nav = (TimedNavigationService)world.Navigation;
+            var home = new LocationId("loc_home_dee");
+            var cafe = new LocationId("loc_cafe");
+            var store = new LocationId("loc_store");
+            nav.SetTravelTime(home, cafe, 20);
+            nav.SetTravelTime(home, store, 15);
+            nav.SetTravelTime(cafe, store, 10);
+
+            // Sprint 4: affordances gate what actions exist where (spec §4.5).
+            world.Affordances.Register(home, new ActionId("act_sleep"), "bed");
+            world.Affordances.Register(home, new ActionId("act_get_ingredients"), "fridge");
+            world.Affordances.Register(cafe, new ActionId("act_buy_meal"), "cafe counter");
+            world.Affordances.Register(store, new ActionId("act_buy_ingredients"), "shop counter");
             return world;
         }
 
         private static TownRoles Roles() => new TownRoles
         {
             Cafe = new LocationId("loc_cafe"),
-            Store = new LocationId("loc_store")
+            Store = new LocationId("loc_store"),
+            GateByAffordances = true
         };
 
         private static AgentMind Spawn(SimulationWorld world, int hunger, int fun = 20, int pantry = 2)

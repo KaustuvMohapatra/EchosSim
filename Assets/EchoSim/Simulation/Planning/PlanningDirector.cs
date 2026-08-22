@@ -243,9 +243,36 @@ namespace EchoSim.Simulation
                 return;
             }
 
-            // Movement/verification: ensure presence at the required location.
-            if (action.RequiredLocation.HasValue)
+            // Movement: real travel through the navigation service when the target
+            // differs; step completion arrives with arrival (spec §4.2/§4.3).
+            if (action.IsMovement && action.RequiredLocation.HasValue)
             {
+                var dest = action.RequiredLocation.Value;
+                var agentState = _world.Agents.Get(agent);
+                if (!agentState.HasLocation || agentState.CurrentLocationId != dest)
+                {
+                    long gen = run.Generation;
+                    int idx = run.NextStepIndex;
+                    var request = _world.Navigation.BeginMove(agent, dest, arrival =>
+                    {
+                        if (arrival.Success)
+                            CompleteStepIfCurrent(agent, gen, idx);
+                        else
+                            FailStep(agent, MapNavigationFailure(arrival.Failure), arrival.Failure.ToString());
+                    });
+                    if (!request.Accepted)
+                    {
+                        FailStep(agent, ActionFailureType.PathUnavailable, "navigation rejected");
+                        return;
+                    }
+                    run.Lifecycle = PlanLifecycle.Running;
+                    return;
+                }
+                // Already at destination: fall through to instant completion below.
+            }
+            else if (action.RequiredLocation.HasValue)
+            {
+                // Non-movement on-site action: the planner guarantees presence.
                 var target = action.RequiredLocation.Value;
                 var runtimeState = _world.Locations.Get(target);
                 if (!runtimeState.IsOpen)
@@ -256,16 +283,25 @@ namespace EchoSim.Simulation
                 var agentState = _world.Agents.Get(agent);
                 if (!agentState.HasLocation || agentState.CurrentLocationId != target)
                 {
-                    try
-                    {
-                        _world.MoveAgent(agent, target);
-                    }
-                    catch (InvalidOperationException ex)
-                    {
-                        FailStep(agent, Classify(ex), ex.Message);
-                        return;
-                    }
+                    FailStep(agent, ActionFailureType.TargetUnavailable,
+                        "not at required location " + target.Value);
+                    return;
                 }
+            }
+
+            // Seat reservation for cafe consumption steps (spec §4.7 / §3.7).
+            if (_roles.Cafe.HasValue && action.RequiredLocation == _roles.Cafe &&
+                (action.Id.Value == "act_buy_meal" || action.Id.Value == "act_eat"))
+            {
+                var seat = new ResourceId("seat:" + _roles.Cafe.Value.Value);
+                int hold = Math.Max(action.DurationMinutes, 1) + 15;
+                var until = _world.Clock.CurrentTime.Add(SimDuration.FromMinutes(hold));
+                if (!_world.Reservations.Reserve(seat, agent, until))
+                {
+                    FailStep(agent, ActionFailureType.ReservationDenied, "no free seat at " + _roles.Cafe.Value.Value);
+                    return;
+                }
+                _heldSeats[agent] = seat;
             }
 
             run.Lifecycle = PlanLifecycle.Running;
@@ -282,6 +318,16 @@ namespace EchoSim.Simulation
                 _ => CompleteStepIfCurrent(agent, generation, stepIndex),
                 label: agent.Value + ":" + action.Id.Value);
         }
+
+        private readonly Dictionary<AgentId, ResourceId> _heldSeats = new Dictionary<AgentId, ResourceId>();
+
+        private static ActionFailureType MapNavigationFailure(NavigationFailure failure) => failure switch
+        {
+            NavigationFailure.DestinationBlocked => ActionFailureType.LocationClosed,
+            NavigationFailure.TargetDestroyed => ActionFailureType.TargetUnavailable,
+            NavigationFailure.NoProgress => ActionFailureType.Timeout,
+            _ => ActionFailureType.PathUnavailable
+        };
 
         /// <summary>
         /// Scheduled completions are stamped with the run's generation and step index;
@@ -366,9 +412,19 @@ namespace EchoSim.Simulation
         private void FinishRun(AgentId agent, GoalId goal, PlanLifecycle outcome, string reason)
         {
             if (_active.ContainsKey(agent)) _active.Remove(agent);
+            ReleaseHeldSeat(agent);
             // Invalidate any callbacks still pending for this run.
             NextGeneration(agent);
             _world.Events.Publish(new PlanFinishedEvent(agent, goal, outcome, reason, _world.Clock.CurrentTime));
+        }
+
+        private void ReleaseHeldSeat(AgentId agent)
+        {
+            if (_heldSeats.TryGetValue(agent, out var seat))
+            {
+                _heldSeats.Remove(agent);
+                _world.Reservations.Release(seat, agent);
+            }
         }
     }
 }

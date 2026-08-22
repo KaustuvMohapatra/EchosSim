@@ -211,3 +211,58 @@ Format follows master spec §15. Reports are appended; newest at bottom.
 17. **Recommended next sprint work.** Sprint 4: INavigationService with real
     travel times, stuck detection, affordances registry, reservation service.
 18. **Anything unverified.** Nothing within sprint scope.
+
+---
+
+## SPRINT 4 COMPLETE — Navigation, Affordances & Reservations
+
+1. **Summary.** Semantic movement became physical travel: `INavigationService`
+   with a timed headless implementation (authored symmetric travel minutes,
+   scheduler-driven arrivals, supersede/cancel, ETA+grace stuck detection),
+   an `AffordanceRegistry` answering "what can be done where", and a
+   `ReservationService` with ownership, expiry sweeps and contention reclaim.
+   Plan execution now consumes real travel time; cafe seats are reserved and
+   can be denied.
+2. **Architecture implemented.** `Simulation/Navigation/*`, `Simulation/World/*`;
+   services owned by `SimulationWorld`; the Unity NavMesh adapter will
+   implement the same `INavigationService` contract later without touching
+   planning/execution (spec §4.2).
+3. **Files created.** `INavigationService.cs`, `TimedNavigationService.cs`,
+   `Affordances.cs` (registry + reservations), tests
+   `NavigationAffordanceReservationTests.cs`.
+4. **Files modified.** Core IDs (+`ResourceId`); `PlanningAction` (+`IsMovement`);
+   `StandardActions` (movement flags + affordance gating via
+   `TownRoles.GateByAffordances`, `act_go_home` gained its required location);
+   `SimulationWorld` (+services, +`RemoveLocation`);
+   `LocationRepository` (+Remove); `PlanningDirector` (nav-driven movement,
+   seat reservation/denial/release); demo town authored with travel+affordances.
+5. **Public APIs.** `INavigationService`, `TimedNavigationService`,
+   `NavigationState/PathStatus/Failure/RequestResult/Arrival`,
+   `Affordance(.Registry)`, `ReservationService`, `ResourceId`.
+6. **Data models.** Travel table: symmetric minute matrix with default fallback;
+   reservations: resource→(owner, until) with sweep-based expiry.
+7. **Tests created.** 13 new (105 total): affordance lookup/order/gating;
+   reservation conflict, ownership-validated release, owner extension,
+   simulated-time expiry, expired-hold reclaim; navigation arrival timing,
+   supersede resolution, target destruction, blocked destination, stuck after
+   grace.
+8. **Tests executed.** Yes — **Passed! 105/105**.
+9. **Build result.** Succeeded, 0 warnings / 0 errors.
+10. **Demo result.** Live run shows authored travel honored (goto=20 min:
+    00:45→01:05), full eat chain completes at 01:40; two runs byte-identical.
+11. **Bugs found & fixed this sprint.** Superseded trips never resolved their
+    caller's callback — cancellation now reports failure exactly once per
+    request. Also repaired a self-inflicted factory edit that had broken the
+    GetFood gating block before it ever compiled.
+12. **Performance notes.** Stuck/expiry sweeps are O(trips)/O(holds) per 5 min;
+    fine for current scale.
+13. **Known limitations.** Occlusion-free perception still pending (Sprint 6);
+    single seat resource per location; no pathfinding graph (direct pairs).
+14. **Technical debt.** `TownRoles.GateByAffordances` transitional flag until
+    all fixtures register affordances.
+15. **Documentation updated.** This report; ROADMAP Sprint 4 done; DECISIONS
+    D12 added; TESTING map updated.
+16. **Git status.** Committed on `feature/echosim`.
+17. **Recommended next sprint work.** Sprint 5: schedules, jobs, opening hours,
+    weekday/weekend rhythm, seeded routine offsets feeding schedule pressure.
+18. **Anything unverified.** Nothing within sprint scope.
