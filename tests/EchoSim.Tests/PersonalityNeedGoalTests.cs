@@ -85,11 +85,11 @@ namespace EchoSim.Tests
         {
             var set = NewSet(new Dictionary<NeedKind, float>
             {
-                [NeedKind.Energy] = 90f,   // most urgent overall, below its interrupt threshold (95)
-                [NeedKind.Hygiene] = 88f   // breaches hygiene's interrupt threshold (87)
+                [NeedKind.Energy] = 94f,   // most urgent overall, below its interrupt threshold (95)
+                [NeedKind.Social] = 93f    // breaches social's interrupt threshold (93)
             });
             Assert.AreEqual(NeedKind.Energy, set.MostUrgent()!.Definition.Kind);
-            Assert.AreEqual(NeedKind.Hygiene, set.FindInterrupting()!.Definition.Kind);
+            Assert.AreEqual(NeedKind.Social, set.FindInterrupting()!.Definition.Kind);
         }
     }
 

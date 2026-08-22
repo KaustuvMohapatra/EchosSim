@@ -85,10 +85,13 @@ namespace EchoSim.Simulation
         public IReadOnlyList<NeedKind> ReliefNeeds { get; }
         /// <summary>Whether an interrupting need may force-select this goal.</summary>
         public bool CriticalEligible { get; }
+        /// <summary>Planner binding: facts that must hold for this goal to be satisfied (Sprint 3).</summary>
+        public IReadOnlyList<FactCondition>? DesiredFacts { get; }
 
         public GoalDefinition(GoalId id, string displayName, float baseScore,
             IEnumerable<ScoreTerm> terms, IEnumerable<NeedKind>? reliefNeeds = null,
-            float switchPenalty = 0.08f, bool criticalEligible = false)
+            float switchPenalty = 0.08f, bool criticalEligible = false,
+            IEnumerable<FactCondition>? desiredFacts = null)
         {
             Id = id;
             DisplayName = displayName ?? throw new ArgumentNullException(nameof(displayName));
@@ -98,6 +101,7 @@ namespace EchoSim.Simulation
             ReliefNeeds = reliefNeeds?.ToList() ?? new List<NeedKind>();
             SwitchPenalty = switchPenalty >= 0f ? switchPenalty : throw new ArgumentOutOfRangeException(nameof(switchPenalty));
             CriticalEligible = criticalEligible;
+            DesiredFacts = desiredFacts?.ToList();
         }
     }
 

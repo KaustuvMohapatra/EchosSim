@@ -54,6 +54,13 @@ namespace EchoSim.Simulation
         }
 
         public float EmotionValence { get; internal set; }
+
+        /// <summary>
+        /// Persistent planner facts for this resident (has_meal, has_ingredients, ...).
+        /// Written back by plan execution so future replans observe past results.
+        /// Ephemeral completion flags are reset per replan by the state builder.
+        /// </summary>
+        public IDictionary<string, int> PlannerMemory { get; } = new Dictionary<string, int>(StringComparer.Ordinal);
     }
 
     /// <summary>Authored description used to spawn a full resident.</summary>

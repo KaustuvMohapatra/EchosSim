@@ -148,3 +148,66 @@ Format follows master spec §15. Reports are appended; newest at bottom.
 16. **Recommended next sprint work.** Sprint 3 GOAP: planner world state,
     action definitions, A* search, executor lifecycle, failure taxonomy.
 17. **Anything unverified.** Nothing within sprint scope.
+
+---
+
+## SPRINT 3 COMPLETE — GOAP Planning
+
+1. **Summary.** Intentions became plans: compact fact-based planner state with
+   canonical hashing, data-driven planning actions (preconditions/effects/base+
+   dynamic cost/durations/location binding/need relief), a uniform-cost best-first
+   planner (closed set, expansion+depth caps, structured failure reasons), and a
+   PlanningDirector executing plans in simulated time with lifecycle events,
+   critical interruption, deferred replanning, and generation-tokened completions.
+2. **Architecture implemented.** `Simulation/Planning/*`; `PlanningDirector`
+   bridges `CognitionSystem` decisions to the planner and scheduler; per-resident
+   action instantiation keeps home-relative facts uniform; `PlannerStateBuilder`
+   projects world+memory into resident-scoped knowledge.
+3. **Files created.** `PlannerWorldState.cs`, `PlanningAction.cs`,
+   `GoapPlanner.cs`, `StandardActions.cs` (+`TownRoles`),
+   `PlannerStateBuilder.cs`, `PlanningDirector.cs`, tests `GoapTests.cs`.
+4. **Files modified.** `GoalDefinition` (+`DesiredFacts`), `StandardGoals`
+   (+planner bindings), `AgentMind` (+`PlannerMemory`), `CognitionSystem`
+   (+commitment-break on unrelieved interrupts, +`FindGoal`), demo rewritten to
+   the §3 scenario matrix, Core gained an `IsExternalInit` polyfill.
+5. **Public APIs.** `FactCondition/FactEffect/FactOperator/FactEffectMode`,
+   `PlannerWorldState`, `PlanningAction`, `ActionCostContext`, `ActivityRelief`,
+   `GoapPlan/PlanResult/PlannerMetrics/PlanFailureReason`, `GoapPlanner`,
+   `TownRoles`, `StandardActions`, `PlannerStateBuilder`, `PlanLifecycle`,
+   `ActionFailureType`, `ActiveExecution`, `IPlanIntervention`,
+   `PlanningDirector`, typed events `PlanStarted/StepCompleted/Finished`.
+6. **Data models.** Facts are string-keyed ints; goals bind via
+   `DesiredFacts`; execution persists non-ephemeral effects into
+   `AgentMind.PlannerMemory`; ephemeral completion flags reset per build.
+7. **Tests created.** 18 new (92 total) covering spec §3 acceptance: valid /
+   cheapest / alternative / impossible plans, cycle avoidance, max-expansions,
+   deterministic ties, dynamic costs, state hashing, cafe-open & cafe-closed
+   integration runs, intervention→failure→replan recovery, critical preemption,
+   day-replay determinism, and a regression test for stale-completion isolation.
+8. **Tests executed.** Yes — **Passed! 92/92**.
+9. **Build result.** Succeeded, 0 warnings / 0 errors.
+10. **Demo result.** Spec §3 branches verified: cafe open → GoTo>Buy>Eat;
+    closed → GetFood>Cook>Eat; empty pantry → Store>BuyIngredients>GoHome>Cook>
+    Eat. Live run: relax plan cancelled by hunger spike at 00:45 → eat chain
+    executed with exact durations (15/12/20 min steps) → success 01:35. Two runs
+    byte-identical (SHA256 match).
+11. **Bugs found & fixed this sprint.**
+    - Planner returned expensive single-step plans (goal checked at child
+      generation instead of pop) — fixed to true uniform-cost search.
+    - Cancelled plans' scheduled callbacks consumed steps of newer plans — fixed
+      via run generations + step-index stamps (`CompleteStepIfCurrent`).
+    - Commitment hysteresis vs interruption livelock — unrelieved interrupting
+      needs now release commitment before re-selection.
+    - Interrupt thresholds retuned so comfort needs never outrank survival needs.
+12. **Performance notes.** Search clones states per node (fine at ≤4000
+    expansions); extract-min is linear scan; flagged for §27 heap optimization.
+13. **Known limitations.** Movement is instant teleport with fixed 15-min cost
+    (real travel = Sprint 4); no reservations yet; money facts placeholder.
+14. **Technical debt.** Action set rebuilt per decision (cheap but wasteful);
+    dynamic costs evaluated once per plan call (documented).
+15. **Documentation updated.** This report; ROADMAP Sprint 3 marked done;
+    DECISIONS D9–D11 added; TESTING map updated.
+16. **Git status.** Committed on `feature/echosim`.
+17. **Recommended next sprint work.** Sprint 4: INavigationService with real
+    travel times, stuck detection, affordances registry, reservation service.
+18. **Anything unverified.** Nothing within sprint scope.

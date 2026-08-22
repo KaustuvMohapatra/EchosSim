@@ -44,18 +44,19 @@ namespace EchoSim.Simulation
         }
     }
 
-    /// <summary>Canonical default need tuning. Activities may layer modifiers on top.</summary>
+    /// <summary>Canonical default need tuning. Activities may layer modifiers on top.
+    /// Interrupt thresholds are ordered: survival needs interrupt before comfort needs.</summary>
     public static class StandardNeeds
     {
         public static IReadOnlyList<NeedDefinition> Library() => new[]
         {
             new NeedDefinition(NeedKind.Hunger,  3.5f, 30f, 80f, 92f),
             new NeedDefinition(NeedKind.Energy,  2.8f, 22f, 85f, 95f),
-            new NeedDefinition(NeedKind.Social,  1.9f, 25f, 75f, 90f),
-            new NeedDefinition(NeedKind.Fun,     2.4f, 30f, 78f, 88f),
-            new NeedDefinition(NeedKind.Comfort, 1.4f, 35f, 72f, 86f),
-            new NeedDefinition(NeedKind.Hygiene, 1.7f, 32f, 79f, 87f),
-            new NeedDefinition(NeedKind.Safety,  0.9f, 40f, 82f, 94f)
+            new NeedDefinition(NeedKind.Social,  1.9f, 25f, 75f, 93f),
+            new NeedDefinition(NeedKind.Fun,     2.4f, 30f, 78f, 97f),
+            new NeedDefinition(NeedKind.Comfort, 1.4f, 35f, 72f, 96f),
+            new NeedDefinition(NeedKind.Hygiene, 1.7f, 32f, 79f, 96f),
+            new NeedDefinition(NeedKind.Safety,  0.9f, 40f, 82f, 98f)
         };
     }
 

@@ -68,3 +68,35 @@ advances, capacity overflow/underflow all throw immediately. Event-bus handler
 faults run remaining handlers first, then surface an aggregate exception.
 **Consequences.** Loud failures during development; soak tests (Sprint 28) rely on
 invariants being non-negotiable.
+
+## D9 — Per-resident action instantiation
+**Context.** GOAP actions are data, but home-relative facts ("at_home") differ
+per resident while goal definitions are shared.
+**Decision.** `StandardActions.CreateForResident(world, agent, roles)` builds
+concrete action instances per decision cycle; shared role locations come from
+`TownRoles` (explicit or convention-detected).
+**Consequences.** Uniform fact vocabulary across residents; small per-decision
+allocation cost accepted until §27.
+
+## D10 — Goal test on pop; deferred replanning; generation-tokened completions
+**Context.** Sprint 3 demos exposed three correctness traps: greedy early goal
+tests returned expensive plans; synchronous cancel→replan cycles could spin
+without simulated time advancing; cancelled plans left scheduler callbacks that
+consumed steps of newer plans.
+**Decision.** (1) The planner tests goals when popping nodes, so the cheapest
+complete path always wins. (2) `PlanningDirector` never replans recursively —
+failures/interruptions cancel and yield; the next external tick decides afresh.
+(3) Scheduled completions carry `(generation, stepIndex)` stamps and are
+discarded unless both match (`CompleteStepIfCurrent`).
+**Consequences.** Bounded work per tick, exact durations, no cross-plan
+contamination; replanning latency is bounded by host tick size instead of being
+instant.
+
+## D11 — Interrupt thresholds ordered by need class
+**Context.** With uniform thresholds, comfort needs (Fun at 96+) hijacked agency
+from survival needs and starved plans.
+**Decision.** `StandardNeeds` orders interrupt thresholds: Hunger 92 < Energy 95
+< Social 93… with Fun/Comfort/Hygiene/Safety at 96–98, so only genuine urgencies
+preempt. An interrupting need a committed goal does not relieve breaks that
+commitment before re-selection.
+**Consequences.** Interruptions feel survival-first; tuning stays data-driven.

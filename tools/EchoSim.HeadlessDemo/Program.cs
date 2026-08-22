@@ -7,11 +7,11 @@ using EchoSim.Simulation;
 namespace EchoSim.HeadlessDemo
 {
     /// <summary>
-    /// Sprint 2 demo: personality-driven utility selection.
-    /// Two residents with identical needs except the ones under test:
-    ///   - r_extravert: sociability 0.95, elevated social need
-    ///   - r_introvert: sociability 0.05, elevated hunger
-    /// Decisions are logged hourly with explainable score breakdowns.
+    /// Sprint 3 demo: GOAP planning under changing conditions.
+    ///   A: cafe open        -> GoToCafe > BuyFood > Eat
+    ///   B: cafe closed      -> GoHome > CookFood > Eat
+    ///   C: pantry empty too -> GoToStore > BuyIngredients > GoHome > CookFood > Eat
+    /// Plus a live executed day showing a critical interruption forcing a replan.
     /// Deterministic for a given seed.
     /// </summary>
     internal static class Program
@@ -19,66 +19,118 @@ namespace EchoSim.HeadlessDemo
         private static void Main(string[] args)
         {
             ulong seed = args.Length > 0 && ulong.TryParse(args[0], out var s) ? s : 1234UL;
-            var world = SimulationBootstrap.CreateWorld(new SimulationConfiguration(seed));
-            Console.Out.WriteLine($"EchoSim sprint-2 demo | seed={seed} | start={world.Clock.CurrentTime}");
+            Console.Out.WriteLine($"EchoSim sprint-3 demo | seed={seed}");
 
-            world.RegisterLocation(new LocationDefinition(new LocationId("loc_home_a"), "Shared House"));
-            world.RegisterLocation(new LocationDefinition(new LocationId("loc_cafe"), "Corner Cafe"));
-            world.RegisterLocation(new LocationDefinition(new LocationId("loc_library"), "Town Library"));
-
-            var (_, extravert) = world.SpawnResident(new ResidentSpec("r_extravert", "Vera")
-            {
-                HomeLocationId = "loc_home_a",
-                Personality = PersonalityProfile.Balanced().Edit()
-                    .Set(PersonalityTrait.Sociability, 0.95f)
-                    .Set(PersonalityTrait.Extraversion, 0.9f)
-                    .Build(),
-                InitialNeeds = new Dictionary<NeedKind, float> { [NeedKind.Social] = 65f, [NeedKind.Hunger] = 30f }
-            });
-
-            var (_, introvert) = world.SpawnResident(new ResidentSpec("r_introvert", "Ivo")
-            {
-                HomeLocationId = "loc_home_a",
-                Personality = PersonalityProfile.Balanced().Edit()
-                    .Set(PersonalityTrait.Sociability, 0.05f)
-                    .Set(PersonalityTrait.Extraversion, 0.15f)
-                    .Build(),
-                InitialNeeds = new Dictionary<NeedKind, float> { [NeedKind.Social] = 20f, [NeedKind.Hunger] = 82f }
-            });
-
-            var cognition = new CognitionSystem(world);
-
-            for (int hour = 0; hour < 10; hour++)
-            {
-                cognition.AdvanceNeeds(SimDuration.FromHours(1));
-                world.Clock.Advance(SimDuration.FromHours(1));
-
-                foreach (var pair in new[] { ("VERA", extravert), ("IVO ", introvert) })
-                {
-                    var decision = cognition.Decide(pair.Item2.Agent);
-                    if (hour % 2 == 0 || decision.Effective.CriticalOverride)
-                        LogDecision(pair.Item1, pair.Item2, decision);
-                }
-            }
-
-            Console.Out.WriteLine("--- SUMMARY ---");
-            foreach (var mind in new[] { extravert, introvert })
-            {
-                var needs = mind.Needs.All
-                    .Select(n => n.Definition.Kind + "=" + n.Current.ToString("0", System.Globalization.CultureInfo.InvariantCulture));
-                Console.Out.WriteLine($"{mind.Agent,-14} goal={mind.CurrentGoalId} needs: {string.Join(" ", needs)}");
-            }
+            ScenarioA(seed);
+            ScenarioB(seed);
+            ScenarioC(seed);
+            LiveRunWithInterruption(seed);
         }
 
-        private static void LogDecision(string label, AgentMind mind, GoalDecision decision)
+        private static SimulationWorld NewTown(ulong seed)
         {
-            var e = decision.Effective;
-            Console.Out.WriteLine(
-                $"[{label}] pick={e.DisplayName,-9} score={e.Final.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)}" +
-                (decision.KeptPrevious ? " kept(hysteresis)" : "") +
-                (e.CriticalOverride ? " CRITICAL" : ""));
-            foreach (var line in e.Breakdown.Take(3))
-                Console.Out.WriteLine("           " + line);
+            var world = SimulationBootstrap.CreateWorld(new SimulationConfiguration(seed));
+            world.RegisterLocation(new LocationDefinition(new LocationId("loc_home_dee"), "Dee's Home"));
+            world.RegisterLocation(new LocationDefinition(new LocationId("loc_cafe"), "Corner Cafe"));
+            world.RegisterLocation(new LocationDefinition(new LocationId("loc_store"), "General Store"));
+            return world;
         }
+
+        private static TownRoles Roles() => new TownRoles
+        {
+            Cafe = new LocationId("loc_cafe"),
+            Store = new LocationId("loc_store")
+        };
+
+        private static AgentMind Spawn(SimulationWorld world, int hunger, int fun = 20, int pantry = 2)
+        {
+            var (_, mind) = world.SpawnResident(new ResidentSpec("npc_dee", "Dee")
+            {
+                HomeLocationId = "loc_home_dee",
+                Personality = PersonalityProfile.Balanced(),
+                InitialNeeds = new Dictionary<NeedKind, float> { [NeedKind.Hunger] = hunger, [NeedKind.Fun] = fun }
+            });
+            mind.PlannerMemory[StandardActions.PantryStock] = pantry;
+            return mind;
+        }
+
+        private static void PrintPlan(string label, ActiveExecution? run)
+        {
+            if (run == null) { Console.Out.WriteLine($"{label}: no active plan"); return; }
+            var chain = string.Join(" > ", run.Plan.Steps.Select(st => st.DisplayName));
+            string cost = run.Plan.TotalCost.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+            Console.Out.WriteLine($"{label} goal={run.Goal} cost={cost}");
+            Console.Out.WriteLine($"    {chain}");
+        }
+
+        private static void ScenarioA(ulong seed)
+        {
+            var world = NewTown(seed);
+            var cognition = new CognitionSystem(world);
+            var director = new PlanningDirector(world, cognition, roles: Roles());
+            var mind = Spawn(world, hunger: 88);
+
+            director.Tick(mind.Agent);
+            PrintPlan("[A cafe-open ]", director.PeekActive(mind.Agent));
+        }
+
+        private static void ScenarioB(ulong seed)
+        {
+            var world = NewTown(seed);
+            world.Locations.Get(new LocationId("loc_cafe")).SetOpen(false);
+            var cognition = new CognitionSystem(world);
+            var director = new PlanningDirector(world, cognition, roles: Roles());
+            var mind = Spawn(world, hunger: 88);
+
+            director.Tick(mind.Agent);
+            PrintPlan("[B cafe-closed]", director.PeekActive(mind.Agent));
+        }
+
+        private static void ScenarioC(ulong seed)
+        {
+            var world = NewTown(seed);
+            world.Locations.Get(new LocationId("loc_cafe")).SetOpen(false);
+            var cognition = new CognitionSystem(world);
+            var director = new PlanningDirector(world, cognition, roles: Roles());
+            var mind = Spawn(world, hunger: 88, pantry: 0);
+
+            director.Tick(mind.Agent);
+            PrintPlan("[C no-pantry  ]", director.PeekActive(mind.Agent));
+        }
+
+        private static void LiveRunWithInterruption(ulong seed)
+        {
+            Console.Out.WriteLine("--- live day: critical interruption forces replan ---");
+            var world = NewTown(seed);
+            var cognition = new CognitionSystem(world);
+            var director = new PlanningDirector(world, cognition, roles: Roles());
+            var mind = Spawn(world, hunger: 15, fun: 96); // fun urgent -> Relax plan
+
+            world.Events.Subscribe<PlanStartedEvent>(e =>
+                Line(e.AtTime, $"plan-start {e.Agent} goal={e.Goal} steps={e.StepCount}"));
+            world.Events.Subscribe<PlanStepCompletedEvent>(e =>
+                Line(e.AtTime, $"step-done  {e.Action} ({e.StepIndex + 1})"));
+            world.Events.Subscribe<PlanFinishedEvent>(e =>
+                Line(e.AtTime, $"plan-{e.Outcome.ToString().ToLowerInvariant(),9} {e.Goal} reason={e.Reason}"));
+
+            // Mid-plan hunger spike crosses the interrupt threshold.
+            var spikeTime = new SimTime(0, 0, 45);
+            world.Scheduler.ScheduleAt(spikeTime,
+                _ => world.Residents.Get(mind.Agent).Needs.Get(NeedKind.Hunger).Apply(-90f),
+                "missed-meals");
+
+            for (int t = 0; t < 60 * 4 && (t == 0 || director.IsBusy(mind.Agent)); t += 5)
+            {
+                cognition.AdvanceNeeds(SimDuration.FromMinutes(t == 0 ? 0 : 5));
+                world.Clock.Advance(SimDuration.FromMinutes(t == 0 ? 0 : 5));
+                director.Tick(mind.Agent);
+            }
+
+            Console.Out.WriteLine($"final: t={world.Clock.CurrentTime} at={world.Agents.Get(mind.Agent).CurrentLocationId} " +
+                $"hunger={mind.Needs.Get(NeedKind.Hunger).Current:0}");
+        }
+
+        private static void Line(SimTime time, string message) =>
+            Console.Out.WriteLine($"[{time}] {message}");
     }
 }

@@ -68,6 +68,21 @@ namespace EchoSim.Simulation
         {
             var mind = _world.Residents.Get(agent);
             var now = _world.Clock.CurrentTime;
+
+            // An interrupting need the commitment does NOT relieve breaks the
+            // commitment; otherwise hysteresis and interruption would contradict
+            // each other and livelock between cancel and re-select.
+            var interrupting = mind.Needs.FindInterrupting();
+            if (interrupting != null && mind.HasCommitment)
+            {
+                var committedReliefs = mind.CommittedGoal!.ReliefNeeds;
+                bool relieves = false;
+                for (int i = 0; i < committedReliefs.Count; i++)
+                    if (committedReliefs[i] == interrupting.Definition.Kind) { relieves = true; break; }
+                if (!relieves)
+                    mind.ReleaseCommitment();
+            }
+
             var result = _selector.Select(BuildContext(mind), _goals);
 
             if (result.Winner == null)
@@ -85,7 +100,7 @@ namespace EchoSim.Simulation
 
             // Critical overrides release any prior commitment immediately.
             mind.ReleaseCommitment();
-            mind.CommittedGoal = FindDefinition(winner.Goal);
+            mind.CommittedGoal = FindGoal(winner.Goal);
             mind.NoteSelection(winner.Goal, now);
             return new GoalDecision(result, winner, keptPrevious: false);
         }
@@ -103,17 +118,19 @@ namespace EchoSim.Simulation
                 lastSelectedAt: mind.LastSelectedAt);
         }
 
+        public GoalDefinition? FindGoal(GoalId id)
+        {
+            for (int i = 0; i < _goals.Count; i++)
+                if (_goals[i].Id == id) return _goals[i];
+            return null;
+        }
+
+        public IReadOnlyList<GoalDefinition> Goals => _goals;
+
         private GoalScoreEntry? FindEntry(GoalSelectionResult result, GoalId id)
         {
             for (int i = 0; i < result.Ranked.Count; i++)
                 if (result.Ranked[i].Goal == id) return result.Ranked[i];
-            return null;
-        }
-
-        private GoalDefinition? FindDefinition(GoalId id)
-        {
-            for (int i = 0; i < _goals.Count; i++)
-                if (_goals[i].Id == id) return _goals[i];
             return null;
         }
     }
