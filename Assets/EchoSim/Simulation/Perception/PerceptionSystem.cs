@@ -4,6 +4,13 @@ using EchoSim.Core;
 
 namespace EchoSim.Simulation
 {
+    /// <summary>Raised after an observation lands in a resident's log; downstream cognition reacts.</summary>
+    public readonly struct ObservationRecordedEvent : ISimulationEvent
+    {
+        public Observation Observation { get; }
+        public ObservationRecordedEvent(Observation observation) { Observation = observation; }
+    }
+
     /// <summary>
     /// Converts world activity into per-resident observations (spec §6).
     /// Simplified occlusion model: perception is location-based — co-located
@@ -135,6 +142,7 @@ namespace EchoSim.Simulation
             if (log.Count > _logCapacity)
                 log.RemoveAt(0);
             TotalDelivered++;
+            _world.Events.Publish(new ObservationRecordedEvent(observation));
         }
 
         /// <summary>The resident's personal observation history, oldest first.</summary>

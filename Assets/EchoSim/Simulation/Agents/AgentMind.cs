@@ -66,7 +66,10 @@ namespace EchoSim.Simulation
             return false;
         }
 
-        public float EmotionValence { get; internal set; }
+        public float EmotionValence { get; private set; }
+
+        /// <summary>Sets mood valence (-1..1); clamped (Sprint 8 writes via EmotionSystem).</summary>
+        public void SetEmotion(float valence) => EmotionValence = Math.Clamp(valence, -1f, 1f);
 
         /// <summary>
         /// Persistent planner facts for this resident (has_meal, has_ingredients, ...).
