@@ -1,0 +1,63 @@
+# ===== Unity =====
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+[Mm]emoryCaptures/
+[Rr]ecordings/
+
+# Never ignore asset meta data
+![Aa]ssets/**/*.meta
+
+# Uncommented lines: ignore large media handled by VCS/LFS policy later
+# #[Aa]ssets/AssetStoreTools*
+# /[Aa]ssets/StreamingAssets/aa/*
+
+# Visual Studio / Rider cache/options
+.vs/
+.idea/
+*.csproj
+*.sln
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.sln.docstates
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# Unity generated csproj/sln are regenerated; but we author our own dotnet solution.
+# Keep hand-authored solution/projects tracked:
+!EchoSim.sln
+!src/**/*.csproj
+!tests/**/*.csproj
+!tools/**/*.csproj
+
+# Unity crash reports
+sysinfo.txt
+crashlytics-build.properties
+
+# ===== .NET build artifacts =====
+bin/
+obj/
+artifacts/
+TestResults/
+*.binlog
+*.nuget.props
+*.nuget.targets
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== Secrets (never commit) =====
+.env
+*.key
+secrets.json

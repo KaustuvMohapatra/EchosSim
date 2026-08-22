@@ -1,0 +1,16 @@
+<Project>
+  <PropertyGroup>
+    <!-- Unity 6 (6000.x) supports C# 9. Pin the language version so the exact
+         same sources compile identically inside Unity and via dotnet CLI. -->
+    <LangVersion>9.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <Deterministic>true</Deterministic>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(MSBuildProjectExtension)' == '.csproj' AND '$(IsTestProject)' != 'true' AND '$(IsDemoProject)' != 'true'">
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <RootNamespace>EchoSim</RootNamespace>
+  </PropertyGroup>
+</Project>

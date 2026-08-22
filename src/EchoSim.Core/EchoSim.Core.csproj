@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <RootNamespace>EchoSim</RootNamespace>
+    <AssemblyName>EchoSim.Core</AssemblyName>
+  </PropertyGroup>
+
+  <!-- Source of truth lives under Assets/EchoSim/Core so Unity compiles the
+       exact same files via EchoSim.Core.asmdef. This project exists purely so
+       the engine-free domain can be compiled and tested headlessly with dotnet. -->
+  <ItemGroup>
+    <Compile Include="..\..\Assets\EchoSim\Core\**\*.cs" />
+  </ItemGroup>
+
+</Project>

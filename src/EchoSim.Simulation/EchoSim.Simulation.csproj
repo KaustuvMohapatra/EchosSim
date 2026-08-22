@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <RootNamespace>EchoSim</RootNamespace>
+    <AssemblyName>EchoSim.Simulation</AssemblyName>
+  </PropertyGroup>
+
+  <!-- Source of truth lives under Assets/EchoSim/Simulation (Unity asmdef:
+       EchoSim.Simulation). Compiled headlessly via dotnet for tests/CI. -->
+  <ItemGroup>
+    <Compile Include="..\..\Assets\EchoSim\Simulation\**\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\EchoSim.Core\EchoSim.Core.csproj" />
+  </ItemGroup>
+
+</Project>
