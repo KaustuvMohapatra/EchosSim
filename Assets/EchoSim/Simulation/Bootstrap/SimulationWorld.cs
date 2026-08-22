@@ -16,6 +16,7 @@ namespace EchoSim.Simulation
         public SimulationScheduler Scheduler { get; }
         public AgentRepository Agents { get; } = new AgentRepository();
         public LocationRepository Locations { get; } = new LocationRepository();
+        public ResidentRegistry Residents { get; } = new ResidentRegistry();
 
         internal SimulationWorld(SimulationClock clock, SimRandomProvider randoms, EventBus events, SimulationScheduler scheduler)
         {
@@ -53,6 +54,19 @@ namespace EchoSim.Simulation
 
             Events.Publish(new AgentSpawnedEvent(id, placedAt, Clock.CurrentTime));
             return agent;
+        }
+
+        /// <summary>
+        /// Spawns a full resident: physical state plus cognition mind (personality + needs).
+        /// </summary>
+        public (AgentState Agent, AgentMind Mind) SpawnResident(ResidentSpec spec)
+        {
+            if (spec == null) throw new ArgumentNullException(nameof(spec));
+            var agent = SpawnAgent(spec.Id, spec.DisplayName, spec.HomeLocationId, spec.StartLocationId);
+            var needs = new NeedSet(StandardNeeds.Library(), spec.InitialNeeds);
+            var mind = new AgentMind(agent.Identity.Id, spec.Personality, needs);
+            Residents.Add(mind);
+            return (agent, mind);
         }
 
         /// <summary>Teleports an agent to a location immediately. Validates both IDs.</summary>

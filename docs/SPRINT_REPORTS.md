@@ -96,3 +96,55 @@ Format follows master spec §15. Reports are appended; newest at bottom.
     with hysteresis, utility curves + explainable goal selection.
 17. **Anything unverified.** Unity editor round-trip (first open/import) still
     pending; documented as environment follow-up.
+
+---
+
+## SPRINT 2 COMPLETE — Personality + Needs + Utility AI
+
+1. **Summary.** Residents gained internal motivation: 14-trait personality
+   profiles, seven needs with threshold dynamics and hysteresis, five utility
+   curve types, seven standard goals scored through explainable additive
+   breakdowns, and a deterministic goal selector with switch inertia,
+   re-selection cooldown and critical-need override.
+2. **Architecture implemented.** `Personality/`, `Needs/`, `Goals/`,
+   `Cognition/` namespaces; per-resident `AgentMind` owned by
+   `ResidentRegistry`; `CognitionSystem` is the seam where the Sprint 3 planner
+   plugs in.
+3. **Files created.** `PersonalityProfile.cs`, `NeedSystem.cs`
+   (definitions/state/set), `UtilityCurves.cs`, `GoalModel.cs`,
+   `GoalSelector.cs`, `StandardGoals.cs`, `AgentMind.cs` (+registry+spec),
+   `CognitionSystem.cs`; tests `PersonalityNeedGoalTests.cs`.
+4. **Files modified.** Core `Ids.cs` (+`GoalId`), `SimulationWorld`
+   (+`Residents`, `SpawnResident`), demo rewritten for the §2.10 scenario.
+5. **Public APIs.** `PersonalityProfile(.Builder/.MiraLike)`, `PersonalityTrait`,
+   `NeedKind/Definition/State/Set`, `StandardNeeds`,
+   `UtilityCurve` family, `GoalDefinition/Context/ScoreEntry/SelectionResult`,
+   `ScoreTerm/TraitTerm/NeedTerm/CustomTerm`, `GoalSelector(+Options)`,
+   `StandardGoals`, `AgentMind`, `ResidentSpec/Registry`,
+   `CognitionSystem`, `GoalDecision`.
+6. **Data models.** Need convention documented (0=satisfied → 100=critical);
+   goal scoring = Base + Σ(need/trait/custom terms) − inertia/cooldown +
+   critical bonus.
+7. **Tests created.** 15 new (74 total): trait validation/immutability, Mira
+   fixture, growth/clamp/thresholds, personality→utility divergence,
+   determinism, critical override bypassing inertia, commitment hysteresis,
+   stable ordinal tie-break, breakdown-sums-to-final invariant, curve
+   monotonicity/finiteness, schedule-pressure custom term.
+8. **Tests executed.** Yes — **Passed! 74/74**.
+9. **Build result.** Succeeded, 0 warnings / 0 errors (two C#9 test-side syntax
+   fixes during development).
+10. **Demo result.** Vera (sociability .95) selects Socialize; Ivo (hunger 82)
+    selects Eat, escalating to CRITICAL override as hunger passes the interrupt
+    threshold; hysteresis keeps Vera committed across ticks. Deterministic.
+11. **Performance notes.** Scoring allocates breakdown lists per evaluation;
+    acceptable now, flagged for §27 allocation pass.
+12. **Known limitations.** No execution yet — goals are intentions only until
+    Sprint 3 planning; needs only grow (no activity relief wired).
+13. **Technical debt.** Breakdown list allocation in hot path; selector options
+    global-per-selector rather than per-goal.
+14. **Documentation updated.** This report; ROADMAP marked Sprint 2 done;
+    TESTING coverage map updated.
+15. **Git status.** Committed on `feature/echosim`.
+16. **Recommended next sprint work.** Sprint 3 GOAP: planner world state,
+    action definitions, A* search, executor lifecycle, failure taxonomy.
+17. **Anything unverified.** Nothing within sprint scope.
