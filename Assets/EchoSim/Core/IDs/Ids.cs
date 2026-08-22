@@ -159,6 +159,26 @@ namespace EchoSim.Core
         public static bool operator !=(ResourceId left, ResourceId right) => !left.Equals(right);
     }
 
+    /// <summary>Strongly typed identifier for an item definition.</summary>
+    public readonly struct ItemId : IEquatable<ItemId>, IComparable<ItemId>
+    {
+        public string Value { get; }
+
+        public ItemId(string value)
+        {
+            IdValidation.RequireValid(value, nameof(value));
+            Value = value;
+        }
+
+        public bool Equals(ItemId other) => string.Equals(Value, other.Value, StringComparison.Ordinal);
+        public int CompareTo(ItemId other) => string.CompareOrdinal(Value, other.Value);
+        public override bool Equals(object? obj) => obj is ItemId other && Equals(other);
+        public override int GetHashCode() => Value?.GetHashCode(StringComparison.Ordinal) ?? 0;
+        public override string ToString() => Value ?? string.Empty;
+        public static bool operator ==(ItemId left, ItemId right) => left.Equals(right);
+        public static bool operator !=(ItemId left, ItemId right) => !left.Equals(right);
+    }
+
     /// <summary>Shared validation rules for string based identifiers.</summary>
     internal static class IdValidation
     {

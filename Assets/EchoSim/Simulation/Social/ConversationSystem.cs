@@ -108,6 +108,8 @@ namespace EchoSim.Simulation
 
             if (rel.Familiarity < 0.1f) return ConversationIntent.Greet;
             if (rel.Affinity < -0.3f) return ConversationIntent.Confront;
+            if (rel.Affinity > 0.5f && rel.Familiarity > 0.3f && _rng.Chance(0.15f))
+                return ConversationIntent.Tease; // playful friends, generic gate
             if (mind.Needs.Get(NeedKind.Social).Current > 60f) return ConversationIntent.SmallTalk;
             return ConversationIntent.SmallTalk;
         }
@@ -200,7 +202,12 @@ namespace EchoSim.Simulation
                     lines.Add($"You're doing fine, {bn}. Really.");
                     break;
                 case ConversationIntent.Tease:
-                    lines.Add(var0(variation) ? $"Late again? Impressive, {bn}." : $"{bn}, you never change.");
+                    // Rare playful easter egg: close friends only, seeded chance,
+                    // per-pair cooldown. Generic gates — no special-cased residents.
+                    if (TryRareTeaseLine(a, b, out string? rare))
+                        lines.Add(rare!);
+                    else
+                        lines.Add(var0(variation) ? $"Late again? Impressive, {bn}." : $"{bn}, you never change.");
                     break;
                 case ConversationIntent.Invite:
                     lines.Add($"Join me at the cafe later?");
@@ -220,5 +227,28 @@ namespace EchoSim.Simulation
 
         private string DisplayName(AgentId id) =>
             _world.Agents.TryGet(id, out var s) ? s.Identity.DisplayName : id.Value;
+
+        private readonly Dictionary<string, SimTime> _rareLineCooldown = new Dictionary<string, SimTime>(StringComparer.Ordinal);
+        private static readonly TimeSpan RareCooldown = TimeSpan.FromHours(6);
+
+        /// <summary>
+        /// Rare affectionate tease between genuinely close friends.
+        /// Gates: affinity > 0.5, seeded 10% chance, 6h per-pair cooldown.
+        /// </summary>
+        private bool TryRareTeaseLine(AgentId a, AgentId b, out string? line)
+        {
+            line = null;
+            var rel = _relationships.GetOrCreate(a, b);
+            if (rel.Affinity <= 0.5f || !_rng.Chance(0.10f)) return false;
+
+            string pairKey = a.Value.CompareTo(b.Value) < 0 ? a.Value + "|" + b.Value : b.Value + "|" + a.Value;
+            var now = _world.Clock.CurrentTime;
+            if (_rareLineCooldown.TryGetValue(pairKey, out var last) && (now - last).TotalMinutes < RareCooldown.TotalMinutes)
+                return false;
+
+            _rareLineCooldown[pairKey] = now;
+            line = "u dummy.";
+            return true;
+        }
     }
 }

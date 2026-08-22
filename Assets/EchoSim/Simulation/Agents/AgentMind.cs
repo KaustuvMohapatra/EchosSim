@@ -32,9 +32,18 @@ namespace EchoSim.Simulation
         /// <summary>Seeded routine jitter in minutes (spec §5.6).</summary>
         public int RoutineOffsetMinutes { get; private set; }
 
-        /// <summary>Authoring hooks used by hosts/tests to configure rhythm.</summary>
+        /// <summary>Authored likes/dislikes (Sprint 14); 0 when unspecified.</summary>
+        public PreferenceProfile Preferences { get; private set; } = new PreferenceProfile();
+
+        /// <summary>Wallet (Sprint 15). Mutate via systems, not directly.</summary>
+        public float Money { get; set; }
+
+        public Inventory Inventory { get; } = new Inventory();
+
         public void SetSchedule(WeeklySchedule? schedule) => Schedule = schedule;
         public void SetRoutineOffset(int offsetMinutes) => RoutineOffsetMinutes = offsetMinutes;
+        public void SetPreferences(PreferenceProfile preferences) =>
+            Preferences = preferences ?? throw new ArgumentNullException(nameof(preferences));
 
         internal AgentMind(AgentId agent, PersonalityProfile personality, NeedSet needs)
         {

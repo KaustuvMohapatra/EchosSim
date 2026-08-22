@@ -94,7 +94,21 @@ namespace EchoSim.Simulation
             };
             importance *= sourceFactor;
 
-            var subject = observation.Actors.Length > 1 ? observation.Actors[1] : observation.Actors[0];
+            // From the observer's perspective, the memorable party is the OTHER one.
+            AgentId subject = default;
+            bool haveSubject = false;
+            for (int i = 0; i < observation.Actors.Length; i++)
+            {
+                if (observation.Actors[i] != observation.Observer)
+                {
+                    subject = observation.Actors[i];
+                    haveSubject = true;
+                    break;
+                }
+            }
+            if (!haveSubject && observation.Actors.Length > 0)
+                subject = observation.Actors[0];
+
             return new EpisodicMemory(id, observation.Timestamp, observation.EventType,
                 subject, observation.Where,
                 Summarize(observation), Math.Clamp(importance, 0f, 1f), valence,

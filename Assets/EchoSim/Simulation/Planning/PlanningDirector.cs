@@ -120,7 +120,8 @@ namespace EchoSim.Simulation
 
         public PlanningDirector(SimulationWorld world, CognitionSystem cognition,
             GoapPlanner? planner = null, TownRoles? roles = null,
-            OpeningHoursSystem? hours = null, JobSystem? jobs = null)
+            OpeningHoursSystem? hours = null, JobSystem? jobs = null,
+            EconomySystem? economy = null)
         {
             _world = world ?? throw new ArgumentNullException(nameof(world));
             _cognition = cognition ?? throw new ArgumentNullException(nameof(cognition));
@@ -128,10 +129,12 @@ namespace EchoSim.Simulation
             _roles = roles ?? TownRoles.DetectByConvention(_world);
             _hours = hours;
             _jobs = jobs;
+            _economy = economy;
         }
 
         private readonly OpeningHoursSystem? _hours;
         private readonly JobSystem? _jobs;
+        private readonly EconomySystem? _economy;
 
         public bool IsBusy(AgentId agent) => _active.ContainsKey(agent);
         public ActiveExecution? PeekActive(AgentId agent) => _active.TryGetValue(agent, out var run) ? run : null;
@@ -325,6 +328,20 @@ namespace EchoSim.Simulation
                 _heldSeats[agent] = seat;
             }
 
+            // Real purchases (Sprint 15): money and stock gate the buy steps.
+            if (_economy != null && (action.Id.Value == "act_buy_meal" || action.Id.Value == "act_buy_ingredients"))
+            {
+                string itemName = action.Id.Value == "act_buy_meal" ? "meal" : "ingredients";
+                var failure = _economy.TryPurchase(agent, new ItemId(itemName), out _);
+                if (failure != PurchaseFailure.None)
+                    FailStep(agent,
+                        failure == PurchaseFailure.InsufficientMoney
+                            ? ActionFailureType.InsufficientMoney
+                            : ActionFailureType.ResourceUnavailable,
+                        failure.ToString());
+                return;
+            }
+
             run.Lifecycle = PlanLifecycle.Running;
 
             if (action.DurationMinutes <= 0)
@@ -371,6 +388,10 @@ namespace EchoSim.Simulation
 
             for (int i = 0; i < action.Relief.Count; i++)
                 mind.Needs.Relieve(action.Relief[i].Kind, action.Relief[i].Amount);
+
+            // Wages for completed work (Sprint 15).
+            if (_economy != null && action.Id.Value == "act_work")
+                _economy.PayWage(agent, action.DurationMinutes / 60.0);
 
             // Persist non-ephemeral, non-location facts into resident memory.
             var ephemeral = new HashSet<string>(StandardActions.EphemeralSet(), StringComparer.Ordinal);

@@ -158,6 +158,46 @@ namespace EchoSim.Simulation
             }
         }
 
+        /// <summary>
+        /// Physical gift transfer (Sprint 15): inventory moves, then the social
+        /// pipeline does the rest. Recipient preferences scale the warmth.
+        /// </summary>
+        public SocialAttemptResult GiveItem(AgentId giver, AgentId recipient, ItemId itemId, EconomySystem economy)
+        {
+            var result = new SocialAttemptResult();
+            if (!_world.Residents.TryGet(giver, out var g) || !_world.Residents.TryGet(recipient, out var r))
+            {
+                result.Reason = "participant missing";
+                return result;
+            }
+            if (!g.Inventory.Remove(itemId))
+            {
+                result.Reason = "no such item in inventory";
+                return result;
+            }
+
+            var item = economy.GetItem(itemId);
+            r.Inventory.Add(itemId);
+
+            var giverState = _world.Agents.Get(giver);
+            var recipientMind = r;
+
+            // Preference-aware warmth: a favourite gift lands better for anyone.
+            float preference = r.Preferences.Get(itemId.Value) + r.Preferences.Get(item.HasTag("drink") ? "hotChocolate" : "");
+            var emitted = _perception.Publish("gift", new[] { giver, recipient },
+                giverState.CurrentLocationId, ObservationReach.SameLocation, 1f + Math.Clamp(preference, 0f, 1f) * 0.5f);
+
+            if (preference > 0.5f)
+            {
+                _emotion.Apply(recipient, +0.15f * preference, 0f);
+            }
+
+            result.Accepted = true;
+            result.Reason = "ok";
+            result.EmittedEvent = emitted;
+            return result;
+        }
+
         internal static string MapToEventType(SocialActionType action)
         {
             switch (action)
