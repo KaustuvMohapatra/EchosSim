@@ -75,6 +75,13 @@ namespace EchoSim.Simulation
 
         public bool TryGet(string subjectKey, string predicate, out Belief? belief)
             => _beliefs.TryGetValue(subjectKey + "|" + predicate, out belief);
+
+        /// <summary>Save-load import: inserts a fully formed belief and advances the id counter.</summary>
+        internal void Import(Belief belief)
+        {
+            _beliefs[belief.Key] = belief;
+            if (belief.Id.Value >= _nextId) _nextId = belief.Id.Value + 1;
+        }
     }
 
     /// <summary>
@@ -104,6 +111,11 @@ namespace EchoSim.Simulation
             var created = new BeliefStore();
             _stores.Add(agent, created);
             return created!;
+        }
+
+        internal IEnumerable<KeyValuePair<AgentId, BeliefStore>> OwnersWithStores()
+        {
+            foreach (var kv in _stores) yield return new KeyValuePair<AgentId, BeliefStore>(kv.Key, kv.Value);
         }
 
         /// <summary>First-hand knowledge: full-strength formation from lived observation.</summary>

@@ -54,6 +54,37 @@ namespace EchoSim.Simulation
                && until > now;
 
         /// <summary>Goals eligible right now; falls back to all when everything is suppressed.</summary>
+        /// <summary>Save-load export: active planning-failure backoffs.</summary>
+        internal IEnumerable<(AgentId Agent, GoalId Goal, SimTime Until)> SuppressionsSnapshot()
+        {
+            var now = _world.Clock.CurrentTime;
+            foreach (var agentPair in _suppressed)
+                foreach (var goalPair in agentPair.Value)
+                    if (goalPair.Value > now)
+                        yield return (agentPair.Key, goalPair.Key, goalPair.Value);
+        }
+
+        /// <summary>Save-load import: rebuilds cooldowns, commitment and suppression timers.</summary>
+        public void RestoreResidentState(AgentId agent, string? currentGoalId,
+            IEnumerable<KeyValuePair<string, long>> lastSelectedMinutes,
+            IEnumerable<SuppressionDto>? suppressions)
+        {
+            var mind = _world.Residents.Get(agent);
+
+            if (!string.IsNullOrEmpty(currentGoalId))
+            {
+                var def = FindGoal(new GoalId(currentGoalId));
+                if (def != null) mind.CommittedGoal = def;
+            }
+            foreach (var kv in lastSelectedMinutes)
+                mind.NoteSelection(new GoalId(kv.Key), new SimTime(kv.Value));
+
+            if (suppressions != null)
+                foreach (var s in suppressions)
+                    if (s.Agent == agent.Value)
+                        SuppressGoal(agent, new GoalId(s.Goal), new SimTime(s.UntilMinutes));
+        }
+
         private IReadOnlyList<GoalDefinition> EligibleGoals(AgentId agent, SimTime now)
         {
             List<GoalDefinition>? filtered = null;

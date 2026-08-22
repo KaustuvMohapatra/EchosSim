@@ -320,6 +320,103 @@ Format follows master spec §15. Reports are appended; newest at bottom.
 
 ---
 
+## SPRINTS 7–9 COMPLETE — Memory, Emotion, Relationships
+
+1. **Summary.** Residents gained inner continuity. Observations encode into
+   bounded episodic memories via an importance/valence table (noise skipped),
+   grudge-holders retain negative events more strongly; retrieval is scored and
+   fully explainable (recency/importance/actor/location breakdown); consolidation
+   prunes stale low-value entries. Emotion (valence −1..1, arousal 0..1) decays
+   toward neutral and feeds goal scoring. Relationships are directional 8-
+   dimensional vectors shaped by social events, scaled by observer personality,
+   softening through drift, with derived labels (Stranger→Enemy/Crush).
+2. **Files created.** `Memory/MemorySystem.cs`, `Emotion/EmotionSystem.cs`,
+   `Relationships/RelationshipSystem.cs`, `Social/SocialReactionSystem.cs`
+   (+`ObservationRecordedEvent` on the perception bus).
+3. **Tests.** +11 → **134 passing**: noise filtering, grudge amplification,
+   ranked retrieval w/ breakdown-sums invariant, consolidation survival,
+   emotion clamp/decay/mood-shift, directional grievance, witness bias,
+   personality scaling, drift/label evolution.
+4. **Bugs found & fixed.** Memory subject convention stored the wrong party
+   (observer remembered themselves instead of the other actor).
+
+---
+
+## SPRINTS 10–12 COMPLETE — Social Protocol, Beliefs, Conversations
+
+1. **Summary.** The full social stack without any LLM: fourteen social actions
+   gated by co-location, mutual conversation locks and mood/personality-driven
+   acceptance; a belief store where direct experience outranks rumours, every
+   hop decays confidence, provenance records who-said-what, and per-event loop
+   guards kill echo chains; a deterministic conversation engine that selects
+   intents from context (grievances gossip; close friends tease), picks topics
+   from beliefs/memories, and speaks template utterances with seeded variation.
+2. **Files created.** `Social/SocialSystem.cs`, `Social/ConversationSystem.cs`,
+   `Beliefs/BeliefSystem.cs`, `SocialBeliefConversationTests.cs`.
+3. **Tests.** +11 → **145 passing**: co-location gating, lock contention,
+   insult→memory→relationship→mood pipeline, urgent-need refusal (hardened to a
+   hard refusal by design), hop decay & provenance, rumour loop-cutting,
+   first-hand evidence overriding hearsay, no-teleporting-knowledge invariant,
+   deterministic utterance replay, gossip belief transfer.
+4. **Bugs found & fixed.** Urgent listeners could still randomly accept chat —
+   now urgency is an absolute refusal for friendly actions.
+
+---
+
+## SPRINTS 13–15 COMPLETE — Player, Mira, Economy
+
+1. **Summary.** The player enters as just another stable-ID actor whose actions
+   flow through the identical social pipeline — NPCs remember, resent, and warm
+   to them exactly like each other. Mira arrives as authored data (content key
+   npc_mira_18nov, MiraLike personality, preference profile), her signature rare
+   line "u dummy." emerging from generic gates: affinity > 0.5 + seeded 10%
+   chance + 6h per-pair cooldown. Light economy lands: item definitions, shop
+   stock with scarcity, wallets, wages on work completion, gifts scaled by
+   recipient preferences, and InsufficientMoney/ResourceUnavailable failures
+   wired into plan execution.
+2. **Files created.** `Player/PlayerFoundation.cs`, `Content/ContentFixtures.cs`,
+   `Economy/EconomySystem.cs`, `PlayerMiraEconomyTests.cs`.
+3. **Tests.** +12 → **155 passing**: player pipeline identity, NPC grudges
+   against the player, fixture distinctness, easter-egg rarity bounds,
+   purchase money/stock/inventory/memory flows, sell-out scarcity, wage math,
+   preference-scaled gifting, broke-resident planning failure path.
+4. **Bugs found & fixed.** Memory-subject convention regression caught here;
+   relationship links were forming from non-social noise events (movement) —
+   now constrained to a social event whitelist.
+
+---
+
+## SPRINTS 16–18 COMPLETE — Weather, Town Events, Save/Load
+
+1. **Summary.** Seeded daily weather rolls (Clear↔HeavyRain Markov table)
+   reach goal scoring: rain suppresses Explore for everyone except rain-lovers,
+   whose authored preference cancels the penalty — no special cases. Authored
+   town events activate in day/time windows and announce town-wide through the
+   perception bus. Storylets fire when pair conditions hold (e.g., Trust > 0.75
+   plus third-party Grievance > 0.6 → confiding moment) with cooldowns.
+   Finally, persistence: versioned DTO save format (locations, agents with
+   personalities/needs/wallets/inventories/planner-facts, relationships,
+   memories with access counts, beliefs with provenance, suppression timers,
+   in-flight plan runs with remaining step time), atomic writes with .bak
+   backups, explicit migration chain rejecting future versions gracefully —
+   and the crown-jewel guarantee:
+2. **The round-trip contract.** Save a living town mid-flight, restore it from
+   disk, run both forward side-by-side: their futures are byte-for-byte
+   IDENTICAL (37 = 37 planned events). A saved world is the same world.
+3. **Tests.** +18 total across the three sprints → **163 passing**.
+4. **Bugs found & fixed during 16–18.** Restored locations lost authored-hours
+   reactivity via manual-override leakage (ForceOpen added); cognition timers
+   (cooldowns/commitments/suppressions) missing from the format caused restored
+   towns to drift — now captured; duplicate location-registration crash during
+   restore after an editing mishap.
+5. **Known limitations.** Jobs/schedules are re-authored by hosts rather than
+   serialized (definitions are content, not state); observation logs are not
+   persisted (memories are the durable trace); Unity editor round-trip still
+   pending (headless CI verified throughout).
+6. **Anything unverified.** Nothing within sprint scope.
+
+---
+
 ## SPRINT 4 COMPLETE — Navigation, Affordances & Reservations
 
 1. **Summary.** Semantic movement became physical travel: `INavigationService`

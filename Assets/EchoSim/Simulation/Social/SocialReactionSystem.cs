@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using EchoSim.Core;
 
 namespace EchoSim.Simulation
@@ -45,7 +46,7 @@ namespace EchoSim.Simulation
                         break;
                 }
 
-                if (o.Actors.Length > 0)
+                if (o.Actors.Length > 0 && IsSocial(o.EventType))
                 {
                     AgentId actor = o.Actors[0];
                     AgentId? target = o.Actors.Length > 1 ? o.Actors[1] : null;
@@ -54,6 +55,15 @@ namespace EchoSim.Simulation
                 }
             });
         }
+
+        private static readonly HashSet<string> SocialEventTypes = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "insult_incident", "insult", "confront", "tease", "help", "compliment",
+            "comfort", "apologize", "gift", "chat", "greeting", "gossip",
+            "ask_for_help", "invite", "joke"
+        };
+
+        private static bool IsSocial(string eventType) => SocialEventTypes.Contains(eventType);
 
         private readonly EmotionSystem _emotion;
         private readonly RelationshipSystem _relationships;

@@ -59,6 +59,15 @@ namespace EchoSim.Simulation
             Trust = Math.Clamp(Trust, -1f, 1f);
             Respect = Math.Clamp(Respect, -1f, 1f);
         }
+
+        /// <summary>Full-dimension import for save/load.</summary>
+        internal void ImportFull(float familiarity, float affinity, float trust, float respect,
+            float attraction, float fear, float grievance, float obligation)
+        {
+            Familiarity = familiarity; Affinity = affinity; Trust = trust; Respect = respect;
+            Attraction = attraction; Fear = fear; Grievance = grievance; Obligation = obligation;
+            ClampAll();
+        }
     }
 
     public enum RelationshipLabel
@@ -119,8 +128,13 @@ namespace EchoSim.Simulation
 
         public void HandleSocialEvent(AgentId observer, string eventType, AgentId actor, AgentId? target, float confidence)
         {
+            if (actor == observer) return; // your own actions are not social news to you
             var rel = GetOrCreate(observer, actor);
             rel.Familiarity = Math.Min(1f, rel.Familiarity + 0.05f);
+
+            // Witnessing harm done to a third party also colours the observer's view.
+            bool thirdPartyHarm = target.HasValue && target.Value != actor && target.Value != observer &&
+                                  eventType.Contains("insult", StringComparison.Ordinal);
 
             switch (eventType)
             {
@@ -160,14 +174,10 @@ namespace EchoSim.Simulation
                     break; // non-social events leave relationships untouched
             }
 
-            if (target.HasValue && target.Value != actor)
+            if (thirdPartyHarm)
             {
-                // Witnessing harm done to a third party also colours the observer's view.
-                if (eventType.Contains("insult", StringComparison.Ordinal))
-                {
-                    var thirdParty = GetOrCreate(observer, target.Value);
-                    thirdParty.Affinity = Math.Clamp(thirdParty.Affinity - 0.05f, -1f, 1f);
-                }
+                var thirdParty = GetOrCreate(observer, target!.Value);
+                thirdParty.Affinity = Math.Clamp(thirdParty.Affinity - 0.05f, -1f, 1f);
             }
             _ = confidence;
         }
@@ -207,6 +217,14 @@ namespace EchoSim.Simulation
                 int split = kv.Key.IndexOf('>', StringComparison.Ordinal);
                 yield return (new AgentId(kv.Key.Substring(0, split)), new AgentId(kv.Key.Substring(split + 1)), kv.Value);
             }
+        }
+
+        /// <summary>Full-dimension authoring/import hook (save-load).</summary>
+        public void Import(AgentId from, AgentId to, Relationship snapshot)
+        {
+            var rel = GetOrCreate(from, to);
+            rel.ImportFull(snapshot.Familiarity, snapshot.Affinity, snapshot.Trust, snapshot.Respect,
+                snapshot.Attraction, snapshot.Fear, snapshot.Grievance, snapshot.Obligation);
         }
     }
 }

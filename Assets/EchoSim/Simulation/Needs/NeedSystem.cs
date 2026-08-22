@@ -74,6 +74,9 @@ namespace EchoSim.Simulation
 
         private static float Clamp(float v) => v < 0f ? 0f : (v > 100f ? 100f : v);
 
+        /// <summary>Save-load import: exact value assignment.</summary>
+        internal void Force(float value) => Current = Clamp(value);
+
         /// <summary>Advances natural growth over a simulated span.</summary>
         public void Advance(SimDuration delta)
         {
@@ -125,6 +128,9 @@ namespace EchoSim.Simulation
 
         /// <summary>Applies relief/drain to one need.</summary>
         public void Relieve(NeedKind kind, float amount) => Get(kind).Apply(amount);
+
+        /// <summary>Save-load import: sets a need's exact value.</summary>
+        public void Force(NeedKind kind, float value) => Get(kind).Force(value);
 
         /// <summary>The need with the highest current value (null when empty).</summary>
         public NeedState? MostUrgent()

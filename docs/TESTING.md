@@ -25,7 +25,21 @@ dotnet run --project tools/EchoSim.HeadlessDemo   # demo scenario, must be byte-
 - Typed ID equality & invalid input rejection → `IdsTests`
 - Agent creation, movement occupancy, capacity, closed locations, bootstrap determinism, 3-day runner → `WorldTests`
 
-**Current: 59/59 passing.**
+**Current: 163/163 passing.**
+
+## Coverage map (Sprints 1–18)
+
+- Sprint 1 → IdsTests, SimTimeTests, SimRandomTests, EventBusTests, SchedulerTests, WorldTests
+- Sprint 2 → PersonalityNeedGoalTests
+- Sprint 3 → GoapTests (planner, director, interventions, determinism, stale-completion regression)
+- Sprint 4 → NavigationAffordanceReservationTests
+- Sprint 5 → SchedulesJobsTests (+ suppression timing in GoapTests)
+- Sprint 6 → PerceptionTests
+- Sprints 7–9 → MemoryEmotionRelationshipTests
+- Sprints 10–12 → SocialBeliefConversationTests
+- Sprints 13–15 → PlayerMiraEconomyTests
+- Sprints 16–17 → WeatherTownEventTests
+- Sprint 18 → SaveLoadTests (**round-trip determinism**, atomic writes, corrupt/missing/future-version handling)
 
 ## Fixed seeds (spec §49)
 

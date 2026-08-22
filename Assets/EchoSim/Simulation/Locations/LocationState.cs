@@ -53,6 +53,9 @@ namespace EchoSim.Simulation
             _manualOverride = true;
         }
 
+        /// <summary>Save-load import: restores exact open state without marking a manual override.</summary>
+        internal void ForceOpen(bool open) => IsOpen = open;
+
         /// <summary>
         /// Recomputes IsOpen from authored hours. Returns true when the state flipped.
         /// Manual overrides and hour-less locations are untouched.

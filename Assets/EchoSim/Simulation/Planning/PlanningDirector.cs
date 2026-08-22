@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using EchoSim.Core;
 
 namespace EchoSim.Simulation
@@ -89,6 +90,8 @@ namespace EchoSim.Simulation
         public SimTime StartedAt { get; internal set; }
         /// <summary>Incremented whenever a run is replaced/cancelled/failed; stale callbacks no-op.</summary>
         public long Generation { get; internal set; }
+        /// <summary>Absolute due time of the in-flight step (save/load + diagnostics).</summary>
+        public long CurrentStepDueMinutes { get; internal set; }
     }
 
     /// <summary>
@@ -352,9 +355,60 @@ namespace EchoSim.Simulation
 
             long generation = run.Generation;
             int stepIndex = run.NextStepIndex;
+            run.CurrentStepDueMinutes =
+                _world.Clock.CurrentTime.TotalMinutes + action.DurationMinutes;
             _world.Scheduler.ScheduleIn(SimDuration.FromMinutes(action.DurationMinutes),
                 _ => CompleteStepIfCurrent(agent, generation, stepIndex),
                 label: agent.Value + ":" + action.Id.Value);
+        }
+
+        /// <summary>Save-load export: every run still executing.</summary>
+        public IReadOnlyList<ActiveExecution> ActiveRunsSnapshot()
+        {
+            var list = new List<ActiveExecution>();
+            foreach (var kv in _active)
+                if (kv.Value.Lifecycle == PlanLifecycle.Running ||
+                    kv.Value.Lifecycle == PlanLifecycle.Starting)
+                    list.Add(kv.Value);
+            return list;
+        }
+
+        /// <summary>
+        /// Save-load import: resurrects an executing plan (matched against the
+        /// resident's current action catalog) and re-arms its remaining step time.
+        /// </summary>
+        public void RestoreRun(AgentId agent, string goalId,
+            IReadOnlyList<string> stepActionIds, int nextStepIndex, int remainingMinutes)
+        {
+            var agentState = _world.Agents.Get(agent);
+            var mind = _world.Residents.Get(agent);
+            var catalog = StandardActions.CreateForResident(_world, agentState, _roles, mind.Job);
+
+            var steps = new List<PlanningAction>();
+            foreach (var id in stepActionIds)
+                steps.Add(catalog.First(a => a.Id.Value == id)); // loud failure on catalog drift
+
+            var run = new ActiveExecution
+            {
+                Agent = agent,
+                Goal = new GoalId(goalId),
+                Plan = new GoapPlan(steps, 0f),
+                NextStepIndex = nextStepIndex,
+                Lifecycle = PlanLifecycle.Running,
+                StartedAt = _world.Clock.CurrentTime,
+                Generation = NextGeneration(agent),
+                CurrentStepDueMinutes = _world.Clock.CurrentTime.TotalMinutes + remainingMinutes
+            };
+            _active[agent] = run;
+
+            long generation = run.Generation;
+            int stepIndex = run.NextStepIndex;
+            if (remainingMinutes <= 0)
+                CompleteStepIfCurrent(agent, generation, stepIndex);
+            else
+                _world.Scheduler.ScheduleIn(SimDuration.FromMinutes(remainingMinutes),
+                    _ => CompleteStepIfCurrent(agent, generation, stepIndex),
+                    label: "restore:" + agent.Value);
         }
 
         private readonly Dictionary<AgentId, ResourceId> _heldSeats = new Dictionary<AgentId, ResourceId>();

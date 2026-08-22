@@ -13,18 +13,18 @@ Source of truth for scope: `ECHOSIM.txt` master specification (35 sprints).
 | 4 | Physical world, navigation, affordances | **Done** |
 | 5 | Schedules, jobs, daily rhythm | **Done** |
 | 6 | Perception & event observation | **Done** |
-| 7 | Memory system | Planned |
-| 8 | Emotion & mood | Planned |
-| 9 | Relationships | Planned |
-| 10 | Social actions & interaction protocol | Planned |
-| 11 | Beliefs, knowledge & rumours | Planned |
-| 12 | Conversation engine (no LLM) | Planned |
-| 13 | Player foundation | Planned |
-| 14 | Mira easter egg | Planned |
-| 15 | Items, light economy | Planned |
-| 16 | Weather & environmental pressure | Planned |
-| 17 | Town events & storylets | Planned |
-| 18 | Save/load & versioning | Planned |
+| 7 | Memory system | **Done** |
+| 8 | Emotion & mood | **Done** |
+| 9 | Relationships | **Done** |
+| 10 | Social actions & interaction protocol | **Done** |
+| 11 | Beliefs, knowledge & rumours | **Done** |
+| 12 | Conversation engine (no LLM) | **Done** |
+| 13 | Player foundation | **Done** |
+| 14 | Mira easter egg | **Done** |
+| 15 | Items, light economy | **Done** |
+| 16 | Weather & environmental pressure | **Done** |
+| 17 | Town events & storylets | **Done** |
+| 18 | Save/load & versioning | **Done** (round-trip determinism proven) |
 | 19 | Advanced debug tooling | Planned |
 | 20 | Relationship graph visualization | Planned |
 | 21 | LLM provider abstraction | Planned |
@@ -49,7 +49,8 @@ Sprints execute sequentially. A sprint is complete only when: code compiles,
 all tests pass, the demo scenario runs, docs are updated, and the diff has been
 reviewed (spec §14). Never claim unexecuted work as done (§53, §55).
 
-## Next up: Sprint 2
+## Next up: Sprint 19
 
-Personality profile (normalized 0–1 parameters), need dynamics with hysteresis,
-utility curves, goal selection with explainable score breakdowns.
+Advanced debug tooling: NPC inspector surfaces (goal scores, plan steps,
+memories, beliefs, relationships), plan viewer with failure reasons, and the
+event timeline.

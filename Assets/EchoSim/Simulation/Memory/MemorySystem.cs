@@ -182,6 +182,15 @@ namespace EchoSim.Simulation
             foreach (var m in doomed) _memories.Remove(m);
             return doomed.Count;
         }
+
+        /// <summary>Save-load import: inserts a fully formed memory and advances the id counter.</summary>
+        internal void Import(EpisodicMemory memory)
+        {
+            _memories.Add(memory);
+            if (memory.Id.Value >= _nextId) _nextId = memory.Id.Value + 1;
+            if (_memories.Count > Capacity)
+                _memories.RemoveAt(0);
+        }
     }
 
     public sealed class RetrievalQuery
@@ -299,6 +308,14 @@ namespace EchoSim.Simulation
 
         public IReadOnlyList<RetrievedMemory> Recall(AgentId agent, RetrievalQuery query, int topN = 5)
             => Retriever.Retrieve(StoreFor(agent), query, topN);
+
+        internal IEnumerable<AgentId> OwnerIds()
+        {
+            foreach (var key in _stores.Keys) yield return key;
+        }
+
+        internal void ImportMemory(AgentId owner, EpisodicMemory memory)
+            => StoreFor(owner).Import(memory);
 
         public long TotalMemories
         {

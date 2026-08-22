@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using EchoSim.Core;
 using EchoSim.Simulation;
@@ -27,6 +28,90 @@ namespace EchoSim.HeadlessDemo
             LiveRunWithInterruption(seed);
             WorkingDay(seed);
             WitnessedIncident(seed);
+            CompleteProductRun(seed);
+        }
+
+        /// <summary>
+        /// Sprint 18 finale: a living town — needs, jobs, weather, gossip, memory —
+        /// runs together, gets saved mid-flight, restored from disk, and both
+        /// timelines must agree on the future. This is EchoSim's contract.
+        /// </summary>
+        private static void CompleteProductRun(ulong seed)
+        {
+            Console.Out.WriteLine("--- finale: save / load / identical futures ---");
+            var world = SimulationBootstrap.CreateWorld(new SimulationConfiguration(seed));
+            world.RegisterLocation(new LocationDefinition(new LocationId("loc_cafe"), "Corner Cafe"));
+            world.RegisterLocation(new LocationDefinition(new LocationId("loc_bakery"), "Bakery"));
+            world.RegisterLocation(new LocationDefinition(new LocationId("loc_home_a"), "Home A"));
+            world.ConnectLocations(new LocationId("loc_cafe"), new LocationId("loc_bakery"));
+
+            var perception = new PerceptionSystem(world);
+            var memory = new MemorySystem(world);
+            var emotion = new EmotionSystem(world);
+            var relationships = new RelationshipSystem(world);
+            var beliefs = new BeliefSystem(world, relationships);
+            _ = new SocialReactionSystem(world, memory, emotion, relationships);
+            var weather = new WeatherSystem(world, world.Randoms.GetStream(RandomStreams.World));
+            var cognition = new CognitionSystem(world);
+            cognition.SetWeatherProvider(() => weather.Current);
+            var roles = new TownRoles { Cafe = new LocationId("loc_cafe") };
+            var director = new PlanningDirector(world, cognition, roles: roles);
+
+            foreach (var id in new[] { "npc_rohan", "npc_anika", "npc_mira" })
+                _ = world.SpawnResident(new ResidentSpec(id, id.Substring(4))
+                {
+                    HomeLocationId = "loc_home_a",
+                    Personality = PersonalityProfile.MiraLike().Edit()
+                        .Set(PersonalityTrait.GrudgeRetention, 0.7f).Build(),
+                    InitialNeeds = new Dictionary<NeedKind, float> { [NeedKind.Hunger] = 55f }
+                });
+
+            // Life happens: an insult at the cafe becomes memory + grievance + mood.
+            HeadlessSimulationRunner.RunFor(world, SimDuration.FromMinutes(120), stepMinutes: 10);
+            perception.Publish("insult_incident",
+                new[] { new AgentId("npc_rohan"), new AgentId("npc_anika") },
+                new LocationId("loc_cafe"), ObservationReach.SameLocation);
+
+            // Run two more hours so plans execute, then SAVE.
+            for (int m = 0; m < 120; m += 10)
+            {
+                cognition.AdvanceNeeds(SimDuration.FromMinutes(10));
+                world.Clock.Advance(SimDuration.FromMinutes(10));
+                director.TickAll();
+            }
+
+            string path = Path.Combine(Path.GetTempPath(), "echosim_finale.json");
+            var saver = new SaveService(world, memory, beliefs, relationships, weather, cognition, director);
+            saver.Capture();
+            SaveService.WriteFile(path, saver.Capture());
+
+            var restored = SaveService.Restore(SaveService.ReadFile(path));
+
+            // Both towns live forward one identical day; their event logs must match.
+            var logA = new List<string>();
+            var logB = new List<string>();
+            world.Events.Subscribe<PlanStartedEvent>(e => logA.Add($"{e.Agent}->{e.Goal}@{e.AtTime}"));
+            restored.World.Events.Subscribe<PlanStartedEvent>(e => logB.Add($"{e.Agent}->{e.Goal}@{e.AtTime}"));
+
+            var dirB = new PlanningDirector(restored.World, restored.Cognition, roles: roles);
+            foreach (var run in restored.ActiveRuns)
+                dirB.RestoreRun(new AgentId(run.Agent), run.GoalId, run.StepActionIds,
+                    run.NextStepIndex, run.RemainingMinutes);
+
+            for (int m = 0; m < 600; m += 10)
+            {
+                cognition.AdvanceNeeds(SimDuration.FromMinutes(10));
+                restored.Cognition.AdvanceNeeds(SimDuration.FromMinutes(10));
+                world.Clock.Advance(SimDuration.FromMinutes(10));
+                restored.World.Clock.Advance(SimDuration.FromMinutes(10));
+                director.TickAll();
+                dirB.TickAll();
+            }
+
+            bool identical = logA.Count == logB.Count && !logA.Where((t, i) => logB[i] != t).Any();
+            Console.Out.WriteLine($"future events: original={logA.Count} restored={logB.Count} identical={identical}");
+            Console.Out.WriteLine($"memories preserved={restored.Memory.TotalMemories} beliefs preserved={restored.Beliefs.TotalBeliefs}");
+            if (File.Exists(path)) File.Delete(path);
         }
 
         /// <summary>
