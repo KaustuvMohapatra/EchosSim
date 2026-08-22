@@ -273,6 +273,53 @@ Format follows master spec §15. Reports are appended; newest at bottom.
 
 ---
 
+## SPRINT 6 COMPLETE — Perception & Event Observation
+
+1. **Summary.** Residents stopped being omniscient. A `PerceptionSystem`
+   converts world activity into personal `Observation`s with source and
+   confidence: participants know directly, co-located residents see, adjacent
+   residents hear loud events (via authored location adjacency), announcements
+   reach the whole population. Per-resident ring-buffered observation logs are
+   ready as input for Sprint 7 memory encoding.
+2. **Architecture implemented.** `Simulation/Perception/*`; adjacency registry
+   on `SimulationWorld`; auto-sources wired to movement/activity/opening-hours
+   bus events; scenario events via `Publish`/`Announce`.
+3. **Files created.** `Observation.cs`, `PerceptionSystem.cs`,
+   `PerceptionTests.cs`.
+4. **Files modified.** `SimulationWorld` (+location adjacency graph), demo
+   (+WitnessedIncident section).
+5. **Public APIs.** `PerceptionSource`, `ObservationReach`, `ObservableEvent`,
+   `Observation`, `PerceptionSystem`
+   (`Publish/Announce/ObservationsOf/RecentOf/LogCapacity/TotalDelivered`),
+   `SimulationWorld.ConnectLocations/AreAdjacent`.
+6. **Data models.** Reach tiers: SameLocation (quiet) / Nearby (loud, carries to
+   adjacent locations) / Town (announcements); confidence: direct 1.0, visual
+   0.9, audible 0.7, announcement 0.95, all scaled by event base confidence.
+7. **Tests created.** 7 new (125 total): direct participation incl. off-site
+   actors; co-located visual observation; distant silence for quiet events;
+   adjacency-bounded audibility; town-wide announcements; movement auto-
+   perception scoping; ring-buffer eviction order.
+8. **Tests executed.** Yes — **Passed! 125/125**.
+9. **Build result.** Succeeded, 0 warnings / 0 errors.
+10. **Demo result.** One cafe insult: participants hold it at confidence 1.00,
+    a fellow guest saw it at 0.90, the baker next door heard it at 0.70, and a
+    librarian across town knows nothing of it — then everyone receives the
+    mayor's announcement at 0.95. Byte-identical across runs.
+11. **Bugs found & fixed this sprint.** Test fixture spawned plain agents where
+    residents were required (perception is resident-scoped by design).
+12. **Known limitations.** No occlusion/line-of-sight (spec-permitted MVP);
+    reach is authored per event type rather than derived from acoustics.
+13. **Technical debt.** Observation logs are unsorted-by-type scans on retrieval;
+    indexed retrieval lands with memory systems.
+14. **Documentation updated.** This report; ROADMAP Sprint 6 done; DECISIONS
+    D14 added.
+15. **Git status.** Committed on `feature/echosim`.
+16. **Recommended next sprint work.** Sprint 7: episodic memory — encode
+    observations into memories with importance/valence, decay, retrieval.
+17. **Anything unverified.** Nothing within sprint scope.
+
+---
+
 ## SPRINT 4 COMPLETE — Navigation, Affordances & Reservations
 
 1. **Summary.** Semantic movement became physical travel: `INavigationService`

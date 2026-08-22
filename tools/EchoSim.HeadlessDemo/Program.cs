@@ -26,6 +26,51 @@ namespace EchoSim.HeadlessDemo
             ScenarioC(seed);
             LiveRunWithInterruption(seed);
             WorkingDay(seed);
+            WitnessedIncident(seed);
+        }
+
+        /// <summary>
+        /// Sprint 6 demo: one incident, different knowledge.
+        /// Two residents argue at the cafe; another cafe guest sees it, the baker
+        /// next door hears it, and a librarian across town knows nothing — until
+        /// the mayor's announcement reaches everyone.
+        /// </summary>
+        private static void WitnessedIncident(ulong seed)
+        {
+            Console.Out.WriteLine("--- perception: who saw what ---");
+            var world = SimulationBootstrap.CreateWorld(new SimulationConfiguration(seed));
+            world.RegisterLocation(new LocationDefinition(new LocationId("loc_cafe"), "Corner Cafe"));
+            world.RegisterLocation(new LocationDefinition(new LocationId("loc_bakery"), "Bakery"));
+            world.RegisterLocation(new LocationDefinition(new LocationId("loc_library"), "Library"));
+            world.ConnectLocations(new LocationId("loc_cafe"), new LocationId("loc_bakery"));
+
+            foreach (var (id, home) in new[]
+                     {
+                         ("npc_rohan", "loc_cafe"),
+                         ("npc_anika", "loc_cafe"),
+                         ("npc_priya", "loc_cafe"),
+                         ("npc_arjun", "loc_bakery"),
+                         ("npc_sara", "loc_library")
+                     })
+                world.SpawnResident(new ResidentSpec(id, id.Substring(4)) { HomeLocationId = home });
+
+            var perception = new PerceptionSystem(world);
+
+            // The incident itself is loud but local.
+            var eventId = perception.Publish("insult_incident",
+                new[] { new AgentId("npc_rohan"), new AgentId("npc_anika") },
+                new LocationId("loc_cafe"), ObservationReach.Nearby);
+
+            // Later, a town-wide announcement.
+            perception.Announce("town_announcement", Array.Empty<AgentId>(), null);
+
+            foreach (var mind in world.Residents.AllInOrder())
+            {
+                var log = perception.ObservationsOf(mind.Agent);
+                string parts = string.Join("; ", Array.ConvertAll(log.ToArray(), o =>
+                    $"{o.EventType}[{o.Source} {o.Confidence.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)}]"));
+                Console.Out.WriteLine($"{mind.Agent,-10} knows {log.Count} -> {parts}");
+            }
         }
 
         /// <summary>Sprint 5: jobs, shifts and authored hours drive a full working day.</summary>

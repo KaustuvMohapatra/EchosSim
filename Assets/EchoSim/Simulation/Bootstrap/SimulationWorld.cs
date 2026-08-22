@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using EchoSim.Core;
 
 namespace EchoSim.Simulation
@@ -23,6 +24,35 @@ namespace EchoSim.Simulation
         public INavigationService Navigation { get; }
         /// <summary>Sprint 4: seats/beds/counters with ownership and expiry.</summary>
         public ReservationService Reservations { get; }
+
+        private readonly Dictionary<string, List<LocationId>> _adjacency = new Dictionary<string, List<LocationId>>(StringComparer.Ordinal);
+
+        /// <summary>Authors a bidirectional adjacency used by perception reach (and later pathing).</summary>
+        public void ConnectLocations(LocationId a, LocationId b)
+        {
+            if (a == b) return;
+            AddNeighbor(a, b);
+            AddNeighbor(b, a);
+        }
+
+        private void AddNeighbor(LocationId from, LocationId to)
+        {
+            var key = from.Value;
+            if (!_adjacency.TryGetValue(key, out var list))
+            {
+                list = new List<LocationId>();
+                _adjacency.Add(key, list);
+            }
+            if (!list.Contains(to)) list.Add(to);
+        }
+
+        public bool AreAdjacent(LocationId a, LocationId b)
+        {
+            if (_adjacency.TryGetValue(a.Value, out var list))
+                for (int i = 0; i < list.Count; i++)
+                    if (list[i] == b) return true;
+            return false;
+        }
 
         internal SimulationWorld(SimulationClock clock, SimRandomProvider randoms, EventBus events, SimulationScheduler scheduler)
         {

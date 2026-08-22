@@ -9,10 +9,10 @@ Source of truth for scope: `ECHOSIM.txt` master specification (35 sprints).
 | 0 | Repository bootstrap & architecture audit | **Done** |
 | 1 | Core simulation foundation (IDs, time, RNG, scheduler, event bus, agents/locations, bootstrap) | **Done** |
 | 2 | Personality + needs + utility AI | **Done** |
-| 3 | GOAP planning | Planned |
-| 4 | Physical world, navigation, affordances | Planned |
-| 5 | Schedules, jobs, daily rhythm | Partial — daily scheduling primitives exist; jobs/opening hours not yet |
-| 6 | Perception & event observation | Planned |
+| 3 | GOAP planning | **Done** |
+| 4 | Physical world, navigation, affordances | **Done** |
+| 5 | Schedules, jobs, daily rhythm | **Done** |
+| 6 | Perception & event observation | **Done** |
 | 7 | Memory system | Planned |
 | 8 | Emotion & mood | Planned |
 | 9 | Relationships | Planned |

@@ -111,3 +111,25 @@ Callers always receive exactly one resolution per request (arrival, failure, or
 superseded) — verified by tests.
 **Consequences.** Planning/execution never changes when real navigation lands;
 travel times are authored data, trivially replaceable by pathfinding distances.
+
+## D13 — Employment is job-bound, not role-bound
+**Context.** A single `TownRoles.Workplace` cannot express two residents with
+different employers; work facts also leaked into shared action catalogs.
+**Decision.** `StandardActions.CreateForResident` receives the resident's own
+`JobDefinition`; `PlannerStateBuilder` derives at_work/work_open from that job;
+`on_shift` reflects the ±30-minute pressure shoulder (`IsExpectedToWork`) so
+commute plans can form before a strict shift opens.
+**Consequences.** Any number of workplaces coexist; pre-shift commutes look
+natural; strict shift windows remain available via `IsOnShift`.
+
+## D14 — Perception reach over authored adjacency
+**Context.** Headless locations are discrete nodes without geometry, but spec
+§6.3 still wants quiet < loud < announcement observability tiers.
+**Decision.** Locations get an authored bidirectional adjacency graph.
+Reach tiers: SameLocation (visual), Nearby (audible, extends to adjacent),
+Town (announcements). Confidence degrades by source: direct 1.0 > visual 0.9 >
+announcement 0.95*base... audible 0.7. Occlusion/line-of-sight deferred per
+spec §6.4.
+**Consequences.** Deterministic, cheap perception now; adjacency doubles as the
+seed for future pathfinding and spatial reasoning; memory encoding (Sprint 7)
+can weigh confidence directly.
