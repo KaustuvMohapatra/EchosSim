@@ -23,6 +23,19 @@ namespace EchoSim.Simulation
 
         public GoalId? CurrentGoalId => CommittedGoal?.Id;
 
+        /// <summary>Assigned job (Sprint 5); null for unemployed residents.</summary>
+        public JobDefinition? Job { get; internal set; }
+
+        /// <summary>Personal weekly rhythm (Sprint 5); null when fully utility-driven.</summary>
+        public WeeklySchedule? Schedule { get; internal set; }
+
+        /// <summary>Seeded routine jitter in minutes (spec §5.6).</summary>
+        public int RoutineOffsetMinutes { get; private set; }
+
+        /// <summary>Authoring hooks used by hosts/tests to configure rhythm.</summary>
+        public void SetSchedule(WeeklySchedule? schedule) => Schedule = schedule;
+        public void SetRoutineOffset(int offsetMinutes) => RoutineOffsetMinutes = offsetMinutes;
+
         internal AgentMind(AgentId agent, PersonalityProfile personality, NeedSet needs)
         {
             Agent = agent;

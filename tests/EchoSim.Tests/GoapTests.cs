@@ -375,6 +375,43 @@ namespace EchoSim.Tests
             Assert.LessOrEqual(stepMinutes[2], 62, "eat completed near its own deadline, not instantly");
         }
 
+        [Test]
+        public void PlanningFailure_SuppressesGoal_Temporarily()
+        {
+            var world = SimulationBootstrap.CreateWorld(new SimulationConfiguration(5005));
+            world.RegisterLocation(new LocationDefinition(new LocationId("loc_home_s"), "Home S"));
+            var roles = new TownRoles { GateByAffordances = true }; // no bed affordance anywhere
+
+            var (_, mind) = world.SpawnResident(new ResidentSpec("npc_ivy", "Ivy")
+            {
+                HomeLocationId = "loc_home_s",
+                Personality = PersonalityProfile.Balanced(),
+                InitialNeeds = new Dictionary<NeedKind, float> { [NeedKind.Energy] = 96f }
+            });
+            var cognition = new CognitionSystem(world);
+            var director = new PlanningDirector(world, cognition, roles: roles);
+
+            int attempts = 0;
+            world.Events.Subscribe<PlanStartedEvent>(e =>
+            {
+                if (e.Goal.Value == "goal_sleep") attempts++;
+            });
+
+            director.Tick(mind.Agent);
+            Assert.AreEqual(1, attempts, "first planning attempt happens");
+
+            for (int i = 0; i < 8; i++) // 80 simulated minutes: still inside the 90-minute backoff
+            {
+                director.Tick(mind.Agent);
+                world.Clock.Advance(SimDuration.FromMinutes(10));
+            }
+            Assert.AreEqual(1, attempts, "suppressed goal must not retry during backoff");
+
+            world.Clock.Advance(SimDuration.FromMinutes(20)); // total 100 > backoff
+            director.Tick(mind.Agent);
+            Assert.AreEqual(2, attempts, "expired backoff allows a fresh attempt");
+        }
+
         private sealed class CountingIntervention : IPlanIntervention
         {
             private readonly Func<ActionFailureType?> _policy;

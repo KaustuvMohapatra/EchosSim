@@ -10,8 +10,10 @@ namespace EchoSim.Simulation
         public LocationId Id { get; }
         public string DisplayName { get; }
         public int Capacity { get; }
+        /// <summary>Null = always open (spec §5.5).</summary>
+        public OpeningHours? Hours { get; }
 
-        public LocationDefinition(LocationId id, string displayName, int capacity = int.MaxValue)
+        public LocationDefinition(LocationId id, string displayName, int capacity = int.MaxValue, OpeningHours? hours = null)
         {
             Id = id;
             if (string.IsNullOrWhiteSpace(displayName))
@@ -20,12 +22,13 @@ namespace EchoSim.Simulation
                 throw new ArgumentOutOfRangeException(nameof(capacity), "Capacity must be at least 1.");
             DisplayName = displayName;
             Capacity = capacity;
+            Hours = hours;
         }
 
         public override string ToString() => $"{DisplayName} ({Id})";
     }
 
-    /// <summary>Mutable runtime state of a location. Sprint 1: occupancy only.</summary>
+    /// <summary>Mutable runtime state of a location: occupancy plus open/closed.</summary>
     public sealed class LocationRuntimeState
     {
         public LocationId Id { get; }
@@ -33,15 +36,35 @@ namespace EchoSim.Simulation
         public bool IsOpen { get; private set; }
         public int OccupiedCount { get; internal set; }
 
+        private bool _manualOverride;
+
         public LocationRuntimeState(LocationDefinition definition)
         {
             Definition = definition ?? throw new ArgumentNullException(nameof(definition));
             Id = definition.Id;
             IsOpen = true;
+            _manualOverride = false;
         }
 
-        /// <summary>Opens or closes the location (opening-hours systems drive this).</summary>
-        public void SetOpen(bool open) => IsOpen = open;
+        /// <summary>Manual open/close always wins over authored hours.</summary>
+        public void SetOpen(bool open)
+        {
+            IsOpen = open;
+            _manualOverride = true;
+        }
+
+        /// <summary>
+        /// Recomputes IsOpen from authored hours. Returns true when the state flipped.
+        /// Manual overrides and hour-less locations are untouched.
+        /// </summary>
+        internal bool RefreshFromHours(SimTime now)
+        {
+            if (_manualOverride || !Definition.Hours.HasValue) return false;
+            bool desired = Definition.Hours.Value.IsOpenAt(now.MinuteOfDay);
+            if (desired == IsOpen) return false;
+            IsOpen = desired;
+            return true;
+        }
 
         internal void OnAgentEntered()
         {

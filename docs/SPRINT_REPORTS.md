@@ -214,6 +214,65 @@ Format follows master spec §15. Reports are appended; newest at bottom.
 
 ---
 
+## SPRINT 5 COMPLETE — Schedules, Jobs & Daily Rhythm
+
+1. **Summary.** The town gained a clock-shaped life: weekly schedules with
+   weekday/weekend/special-day overrides, employment (job definitions with
+   workplaces, shifts, income), authored opening hours with open/close events,
+   seeded routine offsets, and schedule pressure feeding goal utility through
+   the existing custom-term hook. Planning-failure backoff suppresses
+   unachievable goals instead of retry-spamming every tick.
+2. **Architecture implemented.** `Simulation/Schedules/*`, jobs inside
+   `ScheduleModel.cs` (`JobDefinition`, `JobSystem`),
+   `Simulation/World/OpeningHours.cs`; employment facts (`at_work`, `on_shift`,
+   `work_open`) projected by `PlannerStateBuilder`; Work action is now
+   employment-bound via the resident's own job rather than a shared town role.
+3. **Files created.** `ScheduleModel.cs`, `OpeningHours.cs`,
+   `SchedulesJobsTests.cs`.
+4. **Files modified.** `LocationDefinition/RuntimeState` (+hours, manual-override
+   semantics), `AgentMind` (+Job/Schedule/RoutineOffsetMinutes + authoring
+   setters), `PlannerStateBuilder`, `PlanningDirector` (backoff suppression),
+   `StandardGoals` (Work gated on real pressure), `StandardActions`
+   (employment-bound Work, `work_open` precondition), demo WorkingDay section.
+5. **Public APIs.** `ScheduleImportance`, `ScheduleEntry`, `DailySchedule`,
+   `WeeklySchedule`, `JobDefinition`, `JobSystem`
+   (`Define/Assign/IsOnShift/IsExpectedToWork/ComputePressure/MinutesLate`),
+   `OpeningHours(.System)`, `LocationOpenStateChangedEvent`,
+   `CognitionSystem.SuppressGoal`,
+   `PlanningDirector.PlanningFailureBackoffMinutes`.
+6. **Data models.** Pressure: 1.0 across the offset-shifted shift with ±30-min
+   shoulders; rest day = empty profile for the date; manual closures always win
+   over authored hours.
+7. **Tests created.** 13 new (118 total): wrap-midnight entries,
+   weekend/override profiles, offset shifts, pressure/rest-days, late-minute
+   math incl. wrapped shifts, hours flip events, manual override precedence,
+   critical hunger beating full work pressure, closed workplace avoidance,
+   commute planning to an open workplace, planning-failure suppression timing.
+8. **Tests executed.** Yes — **Passed! 118/118**.
+9. **Build result.** Succeeded, 0 warnings / 0 errors.
+10. **Demo result.** A full working day: residents socialize and explore
+    overnight, Bosse forms his bakery commute inside the pre-shift shoulder,
+    both work their shifts, head home in the evening, sleep — and Bosse wakes
+    at midnight ravenous, abandoning sleep for food (survival-first emergence).
+    Two runs byte-identical.
+11. **Bugs found & fixed this sprint.** Expired commitments let satisfied goals
+    re-elect themselves forever (selector saw them as "current"); empty plans
+    (goal already true) crashed the executor; single-role Workplace could not
+    express multiple employers (Work is now job-bound); off-shift Work scored
+    competitively from raw traits (now gated on real pressure).
+12. **Known limitations.** Attendance/tardiness tracking defined but not yet
+    wired into consequences; income stored but unspent until Sprint 15.
+13. **Technical debt.** Suppression is per-goal time-boxed only; no difficulty
+    scaling of backoff.
+14. **Documentation updated.** This report; ROADMAP Sprint 5 done; DECISIONS
+    D13 added.
+15. **Git status.** Committed on `feature/echosim`.
+16. **Recommended next sprint work.** Sprint 6: perception — observations with
+    source/confidence, same-location visibility, town announcements.
+17. **Anything unverified.** Nothing within sprint scope.
+
+---
+
 ## SPRINT 4 COMPLETE — Navigation, Affordances & Reservations
 
 1. **Summary.** Semantic movement became physical travel: `INavigationService`

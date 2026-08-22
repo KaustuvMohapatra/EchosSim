@@ -107,6 +107,8 @@ namespace EchoSim.Simulation
         private readonly Dictionary<AgentId, long> _generation = new Dictionary<AgentId, long>();
 
         public IPlanIntervention? Intervention { get; set; }
+        /// <summary>Backoff applied to a goal after a planning failure (spec §3.8: replan, not spam).</summary>
+        public int PlanningFailureBackoffMinutes { get; set; } = 90;
 
         // Metrics (spec §3.9).
         public long TotalPlansCreated { get; private set; }
@@ -117,13 +119,19 @@ namespace EchoSim.Simulation
         public int NodesExpandedLastPlan { get; private set; }
 
         public PlanningDirector(SimulationWorld world, CognitionSystem cognition,
-            GoapPlanner? planner = null, TownRoles? roles = null)
+            GoapPlanner? planner = null, TownRoles? roles = null,
+            OpeningHoursSystem? hours = null, JobSystem? jobs = null)
         {
             _world = world ?? throw new ArgumentNullException(nameof(world));
             _cognition = cognition ?? throw new ArgumentNullException(nameof(cognition));
             _planner = planner ?? new GoapPlanner();
             _roles = roles ?? TownRoles.DetectByConvention(_world);
+            _hours = hours;
+            _jobs = jobs;
         }
+
+        private readonly OpeningHoursSystem? _hours;
+        private readonly JobSystem? _jobs;
 
         public bool IsBusy(AgentId agent) => _active.ContainsKey(agent);
         public ActiveExecution? PeekActive(AgentId agent) => _active.TryGetValue(agent, out var run) ? run : null;
@@ -180,8 +188,8 @@ namespace EchoSim.Simulation
             }
 
             var agentState = _world.Agents.Get(agent);
-            var actions = StandardActions.CreateForResident(_world, agentState, _roles);
-            var start = new PlannerStateBuilder(_world, _roles).Build(agentState, mind);
+            var actions = StandardActions.CreateForResident(_world, agentState, _roles, mind.Job);
+            var start = new PlannerStateBuilder(_world, _roles, _hours, _jobs).Build(agentState, mind);
             var result = _planner.Plan(start, goalDef.DesiredFacts, actions, new ActionCostContext(_world, agent));
 
             NodesExpandedLastPlan = result.Metrics.NodesExpanded;
@@ -190,10 +198,23 @@ namespace EchoSim.Simulation
             if (!result.Success || result.Plan == null)
             {
                 TotalPlansFailed++;
+                _cognition.SuppressGoal(agent, goalDef.Id,
+                    now.Add(SimDuration.FromMinutes(PlanningFailureBackoffMinutes)));
                 _world.Events.Publish(new PlanStartedEvent(agent, goalDef.Id, 0, 0f, now));
                 _world.Events.Publish(new PlanFinishedEvent(agent, goalDef.Id, PlanLifecycle.Failed,
                     "planning:" + result.Metrics.FailureReason, now));
                 return; // wait for the next tick to try again
+            }
+
+            if (result.Plan.Steps.Count == 0)
+            {
+                // The world already satisfies the goal (e.g., GoHome while home).
+                // An empty plan is a no-op success, never an executable run.
+                TotalPlansSucceeded++;
+                _world.Events.Publish(new PlanStartedEvent(agent, goalDef.Id, 0, 0f, now));
+                _world.Events.Publish(new PlanFinishedEvent(agent, goalDef.Id, PlanLifecycle.Succeeded,
+                    "already-satisfied", now));
+                return;
             }
 
             var run = new ActiveExecution

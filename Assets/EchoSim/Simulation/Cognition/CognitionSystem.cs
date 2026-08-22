@@ -33,6 +33,44 @@ namespace EchoSim.Simulation
         private readonly IReadOnlyList<GoalDefinition> _goals;
         private readonly GoalSelector _selector;
         private Func<AgentId, SimTime, float>? _schedulePressureProvider;
+        private readonly Dictionary<AgentId, Dictionary<GoalId, SimTime>> _suppressed =
+            new Dictionary<AgentId, Dictionary<GoalId, SimTime>>();
+
+        /// <summary>Temporary selection blackout after a planning failure (spec §3.8).</summary>
+        public void SuppressGoal(AgentId agent, GoalId goal, SimTime until)
+        {
+            if (!_suppressed.TryGetValue(agent, out var map))
+            {
+                map = new Dictionary<GoalId, SimTime>();
+                _suppressed.Add(agent, map);
+            }
+            if (!map.TryGetValue(goal, out var current) || until > current)
+                map[goal] = until;
+        }
+
+        private bool IsSuppressed(AgentId agent, GoalId goal, SimTime now)
+            => _suppressed.TryGetValue(agent, out var map)
+               && map.TryGetValue(goal, out var until)
+               && until > now;
+
+        /// <summary>Goals eligible right now; falls back to all when everything is suppressed.</summary>
+        private IReadOnlyList<GoalDefinition> EligibleGoals(AgentId agent, SimTime now)
+        {
+            List<GoalDefinition>? filtered = null;
+            bool removedAny = false;
+            for (int i = 0; i < _goals.Count; i++)
+            {
+                var g = _goals[i];
+                if (IsSuppressed(agent, g.Id, now))
+                {
+                    removedAny = true;
+                    continue;
+                }
+                (filtered ??= new List<GoalDefinition>(_goals.Count)).Add(g);
+            }
+            if (!removedAny) return _goals;
+            return filtered != null && filtered.Count > 0 ? filtered : _goals;
+        }
 
         public CognitionSystem(SimulationWorld world,
             IReadOnlyList<GoalDefinition>? goals = null,
@@ -60,7 +98,7 @@ namespace EchoSim.Simulation
         public GoalSelectionResult Evaluate(AgentId agent)
         {
             var mind = _world.Residents.Get(agent);
-            return _selector.Select(BuildContext(mind), _goals);
+            return _selector.Select(BuildContext(mind), EligibleGoals(agent, _world.Clock.CurrentTime));
         }
 
         /// <summary>Evaluates and commits with hysteresis semantics.</summary>
@@ -69,9 +107,9 @@ namespace EchoSim.Simulation
             var mind = _world.Residents.Get(agent);
             var now = _world.Clock.CurrentTime;
 
-            // An interrupting need the commitment does NOT relieve breaks the
-            // commitment; otherwise hysteresis and interruption would contradict
-            // each other and livelock between cancel and re-select.
+            if (mind.HasCommitment)
+                mind.CommitmentHolds();
+
             var interrupting = mind.Needs.FindInterrupting();
             if (interrupting != null && mind.HasCommitment)
             {
@@ -83,7 +121,7 @@ namespace EchoSim.Simulation
                     mind.ReleaseCommitment();
             }
 
-            var result = _selector.Select(BuildContext(mind), _goals);
+            var result = _selector.Select(BuildContext(mind), EligibleGoals(mind.Agent, now));
 
             if (result.Winner == null)
                 throw new InvalidOperationException($"No goals available for '{agent}'.");

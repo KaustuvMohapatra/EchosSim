@@ -83,7 +83,9 @@ namespace EchoSim.Simulation
                 new GoalId("goal_work"), "Work", baseScore: 0.02f,
                 new[]
                 {
-                    ScoreTerm.FromCustom("SchedulePressure", ctx => ctx.SchedulePressure * 0.90f),
+                    // Employment pull exists only while the job exerts pressure;
+                    // the constant keeps trait terms from winning nights off.
+                    ScoreTerm.FromCustom("SchedulePressure", ctx => ctx.SchedulePressure * 1.20f - 0.15f),
                     ScoreTerm.FromTrait("Ambition", new TraitTerm(PersonalityTrait.Ambition, -0.08f, 0.18f)),
                     ScoreTerm.FromTrait("Conscientiousness", new TraitTerm(PersonalityTrait.Conscientiousness, -0.04f, 0.10f)),
                     ScoreTerm.FromNeed("EnergyCost", new NeedTerm(NeedKind.Energy, new ThresholdCurve(0.85f), -0.25f))

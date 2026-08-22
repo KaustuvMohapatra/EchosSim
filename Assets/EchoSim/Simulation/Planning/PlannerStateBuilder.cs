@@ -14,11 +14,16 @@ namespace EchoSim.Simulation
     {
         private readonly SimulationWorld _world;
         private readonly TownRoles _roles;
+        private readonly OpeningHoursSystem? _hours;
+        private readonly JobSystem? _jobs;
 
-        public PlannerStateBuilder(SimulationWorld world, TownRoles roles)
+        public PlannerStateBuilder(SimulationWorld world, TownRoles roles,
+            OpeningHoursSystem? hours = null, JobSystem? jobs = null)
         {
             _world = world ?? throw new ArgumentNullException(nameof(world));
             _roles = roles;
+            _hours = hours;
+            _jobs = jobs;
         }
 
         public PlannerWorldState Build(AgentState agent, AgentMind mind)
@@ -37,9 +42,28 @@ namespace EchoSim.Simulation
             }
             state.Set(StandardActions.HomeFact, atHome ? 1 : 0);
 
+            // Authored hours win over stale flags (idempotent).
+            _hours?.UpdateAll(_world.Clock.CurrentTime);
+
             // Role openness facts.
             SetOpenFlag(state, _roles.Cafe, "cafe_open");
             SetOpenFlag(state, _roles.Store, "store_open");
+
+            // Employment facts (Sprint 5): the resident's own job defines the workplace.
+            bool onShift = false;
+            if (_jobs != null && mind.Job != null)
+            {
+                bool atWork = agent.HasLocation && agent.CurrentLocationId == mind.Job.Workplace;
+                state.Set("at_work", atWork ? 1 : 0);
+                state.Set("work_open", _world.Locations.Get(mind.Job.Workplace).IsOpen ? 1 : 0);
+                onShift = _jobs.IsExpectedToWork(agent.Identity.Id, _world.Clock.CurrentTime);
+            }
+            else
+            {
+                state.Set("at_work", 0);
+                state.Set("work_open", 0);
+            }
+            state.Set("on_shift", onShift ? 1 : 0);
 
             // Persistent planner memory (skipping ephemeral and location keys).
             var ephemeral = new HashSet<string>(StandardActions.EphemeralSet(), StringComparer.Ordinal);

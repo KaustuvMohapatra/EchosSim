@@ -52,7 +52,7 @@ namespace EchoSim.Simulation
         public const string PantryStock = "pantry_stock";
 
         private static readonly string[] EphemeralFacts =
-            { "just_ate", "rested", "relaxed", "socialized", "explored", "worked", "on_shift" };
+            { "just_ate", "rested", "relaxed", "socialized", "explored", "worked" };
 
         public static IReadOnlyList<string> EphemeralSet() => EphemeralFacts;
 
@@ -78,7 +78,7 @@ namespace EchoSim.Simulation
         }
 
         public static List<PlanningAction> CreateForResident(
-            SimulationWorld world, AgentState agent, TownRoles roles)
+            SimulationWorld world, AgentState agent, TownRoles roles, JobDefinition? job = null)
         {
             if (world == null) throw new ArgumentNullException(nameof(world));
             if (agent == null) throw new ArgumentNullException(nameof(agent));
@@ -236,18 +236,28 @@ namespace EchoSim.Simulation
                 baseCost: 0.50f, durationMinutes: 30,
                 relief: new[] { new ActivityRelief(NeedKind.Social, 50f) }));
 
-            // --- Work ---
-            list.Add(new PlanningAction(
-                new ActionId("act_work"), "Work",
-                new[] { FactCondition.True("at_work"), FactCondition.True("on_shift") },
-                new[] { FactEffect.SetTrue("worked") },
-                baseCost: 0.50f, durationMinutes: 240,
-                relief: new[]
-                {
-                    new ActivityRelief(NeedKind.Energy, -18f),
-                    new ActivityRelief(NeedKind.Hunger, -12f)
-                },
-                interruptible: false));
+            // --- Work (employment-bound via the resident's own job) ---
+            if (job != null)
+            {
+                var workplace = job.Workplace;
+                list.Add(new PlanningAction(
+                    new ActionId("act_work"), "Work",
+                    new[]
+                    {
+                        FactCondition.True(LocationKey(workplace)),
+                        FactCondition.True("on_shift"),
+                        FactCondition.True("work_open")
+                    },
+                    new[] { FactEffect.SetTrue("worked") },
+                    baseCost: 0.50f, durationMinutes: 240,
+                    requiredLocation: workplace,
+                    relief: new[]
+                    {
+                        new ActivityRelief(NeedKind.Energy, -18f),
+                        new ActivityRelief(NeedKind.Hunger, -12f)
+                    },
+                    interruptible: false));
+            }
 
             // --- Fallback ---
             list.Add(new PlanningAction(

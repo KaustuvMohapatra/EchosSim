@@ -25,6 +25,76 @@ namespace EchoSim.HeadlessDemo
             ScenarioB(seed);
             ScenarioC(seed);
             LiveRunWithInterruption(seed);
+            WorkingDay(seed);
+        }
+
+        /// <summary>Sprint 5: jobs, shifts and authored hours drive a full working day.</summary>
+        private static void WorkingDay(ulong seed)
+        {
+            Console.Out.WriteLine("--- working day: employment rhythm ---");
+            var world = NewTown(seed);
+            world.RegisterLocation(new LocationDefinition(new LocationId("loc_bakery"), "Rising Crumb Bakery",
+                hours: OpeningHours.FromClock(5, 0, 14, 0)));
+            world.Affordances.Register(new LocationId("loc_bakery"), new ActionId("act_work"), "oven station");
+
+            var hours = new OpeningHoursSystem(world);
+            var jobs = new JobSystem(world);
+            jobs.Define(new JobDefinition("job_baker", "Baker", new LocationId("loc_bakery"), 7 * 60, 13 * 60, 14f));
+            jobs.Define(new JobDefinition("job_barista", "Barista", new LocationId("loc_cafe"), 9 * 60, 15 * 60, 12f));
+
+            world.RegisterLocation(new LocationDefinition(new LocationId("loc_home_frida"), "Frida's Flat"));
+
+            var rng = world.Randoms.GetStream(RandomStreams.Agents);
+            string[] names = { "npc_bosse", "npc_frida" };
+            string[] homes = { "loc_home_dee", "loc_home_frida" };
+
+            var residents = new List<AgentMind>();
+            for (int i = 0; i < names.Length; i++)
+            {
+                var (_, mind) = world.SpawnResident(new ResidentSpec(names[i], names[i].Substring(4))
+                {
+                    HomeLocationId = homes[i],
+                    Personality = PersonalityProfile.Balanced().Edit()
+                        .Set(PersonalityTrait.Ambition, 0.8f).Build(),
+                    InitialNeeds = new Dictionary<NeedKind, float> { [NeedKind.Hunger] = 25f }
+                });
+                jobs.Assign(mind.Agent, i == 0 ? "job_baker" : "job_barista");
+                mind.SetRoutineOffset(rng.NextInt(-20, 21)); // seeded jitter, spec §5.6
+                mind.PlannerMemory[StandardActions.PantryStock] = 2;
+                residents.Add(mind);
+            }
+
+            var cognition = new CognitionSystem(world);
+            cognition.SetSchedulePressureProvider(jobs.ComputePressure);
+            var director = new PlanningDirector(world, cognition, roles: Roles(), hours: hours, jobs: jobs);
+
+            world.Events.Subscribe<LocationOpenStateChangedEvent>(e =>
+                Line(e.AtTime, $"hours    {e.Location} {(e.IsOpen ? "opens" : "closes")}"));
+            world.Events.Subscribe<PlanStartedEvent>(e =>
+                Line(e.AtTime, $"plan     {e.Agent} -> {e.Goal} ({e.StepCount} steps)"));
+            world.Events.Subscribe<PlanFinishedEvent>(e =>
+            {
+                if (e.Outcome != PlanLifecycle.Succeeded)
+                    Line(e.AtTime, $"plan-{e.Outcome.ToString().ToLowerInvariant()}  {e.Agent} {e.Goal} reason={e.Reason}");
+            });
+            world.Events.Subscribe<PlanStepCompletedEvent>(e =>
+                Line(e.AtTime, $"step     {e.Agent} {e.Action} ({e.StepIndex + 1})"));
+
+            for (int minute = 0; minute <= 24 * 60; minute += 10)
+            {
+                if (minute > 0)
+                {
+                    cognition.AdvanceNeeds(SimDuration.FromMinutes(10));
+                    world.Clock.Advance(SimDuration.FromMinutes(10));
+                }
+                director.TickAll();
+            }
+
+            Console.Out.WriteLine($"end of day: t={world.Clock.CurrentTime}");
+            foreach (var mind in residents)
+                Console.Out.WriteLine(
+                    $"{mind.Agent,-11} job={mind.Job!.Title,-7} at={world.Agents.Get(mind.Agent).CurrentLocationId} " +
+                    $"hunger={mind.Needs.Get(NeedKind.Hunger).Current:0} energy={mind.Needs.Get(NeedKind.Energy).Current:0}");
         }
 
         private static SimulationWorld NewTown(ulong seed)
@@ -46,6 +116,9 @@ namespace EchoSim.HeadlessDemo
             // Sprint 4: affordances gate what actions exist where (spec §4.5).
             world.Affordances.Register(home, new ActionId("act_sleep"), "bed");
             world.Affordances.Register(home, new ActionId("act_get_ingredients"), "fridge");
+            var fridaHome = new LocationId("loc_home_frida");
+            world.Affordances.Register(fridaHome, new ActionId("act_sleep"), "bed");
+            world.Affordances.Register(fridaHome, new ActionId("act_get_ingredients"), "fridge");
             world.Affordances.Register(cafe, new ActionId("act_buy_meal"), "cafe counter");
             world.Affordances.Register(store, new ActionId("act_buy_ingredients"), "shop counter");
             return world;
