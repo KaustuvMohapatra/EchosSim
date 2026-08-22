@@ -39,11 +39,12 @@ namespace EchoSim.Simulation
         /// Content-authoring hook: seeds a relationship state directly
         /// (used for fixture towns with pre-existing social history).
         /// </summary>
-        public void Seed(float affinity, float grievance = 0f, float familiarity = 0f)
+        public void Seed(float affinity, float grievance = 0f, float familiarity = 0f, float trust = 0f)
         {
             Affinity = affinity;
             Grievance = grievance;
             Familiarity = familiarity;
+            Trust = trust;
             ClampAll();
         }
 

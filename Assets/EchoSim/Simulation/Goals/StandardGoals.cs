@@ -63,7 +63,12 @@ namespace EchoSim.Simulation
                     ScoreTerm.FromNeed("Fun", new NeedTerm(NeedKind.Fun, new LinearCurve(), 0.22f)),
                     ScoreTerm.FromTrait("Curiosity", new TraitTerm(PersonalityTrait.Curiosity, -0.06f, 0.20f)),
                     ScoreTerm.FromTrait("RiskTolerance", new TraitTerm(PersonalityTrait.RiskTolerance, -0.02f, 0.06f)),
-                    ScoreTerm.FromCustom("Emotion", ctx => -ctx.EmotionValence * 0.05f)
+                    ScoreTerm.FromCustom("Emotion", ctx => -ctx.EmotionValence * 0.05f),
+                    // Rain suppresses wandering — but rain-lovers barely care (Sprint 16).
+                    ScoreTerm.FromCustom("Weather", ctx =>
+                        ctx.Weather == WeatherState.Rain ? -0.14f * (1f - ctx.Preferences.Get("rain")) :
+                        ctx.Weather == WeatherState.HeavyRain ? -0.22f * (1f - ctx.Preferences.Get("rain")) :
+                        ctx.Weather == WeatherState.Cloudy ? -0.03f : 0f)
                 },
                 reliefNeeds: new[] { NeedKind.Fun },
                 desiredFacts: new[] { FactCondition.True("explored") }),

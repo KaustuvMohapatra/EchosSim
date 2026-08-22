@@ -118,10 +118,16 @@ namespace EchoSim.Simulation
         public float EmotionValence { get; }
         /// <summary>When each goal was last selected (cooldown hysteresis).</summary>
         public IReadOnlyDictionary<GoalId, SimTime> LastSelectedAt { get; }
+        /// <summary>Current world weather (Sprint 16).</summary>
+        public WeatherState Weather { get; }
+        /// <summary>The resident's authored preferences (Sprint 14/16).</summary>
+        public PreferenceProfile Preferences { get; }
 
         public GoalContext(SimTime time, NeedSet needs, PersonalityProfile personality,
             GoalId? currentGoal = null, float schedulePressure = 0f, float emotionValence = 0f,
-            IReadOnlyDictionary<GoalId, SimTime>? lastSelectedAt = null)
+            IReadOnlyDictionary<GoalId, SimTime>? lastSelectedAt = null,
+            WeatherState weather = WeatherState.Clear,
+            PreferenceProfile? preferences = null)
         {
             Time = time;
             Needs = needs ?? throw new ArgumentNullException(nameof(needs));
@@ -130,6 +136,8 @@ namespace EchoSim.Simulation
             SchedulePressure = Math.Clamp(schedulePressure, 0f, 1f);
             EmotionValence = Math.Clamp(emotionValence, -1f, 1f);
             LastSelectedAt = lastSelectedAt ?? new Dictionary<GoalId, SimTime>();
+            Weather = weather;
+            Preferences = preferences ?? new PreferenceProfile();
         }
     }
 

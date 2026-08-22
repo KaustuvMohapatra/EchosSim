@@ -143,9 +143,18 @@ namespace EchoSim.Simulation
             return new GoalDecision(result, winner, keptPrevious: false);
         }
 
+        /// <summary>Sprint 16: weather reaches goal scoring through this hook.</summary>
+        public void SetWeatherProvider(Func<WeatherState> provider)
+        {
+            _weatherProvider = provider ?? throw new ArgumentNullException(nameof(provider));
+        }
+
+        private Func<WeatherState>? _weatherProvider;
+
         private GoalContext BuildContext(AgentMind mind)
         {
             float pressure = _schedulePressureProvider?.Invoke(mind.Agent, _world.Clock.CurrentTime) ?? 0f;
+            var weather = _weatherProvider != null ? _weatherProvider() : WeatherState.Clear;
             return new GoalContext(
                 time: _world.Clock.CurrentTime,
                 needs: mind.Needs,
@@ -153,7 +162,9 @@ namespace EchoSim.Simulation
                 currentGoal: mind.CurrentGoalId,
                 schedulePressure: pressure,
                 emotionValence: mind.EmotionValence,
-                lastSelectedAt: mind.LastSelectedAt);
+                lastSelectedAt: mind.LastSelectedAt,
+                weather: weather,
+                preferences: mind.Preferences);
         }
 
         public GoalDefinition? FindGoal(GoalId id)
