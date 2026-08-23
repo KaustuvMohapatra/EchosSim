@@ -45,10 +45,12 @@ export class LocationRepository {
   private readonly order: string[] = [];
   get orderedIds(): LocationId[] { return this.order.map((id) => id as LocationId); }
   get count(): number { return this.order.length; }
-  add(d: LocationDefinition): void {
+  add(d: LocationDefinition): LocationRuntimeState {
     if (this.states.has(d.id)) throw new Error(`Duplicate location id '${d.id}'.`);
-    this.states.set(d.id, new LocationRuntimeState(d));
+    const rt = new LocationRuntimeState(d);
+    this.states.set(d.id, rt);
     this.order.push(d.id);
+    return rt;
   }
   remove(id: LocationId): void {
     const rt = this.states.get(id);

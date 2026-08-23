@@ -9,6 +9,7 @@
  * explicit command methods that enter simulation systems directly.
  */
 import { createAuthoredTown } from "@echosim/content";
+import { PersonalityProfile } from "@echosim/cognition";
 import { SimulationInspector } from "@echosim/inspector";
 import type {
   AgentSummary, SimEventEntry, TimeInfo, TownStats,
@@ -40,6 +41,10 @@ export class LifeModeAdapter {
   readonly director: PlanningDirector;
   readonly inspector: SimulationInspector;
   lod: LodController;
+  /** The player is a FULL EchoSim resident (Sprint 37). */
+  readonly playerId = "player";
+  /** Last command feedback for the UI (presentation info only). */
+  lastCommandFeedback = "";
 
   private timer: ReturnType<typeof setInterval> | null = null;
   private listeners = new Set<() => void>();
@@ -55,6 +60,51 @@ export class LifeModeAdapter {
     this.beatMs = options.beatMs ?? 400;
     this.stepMinutes = options.stepMinutes ?? 10;
     this.lod = this.director.lod!;
+
+    // Player enters through the normal spawn pipeline — same downstream
+    // systems as every NPC (needs, memory, relationships, planning).
+    if (!this.town.residents.tryMind(this.playerId)) {
+      this.town.spawnResident({
+        id: this.playerId,
+        displayName: "You",
+        homeLocationId: "apt_b",
+        personality: PersonalityProfile.balanced(),
+      });
+    }
+  }
+
+  // ---------------- player commands ----------------
+
+  /**
+   * Player travel command: enters via the simulation's own navigation
+   * service, exactly like any semantic move. Feedback string for the HUD.
+   */
+  commandMoveTo(locationId: string): boolean {
+    const rt = this.town.locations.tryGet(locationId as never);
+    if (!rt) {
+      this.lastCommandFeedback = `Unknown place: ${locationId}`;
+      this.emit();
+      return false;
+    }
+    if (!rt.isOpen) {
+      this.lastCommandFeedback =
+        `${rt.definition.displayName} is closed.`;
+      this.emit();
+      return false;
+    }
+    const accepted = this.town.navigation.beginMove(
+      this.playerId as never, locationId as never, () => {});
+    this.lastCommandFeedback = accepted
+      ? `Walking to ${rt.definition.displayName}…`
+      : "Already travelling.";
+    this.emit();
+    return accepted.accepted ?? true;
+  }
+
+  /** Current semantic location of the player (for camera + HUD). */
+  playerLocationId(): string | undefined {
+    const s = this.town.agentsById.get(this.playerId);
+    return s?.hasLocation ? s.currentLocationId : undefined;
   }
 
   // ---------------- lifecycle ----------------

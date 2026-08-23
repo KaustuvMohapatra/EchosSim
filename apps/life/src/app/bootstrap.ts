@@ -1,20 +1,24 @@
-/** App bootstrap: engine, scene, lighting, layers, render loop (Sprint 36). */
+/** App bootstrap: engine, scene, lighting, layers, render loop (S36+S37). */
 import {
-  Color3, DirectionalLight, Engine, HemisphericLight, Scene, Vector3,
+  Color3, DirectionalLight, Engine, HemisphericLight, PointerEventTypes,
+  Scene, Vector3,
 } from "@babylonjs/core";
 import { LifeModeAdapter } from "../simulation/LifeModeAdapter.js";
 import { buildTownMeshes } from "../world/townMeshes.js";
 import { AgentLayer } from "../characters/AgentLayer.js";
 import { createLifeCamera } from "../camera/lifeCamera.js";
+import { CameraController } from "../camera/CameraController.js";
 
 export interface LifeApp {
   adapter: LifeModeAdapter;
   agents: AgentLayer;
+  camera: CameraController;
   start(): void;
   dispose(): void;
 }
 
-export function createLifeApp(canvas: HTMLCanvasElement): LifeApp {
+export function createLifeApp(canvas: HTMLCanvasElement,
+  handlers: { onAgentSelected?(agentId: string): void } = {}): LifeApp {
   const engine = new Engine(canvas, true, { stencil: false });
   const scene = new Scene(engine);
   scene.clearColor = new Color3(0.055, 0.07, 0.11).toColor4(1);
@@ -36,8 +40,27 @@ export function createLifeApp(canvas: HTMLCanvasElement): LifeApp {
   const agents = new AgentLayer(scene, adapter);
   agents.update();
 
-  // Render loop: presentation interpolation every frame.
+  const cam = new CameraController(camera, scene, () => {
+    const p = agents.positionOf(adapter.playerId);
+    return p ? { x: p.x, z: p.z } : undefined;
+  });
+
+  // Picking: lots issue player travel commands; agents select.
+  scene.onPointerObservable.add((pi) => {
+    if (pi.type !== PointerEventTypes.POINTERPICK) return;
+    const mesh = pi.pickInfo?.pickedMesh;
+    const meta = mesh?.metadata as
+      | { kind?: string; locationId?: string; agentId?: string }
+      | undefined;
+    if (!meta?.kind) return;
+    if (meta.kind === "lot" && meta.locationId)
+      adapter.commandMoveTo(meta.locationId);
+    else if (meta.kind === "agent" && meta.agentId)
+      handlers.onAgentSelected?.(meta.agentId);
+  });
+
   engine.runRenderLoop(() => {
+    cam.update();
     agents.renderFrame();
     scene.render();
   });
@@ -47,6 +70,7 @@ export function createLifeApp(canvas: HTMLCanvasElement): LifeApp {
   return {
     adapter,
     agents,
+    camera: cam,
     start(): void { adapter.play(); },
     dispose(): void {
       window.removeEventListener("resize", onResize);

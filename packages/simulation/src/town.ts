@@ -279,12 +279,16 @@ export class Town {
   }
 
   registerLocation(def: { id: string; displayName: string; capacity?: number; hours?: { openMinuteOfDay: number; closeMinuteOfDay: number } }): void {
-    this.locations.add({
+    const state = this.locations.add({
       id: def.id as unknown as LocationId,
       displayName: def.displayName,
       capacity: def.capacity ?? Number.MAX_SAFE_INTEGER,
       hours: def.hours,
     });
+    // Apply authored hours immediately so world truth is correct at t=0
+    // (regression S37: locations defaulted open until the first sweep).
+    if (def.hours)
+      void state.refreshFromHours(this.clock.currentTime.totalMinutes);
   }
 
   spawnResident(spec: {
