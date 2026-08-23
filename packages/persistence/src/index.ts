@@ -1,1 +1,1 @@
-export { UnsupportedSaveVersionException } from "./migrations.js";
+export { UnsupportedSaveVersionException, migrateToCurrent } from "./migrations.js";

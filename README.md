@@ -1,61 +1,103 @@
 # EchoSim
 
-**An emergent social-simulation sandbox where autonomous residents form memories,
-relationships, beliefs and routines — allowing information and consequences to
-propagate through a living town.**
+> An engine-independent emergent social simulation where autonomous residents form memories, relationships, beliefs, routines and habits — allowing consequences and information to propagate through a living town.
 
-> Status: Sprints 0–18 of 35 complete. The deterministic simulation core is a
-> finished, fully tested product: residents with personalities and needs plan
-> their days with GOAP, travel between shops with opening hours and jobs, form
-> directional relationships and moods, gossip beliefs across minds with hop
-> decay, react to weather and town events — and the whole living town survives
-> save/load with **identical futures**.
+## Quick Start
 
-## What works (Sprints 1–18)
+```bash
+# Install (requires Node.js 18+)
+corepack enable
+corepack pnpm install
 
-- **Deterministic core** — seeded SplitMix64 RNG streams, minute-granularity
-  clock (pause / 0.5×–16×), typed stable IDs, drift-free scheduler, typed event bus.
-- **Cognition** — 14-trait personalities; 7 needs with hysteresis; explainable
-  utility scoring; GOAP planning over fact states with structured failures,
-  critical interruption and bounded replanning.
-- **A navigable town** — authored travel times, affordance gating, seat/bed
-  reservations, opening hours, jobs with shift-pressure shoulders, weekly
-  weekday/weekend schedules with per-resident routine offsets.
-- **Society** — perception with source/confidence tiers, episodic memory with
-  explainable retrieval and decay, decaying emotion, directional 8-dimensional
-  relationships, social actions with conversation locks, rumour transmission
-  with hop decay and loop guards, template conversations (no LLM required).
-- **World pressure** — weather that reshapes choices by preference, recurring
-  town events, condition-gated storylets, item/shop/wage economy with gifts.
-- **Persistence** — versioned DTO saves, atomic writes with backup, migration
-  chain, in-flight plan serialization, and proven round-trip determinism.
+# Run headless simulation
+npm run sim -- --seed=42069 --days=3
 
-```text
-dotnet run --project tools/EchoSim.HeadlessDemo
+# Open living town in browser
+npm run dev
+
+# Run tests
+npm test
 ```
 
-The demo runs seven scenarios: three planning branches, an interruption-driven
-replan, a full working day, a witnessed incident with uneven knowledge, and the
-save/load finale where a restored town replays the future exactly like the
-original — byte-identical for any given seed.
+## Architecture
 
-## Development
+```
+Simulation Core (engine-free TypeScript)
+├── @echosim/core        IDs · Time · RNG · Events · Scheduler
+├── @echosim/cognition   Personality · Needs · Utility AI · GOAP
+├── @echosim/world       Locations · Navigation · Jobs · Weather
+├── @echosim/social      Perception · Memory · Emotion · Relationships · Beliefs
+├── @echosim/simulation  Town composition root + PlanningDirector
+├── @echosim/content     Authored residents & fixtures
+└── @echosim/persistence Save/load with versioning
 
-| Command | Purpose |
+    ↓ consumed by ↓
+
+apps/sim-cli   Headless Node runner
+apps/game      Phaser 4 + Vite browser view
+tests/         Vitest suite (determinism + regression + architecture)
+```
+
+**Core rule:** simulation packages never import Phaser, React, or DOM APIs. Enforced by `tests/architecture/`.
+
+## Systems
+
+| System | What it does |
 |---|---|
-| `dotnet build EchoSim.sln` | compile domain + tests headlessly |
-| `dotnet test EchoSim.sln` | run unit suite (163 tests) |
-| `dotnet run --project tools/EchoSim.HeadlessDemo [seed]` | reproducible demo |
+| Deterministic RNG | SplitMix64 via BigInt — bit-identical across platforms |
+| Time | Integer minute granularity; pause/resume; speed presets 0.5×–16× |
+| Personality | 14 normalized traits driving all scoring variation |
+| Needs | 7 needs (0=satisfied→100=critical); threshold dynamics with hysteresis |
+| Utility AI | Explainable additive scoring: Base + Σ(need/trait/custom) − inertia + critical |
+| GOAP | Uniform-cost search (Dijkstra); closed-set cycle avoidance; expansion+depth caps |
+| Planning Director | Generation-tokened completions; deferred replanning; suppression backoff |
+| Navigation | Timed travel over authored adjacency graph; stuck detection |
+| Schedules/Jobs | Shift windows with ±30-min shoulders; weekday/weekend profiles |
+| Perception | Reach tiers (same-location/nearby/town); confidence by source |
+| Memory | Episodic memories with importance/valence; bounded store; explainable retrieval |
+| Emotion | Valence/arousal with exponential decay toward neutral |
+| Relationships | Directional 8-dimension vectors; personality-scaled events; drift |
+| Beliefs/Gossip | Hop-decayed provenance chains; loop guards; direct experience > hearsay |
+| Conversations | Deterministic intent selection; template utterances; no LLM required |
+| Economy | Items, stock scarcity, wages, gifts scaled by recipient preference |
+| Weather | Seeded Markov rolls; rain suppresses exploring unless you love rain |
+| Persistence | Versioned JSON saves; atomic writes; migration chain |
 
-Open the repository root directly in **Unity 6000.5.6f1** to work inside the
-editor; domain assemblies (`EchoSim.Core`, `EchoSim.Simulation`) have
-`noEngineReferences` enabled so they stay engine-free by construction.
+## Why These Bugs Matter
 
-## Documentation
+The test suite preserves regressions for real bugs found during development:
 
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — system map & dependency rules
-- [`docs/DECISIONS.md`](docs/DECISIONS.md) — decision log with rationale
-- [`docs/ROADMAP.md`](docs/ROADMAP.md) — sprint status
-- [`docs/ENVIRONMENT.md`](docs/ENVIRONMENT.md) — toolchain versions
-- [`docs/TESTING.md`](docs/TESTING.md) — how to run & what is covered
-- [`docs/SPRINT_REPORTS.md`](docs/SPRINT_REPORTS.md) — per-sprint engineering reports
+| Bug | Root Cause |
+|---|---|
+| Greedy goal testing | Goal checked at child-generation instead of pop → expensive plans won |
+| Stale callbacks | Cancelled plans' scheduled callbacks consumed newer plans' steps |
+| Commitment livelock | Expired commitments waived cooldown → satisfied goals re-elected forever |
+| Self relationships | Observer's own actions created self-referencing links |
+| Memory subject convention | Observer stored themselves as memory subject instead of other actor |
+| Restore override leakage | Manual closures survived authored-hours sweeps after restore |
+| Missing cognition timers | Suppression/cooldown state absent from saves caused restored towns to diverge |
+
+Each has a named regression test.
+
+## Testing
+
+```bash
+npm test                    # all tests
+npm run test:determinism   # golden vector cross-check against .NET
+npm run test:architecture  # engine independence guardrail
+npm run test:regression    # historical bug preservation
+```
+
+## Known Limitations
+
+- Unity editor round-trip not yet exercised (headless CI verified)
+- Social conversations are template-based (no LLM required, LLM layer planned)
+- Movement is semantic teleport with travel times (no spatial pathfinding yet)
+- Content is 3 residents (target: 20–30)
+- Debug inspector is minimal DOM panel (React inspector planned)
+
+## Roadmap
+
+Sprints 0–18 complete. Remaining: 19 (debug inspector), 20 (social graph), 21–22 (optional LLM), 23 (reflection), 24 (habits), 25 (groups), 26–27 (LOD/perf), 28 (soak), 29 (content), 30 (research mode), 31–35 (UX/polish/release).
+
+See `docs/ROADMAP.md` for full status.
