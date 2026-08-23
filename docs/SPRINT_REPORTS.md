@@ -706,3 +706,41 @@ Format follows master spec Â§15. Reports are appended; newest at bottom.
    is live-only; minimal group calendars; no CI pipeline file yet.
 5. **Git status.** feature/echosim, release commit local; nothing pushed
    (per standing instruction).
+
+---
+
+## PHASE II SPRINTS 36-40 COMPLETE - Life Client Foundation & Core Loop
+
+1. **Summary.** Phase II (EchoSim Life) opened with a verified v0.1.0
+   baseline (114/114) and delivered the playable 3D foundation:
+   apps/life on Babylon.js 9.22 + React + Vite; an engine-free
+   LifeModeAdapter over the authored 27-resident town; metre-scale layout;
+   orbit/follow/shoulder cameras via a testable easing rig; the player as a
+   FULL resident commanding through simulation services; click-to-walk,
+   object context menus with anchors/affordances, seat claiming with polite
+   refusals and seated poses; a sequential action queue with per-item cancel
+   plus autonomy modes (manual/assisted/auto) implemented as manual priority
+   over utility AI using the LOD gate (critical needs always bypass); NPC
+   interaction menus with relationship labels and walk-over-then-greet combos.
+2. **Architecture.** Dependency direction held: Babylon/React never reach
+   past the adapter; adapter is Node-testable without any engine.
+3. **Real defects found & fixed.**
+   - Authored hours were not applied at composition time (world truth wrong
+     until first sweep; travel to "closed" venues behaved inconsistently).
+   - Town.moveAgent mutated the origin lot before validating destination
+     capacity -> permanent occupancy desync once capped venues existed.
+     Fixed atomically + LocationRuntimeState capacity/isFull getters +
+     full-day occupancy invariant regression test.
+   - InteractionController re-entrancy: pending-seat cleared after the emit
+     that re-entered it (stack overflow). Resolved exactly-once now.
+4. **Tests.** 145 passing (was 114): +6 adapter, +8 camera/player commands,
+   +8 interaction/occupancy regression, +7 queue/autonomy/social, +2
+   visit-and-social.
+5. **Verification at every boundary.** typecheck clean; full suite green;
+   production build of apps/life succeeds (~2m20s incl. Babylon); dev server
+   smoke HTTP 200 for life client earlier sprints; git diff --check clean;
+   old frontends untouched (sim-cli / debug-ui / game / research intact).
+6. **Git status.** feature/echosim, five sprint commits local, nothing pushed.
+7. **Next.** Sprint 41 HUD depth (needs bars/mood/money/household), then
+   interiors+cutaway (42), build mode v1 (43), structural build (44),
+   world map/lots (45).
