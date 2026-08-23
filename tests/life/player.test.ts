@@ -140,3 +140,28 @@ describe("S39: manual priority & autonomy resume", () => {
     p.dispose(); a.dispose();
   });
 });
+
+describe("S40: visit-and-social convenience", () => {
+  it("queues travel plus interaction when not co-located", () => {
+    const a = new LifeModeAdapter({ seed: 7001 });
+    const p = new PlayerAgentController(a);
+    steps(a, 40); // player at home (apt_b)
+    // Mira lives apt_a — different household.
+    const ok = p.enqueueVisitAndSocial("npc_mira", "Mira", 0 /* Greet */,
+      "apt_a", "Alder Apartments");
+    expect(ok).toBe(true);
+    expect(p.items().length).toBe(2);
+    drain(a, p);
+    expect(a.playerLocationId()).toBe("apt_a");
+    expect(p.items().map((q) => q.status)).toEqual(["done", "done"]);
+    p.dispose(); a.dispose();
+  });
+
+  it("refuses when target has no location", () => {
+    const a = new LifeModeAdapter({ seed: 7001 });
+    const p = new PlayerAgentController(a);
+    expect(p.enqueueVisitAndSocial("npc_mira", "Mira", 0, undefined, "")).toBe(false);
+    expect(p.items()).toHaveLength(0);
+    p.dispose(); a.dispose();
+  });
+});

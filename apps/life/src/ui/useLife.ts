@@ -25,7 +25,12 @@ export function useLife(): LifeHandle & {
     const canvas = hostRef.current;
     if (!canvas) return;
     const life = createLifeApp(canvas, {
-      onAgentSelected: (id) => setSelected(id),
+      onAgentSelected: (id) => {
+        setSelected(id);
+        // NPC context menu opens with social options (Sprint 40).
+        setMenu({ objectId: `agent:${id}`, x: window.innerWidth / 2 - 70,
+                  y: Math.min(window.innerHeight - 190, window.innerHeight / 2 - 90) });
+      },
       onObjectMenu: (objectId, x, y) =>
         setMenu(x >= 0 ? { objectId, x, y } : null),
       onDismissMenu: () => setMenu(null),

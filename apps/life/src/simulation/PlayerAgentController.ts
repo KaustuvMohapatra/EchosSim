@@ -85,6 +85,20 @@ export class PlayerAgentController {
       q.status === "pending" || q.status === "walking" || q.status === "active");
   }
 
+  /**
+   * Convenience: walk to the target if needed, then interact.
+   * Returns false immediately when the pair can never co-locate today.
+   */
+  enqueueVisitAndSocial(targetId: string, targetName: string,
+    action: SocialActionType, targetLocationId: string | undefined,
+    locationName: string): boolean {
+    if (!targetLocationId) return false;
+    if (this.adapter.playerLocationId() !== targetLocationId)
+      this.enqueueMove(targetLocationId, locationName);
+    this.enqueueSocial(targetId, targetName, action);
+    return true;
+  }
+
   setAutonomy(mode: AutonomyMode): void {
     this.autonomy = mode;
     this.applyGate();

@@ -23,25 +23,69 @@ export function App() {
         style={{ position: "absolute", inset: 0, width: "100%", height: "100%",
                  display: "block", touchAction: "none" }} />
 
-      {/* Object context menu (Sprint 38). */}
+      {/* Object / NPC context menu (Sprints 38+40). */}
       {menu && app && (
         <div style={{ ...styles.menu, left: menu.x, top: menu.y }}
           data-context-menu="1"
           data-testid="object-menu">
-          <div style={styles.menuTitle}>
-            {app.interactions.objectDef(menu.objectId)?.objectId.replace(/_/g, " ")}
-          </div>
-          {app.interactions.affordancesOf(menu.objectId).map((a) => (
-            <button key={a.id} style={styles.menuItem}
-              data-context-menu="1"
-              onClick={() => {
-                const r = app.interactions.use(menu.objectId, a.id);
-                if (!r.ok) setFlash(r.feedback);
-                closeMenu();
-              }}>
-              {a.label}
-            </button>
-          ))}
+          {menu.objectId.startsWith("agent:") ? (() => {
+            const targetId = menu.objectId.slice(6);
+            const summary = snap?.agents.find((s) => s.id === targetId);
+            const coLocated = summary?.locationId === app.adapter.playerLocationId();
+            const rel = app.inspector.getRelationships(app.adapter.playerId)
+              .find((r) => r.to === targetId);
+            return (<>
+              <div style={styles.menuTitle}>
+                {summary?.name}
+                {rel && rel.label !== "Stranger" ? ` · ${rel.label}` : ""}
+              </div>
+              {(coLocated
+                ? [["Greet", 0], ["Talk", 1], ["Compliment", 2], ["Tease", 3], ["Help", 5], ["Apologize", 8]]
+                    .map(([label, idx]) => (
+                  <button key={label as string} style={styles.menuItem}
+                    data-context-menu="1"
+                    onClick={() => {
+                      app.player.enqueueSocial(targetId, summary?.name ?? targetId,
+                        idx as never);
+                      closeMenu();
+                    }}>
+                    {label as string}
+                  </button>))
+                : <button style={styles.menuItem} data-context-menu="1"
+                    onClick={() => {
+                      const lot = summary?.locationId;
+                      if (lot) {
+                        const lotName = snap?.agents.find((s) => s.id === targetId)?.locationName ?? lot;
+                        app.player.enqueueVisitAndSocial(targetId, summary?.name ?? targetId,
+                          0 /* Greet */, lot, lotName);
+                      }
+                      setFlash(`Heading over to ${summary?.name ?? "them"}…`);
+                      closeMenu();
+                    }}>
+                    Walk over & Greet
+                  </button>}
+              {rel && (
+                <div style={{ padding: "3px 9px", fontSize: 11, color: "#64748b" }}>
+                  affinity {rel.affinity >= 0 ? "+" : ""}{rel.affinity.toFixed(2)}
+                </div>
+              )}
+            </>);
+          })() : (<>
+            <div style={styles.menuTitle}>
+              {app.interactions.objectDef(menu.objectId)?.objectId.replace(/_/g, " ")}
+            </div>
+            {app.interactions.affordancesOf(menu.objectId).map((a) => (
+              <button key={a.id} style={styles.menuItem}
+                data-context-menu="1"
+                onClick={() => {
+                  const r = app.interactions.use(menu.objectId, a.id);
+                  if (!r.ok) setFlash(r.feedback);
+                  closeMenu();
+                }}>
+                {a.label}
+              </button>
+            ))}
+          </>)}
         </div>
       )}
 
