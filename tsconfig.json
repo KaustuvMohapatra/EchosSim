@@ -9,9 +9,10 @@
     { "path": "packages/content" },
     { "path": "packages/persistence" },
     { "path": "packages/ai" },
+    { "path": "apps/debug-ui" },
+    { "path": "apps/life" },
     { "path": "packages/inspector" },
     { "path": "apps/sim-cli" },
     { "path": "apps/game" },
-    { "path": "apps/debug-ui" }
   ]
 }

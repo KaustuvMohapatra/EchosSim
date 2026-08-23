@@ -19,7 +19,9 @@
     "build:debug-ui": "cd apps/debug-ui && npx vite build",
     "bench": "tsx tools/bench.ts",
     "soak": "tsx tools/soak.ts",
-    "experiment": "tsx packages/research/src/cli.ts"
+    "experiment": "tsx packages/research/src/cli.ts",
+    "dev:life": "vite apps/life --config apps/life/vite.config.ts",
+    "build:life": "cd apps/life && npx vite build"
   },
   "devDependencies": {
     "@echosim/ai": "workspace:*",
@@ -27,6 +29,7 @@
     "@echosim/content": "workspace:*",
     "@echosim/core": "workspace:*",
     "@echosim/inspector": "workspace:*",
+    "@echosim/life": "workspace:*",
     "@echosim/persistence": "workspace:*",
     "@echosim/research": "workspace:*",
     "@echosim/simulation": "workspace:*",
