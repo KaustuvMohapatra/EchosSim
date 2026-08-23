@@ -601,3 +601,33 @@ Format follows master spec Â§15. Reports are appended; newest at bottom.
    network isolation, secret hygiene.
 6. **Tests executed.** Yes - 11/11 green; full suite 53 passing.
 7. **Git status.** Committed on feature/echosim.
+
+---
+
+## SPRINT 22 COMPLETE - Validated Generative Dialogue
+
+1. **Summary.** LLMs now render language for simulation-decided conversations:
+   DialogueContextBuilder distils each sim:conversation record into a bounded
+   request (identity, voice descriptors derived from personality+mood,
+   relationship summary, intent/topic, <=6 whitelisted known-facts incl.
+   belief provenance, max utterances); renderDialogue validates the response
+   shape and clamps unknown tones to neutral. Rendering is async, read-only,
+   and never feeds back into simulation state (Rule 4).
+2. **Architecture implemented.** Pipeline exactly as specified: conversation
+   intent (sim) -> topic (sim) -> context builder -> optional LLM -> schema
+   validation -> utterance. Simulation outcome provably independent.
+3. **Files created/modified.** packages/simulation/src/dialogue.ts (+export),
+   social package (+RelationshipSystem.tryGet non-creating read after the
+   fingerprint test caught getOrCreate creating links during reads),
+   packages/simulation deps (+@echosim/ai), tests/dialogue/dialogue.test.ts.
+4. **Public APIs.** buildDialogueContext, voiceDescriptors, renderDialogue,
+   RenderedDialogue.
+5. **Tests.** +5 including the ACCEPTANCE proof: same seed run twice, one with
+   an active mock provider rendering every conversation -> byte-identical town
+   fingerprints vs AI-off baseline. Also: context bounds, no-mutation rendering,
+   tone downgrade, total-provider-failure fallback.
+6. **Bugs found & fixed.** Context builder initially used relationships.getOrCreate
+   (creating empty links during reads) - replaced with tryGet; regression covered
+   by the no-mutation test.
+7. **Tests executed.** Yes - 5/5 green; suite total 58.
+8. **Git status.** Committed on feature/echosim.

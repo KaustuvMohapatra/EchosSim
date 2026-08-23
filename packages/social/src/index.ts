@@ -293,6 +293,10 @@ export class RelationshipSystem {
     if (!r) { r = { familiarity: 0, affinity: 0, trust: 0, respect: 0, attraction: 0, fear: 0, grievance: 0, obligation: 0 }; this.links.set(key, r); }
     return r;
   }
+  /** Read-only lookup for inspection/rendering: never creates a link. */
+  tryGet(from: string, to: string): Relationship | undefined {
+    return this.links.get(`${from}>${to}`);
+  }
   import(from: string, to: string, snap: Relationship): void {
     Object.assign(this.getOrCreate(from, to), snap);
     clampRel(this.getOrCreate(from, to));

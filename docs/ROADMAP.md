@@ -29,7 +29,7 @@ Source of truth for scope: `ECHOSIM.txt` master specification (35 sprints).
 | 19 | Advanced debug tooling (inspector API + React debug UI) | **Done** |
 | 20 | Relationship graph visualization | **Done** |
 | 21 | LLM provider abstraction | **Done** |
-| 22 | LLM dialogue rendering | Planned |
+| 22 | LLM dialogue rendering | **Done** |
 | 23 | Reflection & semantic memory | Planned |
 | 24 | Long-term goals & habits | Planned |
 | 25 | Households, friend groups | Planned |

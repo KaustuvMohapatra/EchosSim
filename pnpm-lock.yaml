@@ -183,6 +183,9 @@ importers:
 
   packages/simulation:
     dependencies:
+      '@echosim/ai':
+        specifier: workspace:*
+        version: link:../ai
       '@echosim/cognition':
         specifier: workspace:*
         version: link:../cognition
