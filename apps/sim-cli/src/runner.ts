@@ -1,19 +1,22 @@
 /** EchoSim headless simulation runner: seed-driven, deterministic, no browser needed. */
-import { createDemoTown } from "@echosim/content";
+import { createDemoTown, createAuthoredTown } from "@echosim/content";
 
 const args = process.argv.slice(2);
 const seedArg = args.find((a) => a.startsWith("--seed="));
 const daysArg = args.find((a) => a.startsWith("--days="));
+const authored = args.includes("--authored");
 const seed = seedArg ? BigInt(seedArg.split("=")[1]!) : 42069n;
 const numDays = daysArg ? parseInt(daysArg.split("=")[1]!) : 7;
 
 console.log("EchoSim Simulation");
 console.log(`Seed: ${seed}`);
-console.log(`Days: ${numDays}`);
+console.log(`Days: ${numDays}${authored ? " (authored town)" : ""}`);
 console.log();
 
-const { town, director } = createDemoTown(seed);
+const world = authored ? createAuthoredTown(seed) : createDemoTown(seed);
+const { town, director } = world;
 const residentIds = town.residents.orderedIds();
+console.log(`Residents: ${residentIds.length}`);
 
 let totalEvents = 0;
 let conversations = 0;

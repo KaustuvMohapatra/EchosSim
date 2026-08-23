@@ -6,3 +6,5 @@ export const ContentFixtures = {
 
 export * from "./demoTown.js";
 export * from "./scaledTown.js";
+export * from "./townContent.js";
+export * from "./authoredTown.js";
