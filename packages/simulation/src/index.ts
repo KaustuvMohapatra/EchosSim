@@ -1,2 +1,2 @@
-/** Composition layer exports. */
 export * from "./town.js";
+export * from "./director.js";

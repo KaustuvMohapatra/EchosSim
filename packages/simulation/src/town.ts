@@ -60,6 +60,7 @@ export class Town {
   readonly planner = new GoapPlanner();
   readonly residents = new ResidentRegistry();
   readonly agentsById = new Map<string, AgentLocationState>();
+  economy?: { tryPurchase(agent: string, itemId: string): string; payWage(agent: string, hours: number): number };
 
   private memoryIdCounter = 100_000;
 

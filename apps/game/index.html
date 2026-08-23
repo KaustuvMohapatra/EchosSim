@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EchoSim — Living Town</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #1a1a2e; color: #e0e0e0; font-family: 'Segoe UI', system-ui, sans-serif;
+           display: flex; height: 100vh; overflow: hidden; }
+    #game-container { flex: 1; position: relative; }
+    #inspector {
+      width: 340px; min-width: 280px; background: #16213e; padding: 16px;
+      overflow-y: auto; border-left: 1px solid #0f3460; font-size: 13px;
+    }
+    #inspector h3 { color: #7dd3fc; margin-bottom: 8px; border-bottom: 1px solid #0f3460; padding-bottom: 4px; }
+    #inspector .section { margin-bottom: 14px; }
+    #inspector .label { color: #94a3b8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+    #inspector .value { color: #e2e8f0; margin-bottom: 4px; }
+    #inspector .bar { height: 6px; background: #334155; border-radius: 3px; overflow: hidden; margin: 2px 0 6px; }
+    #inspector .bar .fill { height: 100%; transition: width 0.3s; }
+    #hud {
+      position: absolute; top: 12px; left: 12px; z-index: 10;
+      background: rgba(22,33,62,0.9); padding: 10px 16px; border-radius: 8px;
+      font-size: 14px; color: #7dd3fc; pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container"></div>
+  <div id="hud">EchoSim</div>
+  <div id="inspector">
+    <h3>EchoSim Inspector</h3>
+    <div class="section"><div class="label">Click a resident to inspect</div></div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
