@@ -105,7 +105,15 @@ export class AgentLayer {
 
   /** Frame update: lerp positions (presentation-only interpolation). */
   renderFrame(): void {
-    for (const vis of this.visuals.values()) {
+    for (const [id, vis] of this.visuals) {
+      // Seated override (visual only; sim truth is the semantic location).
+      const seated = id === this.adapter.playerId
+        ? this.adapter.playerSeatedAt : undefined;
+      if (seated) {
+        vis.root.position.set(seated.x, 0.55, seated.z);
+        vis.root.rotation.y = seated.rotY;
+        continue;
+      }
       vis.root.position.x += (vis.targetX - vis.root.position.x) * 0.06;
       vis.root.position.z += (vis.targetZ - vis.root.position.z) * 0.06;
     }

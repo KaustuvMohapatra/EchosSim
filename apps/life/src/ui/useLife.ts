@@ -8,6 +8,8 @@ export interface LifeHandle {
   app: LifeApp | null;
   selected: string | null;
   select(id: string | null): void;
+  menu: { objectId: string; x: number; y: number } | null;
+  closeMenu(): void;
 }
 
 export function useLife(): LifeHandle & {
@@ -17,14 +19,16 @@ export function useLife(): LifeHandle & {
   const [snap, setSnap] = useState<LifeSnapshot | null>(null);
   const [app, setApp] = useState<LifeApp | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
-  const selectedRef = useRef(selected);
-  selectedRef.current = selected;
+  const [menu, setMenu] = useState<{ objectId: string; x: number; y: number } | null>(null);
 
   useEffect(() => {
     const canvas = hostRef.current;
     if (!canvas) return;
     const life = createLifeApp(canvas, {
       onAgentSelected: (id) => setSelected(id),
+      onObjectMenu: (objectId, x, y) =>
+        setMenu(x >= 0 ? { objectId, x, y } : null),
+      onDismissMenu: () => setMenu(null),
     });
     setApp(life);
 
@@ -34,8 +38,13 @@ export function useLife(): LifeHandle & {
     life.start();
 
     return () => { unsub(); life.dispose(); };
-    // Selection is read through a ref inside scene callbacks.
+    // Scene callbacks read state through refs set by React on re-render.
   }, []);
 
-  return { hostRef, snap, app, selected, select: setSelected };
+  return {
+    hostRef, snap, app, selected,
+    select: setSelected,
+    menu,
+    closeMenu: () => setMenu(null),
+  };
 }

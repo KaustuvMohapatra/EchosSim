@@ -326,6 +326,12 @@ export class Town {
     const target = this.locations.get(locationId);
     if (!target.isOpen) throw new Error(`Cannot move '${agent}': location closed.`);
     if (a.hasLocation && a.currentLocationId === locationId) return;
+
+    // Capacity must be validated BEFORE mutating the origin lot, otherwise a
+    // rejected entry leaves occupancy permanently desynced (regression S38).
+    if (target.isFull)
+      throw new Error(`Cannot move '${agent}': location full.`);
+
     const from = a.hasLocation ? a.currentLocationId : undefined;
     if (from) this.locations.get(from as unknown as LocationId).onAgentLeft();
     target.onAgentEntered();

@@ -107,6 +107,16 @@ export class LifeModeAdapter {
     return s?.hasLocation ? s.currentLocationId : undefined;
   }
 
+  /**
+   * Presentation hint: when the interaction controller seats the player, the
+   * character layer parks the avatar here. Purely visual — simulation truth
+   * remains the semantic location.
+   */
+  playerSeatedAt?: { x: number; z: number; rotY: number };
+
+  /** Manual notification hook for presentation-side controllers. */
+  touch(): void { this.emit(); }
+
   // ---------------- lifecycle ----------------
 
   get running(): boolean { return this.timer !== null; }

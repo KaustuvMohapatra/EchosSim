@@ -20,6 +20,8 @@ export class LocationRuntimeState {
   occupiedCount = 0;
   private manualOverride = false;
   constructor(readonly definition: LocationDefinition) {}
+  get capacity(): number { return this.definition.capacity; }
+  get isFull(): boolean { return this.occupiedCount >= this.capacity; }
   setOpen(open: boolean): void { this.isOpen = open; this.manualOverride = true; }
   forceOpen(open: boolean): void { this.isOpen = open; }
   refreshFromHours(nowMinutes: number): boolean {

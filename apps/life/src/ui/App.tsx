@@ -1,21 +1,49 @@
+import { useState } from "react";
 import { useLife } from "./useLife.js";
 
 const WEATHER_ICON = ["☀", "☁", "🌧", "⛈"] as const;
 
 export function App() {
-  const { hostRef, snap, app, selected } = useLife();
+  const life = useLife();
+  const { hostRef, snap, app, selected, menu, closeMenu } = life;
+  const [flash, setFlash] = useState<string | null>(null);
   const t = snap?.time;
   const mult = app?.speed ?? 1;
-  const feedback = app?.adapter.lastCommandFeedback ?? "";
+  const feedback = flash ?? app?.adapter.lastCommandFeedback ?? "";
   const camMode = app?.camera.mode ?? "life";
 
   const selectedSummary = snap?.agents.find((a) => a.id === selected);
 
   return (
-    <div style={{ width: "100%", height: "100%", position: "relative" }}>
+    <div style={{ width: "100%", height: "100%", position: "relative" }}
+      onPointerDown={(e) => {
+        if (!(e.target as HTMLElement).dataset.contextMenu) closeMenu();
+      }}>
       <canvas ref={hostRef}
         style={{ position: "absolute", inset: 0, width: "100%", height: "100%",
                  display: "block", touchAction: "none" }} />
+
+      {/* Object context menu (Sprint 38). */}
+      {menu && app && (
+        <div style={{ ...styles.menu, left: menu.x, top: menu.y }}
+          data-context-menu="1"
+          data-testid="object-menu">
+          <div style={styles.menuTitle}>
+            {app.interactions.objectDef(menu.objectId)?.objectId.replace(/_/g, " ")}
+          </div>
+          {app.interactions.affordancesOf(menu.objectId).map((a) => (
+            <button key={a.id} style={styles.menuItem}
+              data-context-menu="1"
+              onClick={() => {
+                const r = app.interactions.use(menu.objectId, a.id);
+                if (!r.ok) setFlash(r.feedback);
+                closeMenu();
+              }}>
+              {a.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Top HUD */}
       <div style={styles.hud}>
@@ -84,6 +112,21 @@ function weatherIndex(name: string): number {
 function min(a: number, b: number): number { return Math.min(a, b); }
 
 const styles: Record<string, React.CSSProperties> = {
+  menu: {
+    position: "absolute", zIndex: 30, minWidth: 140,
+    background: "rgba(13,18,32,.94)", border: "1px solid rgba(36,54,94,.7)",
+    borderRadius: 9, padding: 4, backdropFilter: "blur(8px)",
+    display: "flex", flexDirection: "column", gap: 2,
+  },
+  menuTitle: {
+    fontSize: 10.5, textTransform: "uppercase", letterSpacing: 0.6,
+    color: "#64748b", padding: "3px 8px",
+  },
+  menuItem: {
+    textAlign: "left", background: "transparent", border: "none",
+    color: "#dbe7f5", padding: "5px 9px", borderRadius: 6,
+    cursor: "pointer", fontSize: 12.5,
+  },
   hud: {
     position: "absolute", top: 10, left: 12, right: 12,
     display: "flex", gap: 14, alignItems: "center",
