@@ -64,6 +64,17 @@ export function createDemoTown(seed: bigint | number): DemoTown {
   });
 
   const director = new PlanningDirector(town);
+
+  // Social structure (Sprint 25): authored groups for the demo cast.
+  town.groups.define({ id: "grp_household_a", kind: "Household",
+    name: "Home A Household", meetingLocationId: "loc_home_a" });
+  town.groups.define({ id: "grp_book_club", kind: "Club",
+    name: "Book Club", meetingLocationId: "loc_cafe" });
+  for (const id of [DEMO_CAST[0]!.id, DEMO_CAST[1]!.id, DEMO_CAST[2]!.id])
+    town.groups.addMember("grp_household_a", id);
+  town.groups.addMember("grp_book_club", DEMO_CAST[0]!.id);
+  town.groups.addMember("grp_book_club", DEMO_CAST[2]!.id);
+
   return {
     town, director,
     miraId: DEMO_CAST[0]!.id,

@@ -81,6 +81,11 @@ export interface SaveDocument {
     id: number; behavior: string; targetKey: string; strength: number;
     repetitionCount: number; firstPerformedMinutes: number; lastPerformedMinutes: number;
   }>>;
+  /** v3+: group content snapshot so restores stay self-contained (Sprint 25). */
+  groups?: {
+    defs: Array<{ id: string; kind: string; name: string; meetingLocationId?: string }>;
+    memberships: Record<string, string[]>;
+  };
 }
 
 // ---------------- Serialize ----------------
@@ -213,6 +218,14 @@ export function serializeTown(town: Town, director: PlanningDirector): SaveDocum
       ? { semanticMemoriesByOwner }
       : {}),
     ...(Object.keys(habitsByOwner).length > 0 ? { habitsByOwner } : {}),
+    groups: {
+      defs: town.groups.allGroups().map((g) => ({
+        id: g.id, kind: g.kind, name: g.name,
+        ...(g.meetingLocationId !== undefined ? { meetingLocationId: g.meetingLocationId } : {}),
+      })),
+      memberships: Object.fromEntries(
+        town.groups.allGroups().map((g) => [g.id, town.groups.membersOf(g.id)])),
+    },
   };
 }
 
@@ -326,6 +339,23 @@ export function deserializeAndRestore(doc: SaveDocument): RestoredWorld {
   if (doc.habitsByOwner !== undefined) {
     for (const [owner, list] of Object.entries(doc.habitsByOwner)) {
       for (const h of list) town.habits.import(owner, { ...h });
+    }
+  }
+  if (doc.groups !== undefined) {
+    for (const def of doc.groups.defs) {
+      try {
+        town.groups.define({
+          id: def.id,
+          kind: def.kind as never,
+          name: def.name,
+          ...(def.meetingLocationId !== undefined ? { meetingLocationId: def.meetingLocationId } : {}),
+        });
+      } catch { /* duplicate definition from content re-registration — fine */ }
+    }
+    for (const [groupId, memberIds] of Object.entries(doc.groups.memberships)) {
+      for (const memberId of memberIds) {
+        try { town.groups.addMember(groupId, memberId); } catch { /* already a member */ }
+      }
     }
   }
 

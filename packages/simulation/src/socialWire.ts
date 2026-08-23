@@ -55,7 +55,7 @@ export function wireAutonomousSocial(town: Town): void {
   // --- b) Recorded social observations reshape observers. ---
   town.events.subscribe<{
     observer: string; eventType: string; actors: readonly string[];
-    confidence: number; eventId: number;
+    confidence: number; eventId: number; source: unknown;
   }>("sim:observation-recorded", (o) => onObservation(town, o));
 
   // --- c) A completed Talk action becomes a real deterministic conversation. ---
@@ -67,7 +67,7 @@ export function wireAutonomousSocial(town: Town): void {
 
 function onObservation(
   town: Town,
-  o: { observer: string; eventType: string; actors: readonly string[]; confidence: number; eventId: number },
+  o: { observer: string; eventType: string; actors: readonly string[]; confidence: number; eventId: number; source: unknown },
 ): void {
   if (!SOCIAL_EVENT_TYPES.has(o.eventType)) return;
 
@@ -77,6 +77,22 @@ function onObservation(
   const second = o.actors.length >= 2 ? o.actors[1] : undefined;
   const target = second !== undefined && second !== actor ? second : null;
   town.relationships.handleSocialEvent(o.observer, o.eventType, actor, target, o.confidence);
+
+  // Shared-group participants warm slightly faster (spec 25.5) — direct
+  // participants only; witnesses gain nothing extra.
+  const isDirectParticipant = (o.source as number) === 0 /* DirectParticipation */ &&
+    o.actors.includes(o.observer);
+  const lightBondEvents = new Set(["chat", "greeting", "gossip"]);
+  if (isDirectParticipant && lightBondEvents.has(o.eventType) && target !== null) {
+    const shared = town.groups.sharedGroups(o.observer, actor).length +
+      (target !== actor ? town.groups.sharedGroups(o.observer, target).length : 0);
+    if (shared > 0) {
+      const bonus = Math.min(0.03, 0.012 * shared);
+      const rel = town.relationships.getOrCreate(o.observer, actor);
+      rel.familiarity = Math.min(1, rel.familiarity + bonus);
+      rel.affinity = Math.max(-1, Math.min(1, rel.affinity + bonus * 0.5));
+    }
+  }
 
   // Emotion impulse for direct participants only.
   const impulse = EMOTION_IMPULSE[o.eventType];
@@ -121,7 +137,7 @@ function driveConversation(town: Town, initiatorId: string): void {
   const intent = town.conversations.selectIntent(initiatorId, listener, {
     relationshipOf: (a, b) => town.relationships.getOrCreate(a, b),
     strongestFirstHandNegativeAboutThirdParty: (speaker, excluding) =>
-      strongestFirstHandNegative(town, speaker, excluding),
+      pickGossipTopic(town, speaker, excluding, listener),
     freshestBeliefAboutOther: (speaker, excluding) => {
       const fresh = 1440;
       return town.beliefs.storeFor(speaker).all.some(
@@ -136,7 +152,7 @@ function driveConversation(town: Town, initiatorId: string): void {
   let topicLabel = "the neighbourhood";
   let transferSubject: string | undefined;
   if (intent === ConversationIntent.Gossip || intent === ConversationIntent.Complain) {
-    const strong = strongestFirstHandNegative(town, initiatorId, listener);
+    const strong = pickGossipTopic(town, initiatorId, listener, listener);
     if (strong) {
       const subjectMind = town.residents.tryMind(strong.subjectKey);
       topicLabel = subjectMind ? subjectMind.displayName : strong.subjectKey;
@@ -174,6 +190,33 @@ function driveConversation(town: Town, initiatorId: string): void {
   town.events.publish("sim:conversation", record);
 }
 
+/**
+ * Gossip topic choice (spec 25.6): among the speaker's first-hand negative
+ * beliefs, topics whose subject shares a group with the listener are strongly
+ * preferred; otherwise the strongest stance wins as before.
+ */
+function pickGossipTopic(
+  town: Town, speaker: string, excluding: string, listener: string,
+): { subjectKey: string; stance: number; confidence: number } | undefined {
+  interface Candidate { subjectKey: string; stance: number; confidence: number; id: number; shared: boolean }
+  const candidates: Candidate[] = [];
+  for (const b of town.beliefs.storeFor(speaker).all) {
+    if (b.hopCount !== 0 || b.stance >= -0.4 || b.confidence <= 0.5) continue;
+    if (b.subjectKey === excluding || !town.residents.tryMind(b.subjectKey)) continue;
+    candidates.push({
+      subjectKey: b.subjectKey, stance: b.stance, confidence: b.confidence, id: b.id,
+      shared: town.groups.sharedGroups(listener, b.subjectKey).length > 0,
+    });
+  }
+  if (candidates.length === 0) return undefined;
+  // Group-relevant first, then most negative stance, then lowest id.
+  candidates.sort((x, y) =>
+    (x.shared === y.shared ? 0 : x.shared ? -1 : 1) ||
+    (x.stance - y.stance) || (x.id - y.id));
+  const pick = candidates[0]!;
+  return { subjectKey: pick.subjectKey, stance: pick.stance, confidence: pick.confidence };
+}
+
 /** Strongest first-hand (hop 0) negative regard belief held by speaker. */
 function strongestFirstHandNegative(
   town: Town, speaker: string, excluding: string,
@@ -191,3 +234,4 @@ function strongestFirstHandNegative(
   }
   return best;
 }
+void strongestFirstHandNegative;

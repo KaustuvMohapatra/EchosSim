@@ -15,7 +15,7 @@ import {
 import {
   PerceptionSystem, MemorySystem, MemoryRetriever, EmotionSystem, RelationshipSystem,
   BeliefSystem, SocialSystem, ConversationSystem,
-  ObservationReach, ReflectionSystem, HabitSystem,
+  ObservationReach, ReflectionSystem, HabitSystem, GroupSystem,
 } from "@echosim/social";
 import type { SocialActorSnapshot } from "@echosim/social";
 import { PersonalityTrait } from "@echosim/cognition";
@@ -62,6 +62,7 @@ export class Town {
   readonly reflections = new ReflectionSystem(
     () => this.clock.currentTime.totalMinutes);
   readonly habits = new HabitSystem();
+  readonly groups = new GroupSystem();
   readonly emotion: EmotionSystem;
   readonly relationships: RelationshipSystem;
   readonly weather: WeatherSystem;
@@ -229,6 +230,32 @@ export class Town {
   /** Persistence hook: keep the encoder id counter clear of imported ids. */
   ensureMemoryIdBeyond(value: number): void {
     if (this.memoryIdCounter < value) this.memoryIdCounter = value;
+  }
+
+  /**
+   * Group gathering (spec 25.4): at the chosen time, members PRESENT at the
+   * meeting location jointly experience the event through normal perception.
+   * Absent members learn nothing — no telepathy.
+   */
+  scheduleGroupMeeting(groupId: string, inMinutes = 60, locationId?: string): { scheduledAtMinutes: number } {
+    const def = this.groups.definitionOf(groupId);
+    if (!def) throw new Error(`Unknown group '${groupId}'.`);
+    const loc = locationId ?? def.meetingLocationId;
+    if (!loc) throw new Error(`Group '${groupId}' has no meeting location.`);
+    const atMinutes = this.clock.currentTime.totalMinutes + Math.max(0, inMinutes);
+    this.scheduler.scheduleAt({ totalMinutes: atMinutes }, () => {
+      const present = this.groups.membersOf(groupId).filter((id) => {
+        const s = this.agentsById.get(id);
+        return s?.hasLocation && s.currentLocationId === loc;
+      });
+      if (present.length === 0) return;
+      this.perception.publish(
+        "group_event", present, loc,
+        ObservationReach.Nearby /* audible to adjacent locations too */,
+      );
+      this.events.publish("sim:group-meeting", { groupId, where: loc, present, atMinutes });
+    });
+    return { scheduledAtMinutes: atMinutes };
   }
 
   registerLocation(def: { id: string; displayName: string; capacity?: number; hours?: { openMinuteOfDay: number; closeMinuteOfDay: number } }): void {

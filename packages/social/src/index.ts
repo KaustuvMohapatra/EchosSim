@@ -906,3 +906,68 @@ export class HabitSystem {
     if (habit.id >= this.nextId) this.nextId = habit.id + 1;
   }
 }
+
+// ---------------- Social groups (Sprint 25) ----------------
+
+export type GroupKind =
+  | "Household" | "Family" | "FriendGroup" | "WorkplaceGroup" | "Club";
+
+export interface GroupDefinition {
+  id: string;
+  kind: GroupKind;
+  name: string;
+  /** Where regular meetings happen, if anywhere. */
+  meetingLocationId?: string;
+}
+
+/**
+ * Group membership registry. Groups shape OPPORTUNITY (who meets whom, what
+ * is worth talking about) — they never broadcast knowledge telepathically;
+ * information still flows only through perception and conversation.
+ */
+export class GroupSystem {
+  private readonly defs = new Map<string, GroupDefinition>();
+  private readonly members = new Map<string, string[]>(); // insertion order
+  private readonly membership = new Map<string, Set<string>>();
+
+  define(def: GroupDefinition): void {
+    if (this.defs.has(def.id)) throw new Error(`Duplicate group id '${def.id}'.`);
+    this.defs.set(def.id, { ...def });
+    this.members.set(def.id, []);
+  }
+  definitionOf(groupId: string): GroupDefinition | undefined { return this.defs.get(groupId); }
+  allGroups(): GroupDefinition[] { return [...this.defs.values()]; }
+
+  addMember(groupId: string, agentId: string): void {
+    if (!this.defs.has(groupId)) throw new Error(`Unknown group '${groupId}'.`);
+    const list = this.members.get(groupId)!;
+    if (!list.includes(agentId)) list.push(agentId);
+    let set = this.membership.get(agentId);
+    if (!set) { set = new Set(); this.membership.set(agentId, set); }
+    set.add(groupId);
+  }
+  removeMember(groupId: string, agentId: string): void {
+    const list = this.members.get(groupId);
+    if (list) {
+      const i = list.indexOf(agentId);
+      if (i >= 0) list.splice(i, 1);
+    }
+    this.membership.get(agentId)?.delete(groupId);
+  }
+
+  /** Multi-membership supported by construction (spec 25.2). */
+  groupsOf(agentId: string): GroupDefinition[] {
+    const ids = [...(this.membership.get(agentId) ?? [])];
+    return ids.map((id) => this.defs.get(id)!).filter(Boolean);
+  }
+  membersOf(groupId: string): string[] { return [...(this.members.get(groupId) ?? [])]; }
+  isMember(groupId: string, agentId: string): boolean {
+    return this.membership.get(agentId)?.has(groupId) ?? false;
+  }
+  sharedGroups(a: string, b: string): GroupDefinition[] {
+    const out: GroupDefinition[] = [];
+    for (const g of this.groupsOf(a))
+      if (this.isMember(g.id, b)) out.push(g);
+    return out;
+  }
+}
