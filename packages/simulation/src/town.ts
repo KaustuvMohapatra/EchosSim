@@ -5,7 +5,7 @@ import {
 } from "@echosim/cognition";
 import {
   EventBus, SimulationClock, SimulationScheduler,
-  AgentId, LocationId,
+  AgentId, LocationId, SimRandomProvider, RandomStreams,
 } from "@echosim/core";
 import type { SimDuration } from "@echosim/core";
 import {
@@ -14,7 +14,12 @@ import {
 } from "@echosim/world";
 import {
   PerceptionSystem, MemorySystem, MemoryRetriever, EmotionSystem, RelationshipSystem,
+  BeliefSystem, SocialSystem, ConversationSystem,
+  ObservationReach,
 } from "@echosim/social";
+import type { SocialActorSnapshot } from "@echosim/social";
+import { PersonalityTrait } from "@echosim/cognition";
+import { wireAutonomousSocial } from "./socialWire.js";
 
 declare module "@echosim/cognition" {
   interface AgentMind {
@@ -59,10 +64,14 @@ export class Town {
   readonly cognition: CognitionSystem;
   readonly planner = new GoapPlanner();
   readonly residents = new ResidentRegistry();
+  readonly beliefs = new BeliefSystem();
+  readonly conversations = new ConversationSystem();
+  readonly social: SocialSystem;
   readonly agentsById = new Map<string, AgentLocationState>();
   economy?: { tryPurchase(agent: string, itemId: string): string; payWage(agent: string, hours: number): number };
 
   private memoryIdCounter = 100_000;
+  private randomProvider?: SimRandomProvider;
 
   constructor(readonly seed: bigint | number) {
     const nowMinutes = () => this.clock.currentTime.totalMinutes;
@@ -115,7 +124,35 @@ export class Town {
 
     this.weather = new WeatherSystem(
       (e) => this.events.publish("sim:weather-changed", e),
-      { nextDouble: () => 0.5 }, // attachRandoms replaces this with seeded stream
+      // Always routed through the current provider: seeded by default,
+      // replaceable via attachRandoms for host-supplied streams.
+      { nextDouble: () => this.randoms().getStream(RandomStreams.World).nextDouble() },
+    );
+
+    this.social = new SocialSystem(
+      {
+        actorSnapshot: (agent): SocialActorSnapshot | undefined => {
+          const mind = this.residents.tryMind(agent);
+          if (!mind) return undefined;
+          const state = this.agentsById.get(agent);
+          return {
+            location: state?.hasLocation ? state.currentLocationId : undefined,
+            sociability: mind.personality.get(PersonalityTrait.Sociability),
+            emotionValence: mind.emotionValence,
+            hasInterruptingNeed: mind.needs.findInterrupting() !== null,
+          };
+        },
+        reserveConversationLock: (agent, by, untilMinutes) =>
+          this.reservations.reserve("conv:" + agent, by, untilMinutes),
+        releaseConversationLock: (agent, by) => {
+          void this.reservations.release("conv:" + agent, by);
+        },
+        emitSocialEvent: (type, initiator, target, atLocation) =>
+          this.perception.publish(
+            type, [initiator, target], atLocation, ObservationReach.Nearby),
+      },
+      nowMinutes,
+      { chance: (p) => this.socialChance(p) },
     );
 
     this.cognition = new CognitionSystem(
@@ -136,6 +173,32 @@ export class Town {
       for (const id of this.locations.orderedIds)
         void this.locations.get(id).refreshFromHours(nowMinutes());
     });
+
+    // Daily weather roll at each simulated midnight.
+    this.scheduler.scheduleRepeating({ totalMinutes: 1440 }, () => {
+      this.weather.rollForNewDay();
+    });
+
+    wireAutonomousSocial(this);
+  }
+
+  /** Lazily created seeded provider; deterministic per seed. */
+  randoms(): SimRandomProvider {
+    if (!this.randomProvider) this.randomProvider = new SimRandomProvider(this.seed);
+    return this.randomProvider;
+  }
+
+  /** Replace the RNG provider with a host-supplied one (before advancing). */
+  attachRandoms(provider: SimRandomProvider): void {
+    this.randomProvider = provider;
+  }
+
+  /** Named stream access used by social systems. */
+  socialRng() {
+    return this.randoms().getStream(RandomStreams.Social);
+  }
+  socialChance(p: number): boolean {
+    return this.socialRng().chance(p);
   }
 
   registerLocation(def: { id: string; displayName: string; capacity?: number; hours?: { openMinuteOfDay: number; closeMinuteOfDay: number } }): void {

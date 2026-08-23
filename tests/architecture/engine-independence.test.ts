@@ -9,6 +9,8 @@ const SIMULATION_PACKAGES = [
   "packages/world/src",
   "packages/social/src",
   "packages/simulation/src",
+  "packages/content/src",
+  "packages/inspector/src",
 ];
 
 function collectTsFiles(dir: string): string[] {

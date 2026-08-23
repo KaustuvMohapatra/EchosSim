@@ -13,6 +13,7 @@ const ROOT = join(__dirname, "../..");
 const SIM_PACKAGES = [
   "packages/core/src", "packages/cognition/src", "packages/world/src",
   "packages/social/src", "packages/simulation/src",
+  "packages/content/src", "packages/inspector/src",
 ];
 
 function tsFiles(dir: string): string[] {

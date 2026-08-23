@@ -15,6 +15,9 @@ npm run sim -- --seed=42069 --days=3
 # Open living town in browser
 npm run dev
 
+# Open the React debug inspector (why is this NPC doing this?)
+npm run dev:debug
+
 # Run tests
 npm test
 ```
@@ -25,17 +28,19 @@ npm test
 Simulation Core (engine-free TypeScript)
 ├── @echosim/core        IDs · Time · RNG · Events · Scheduler
 ├── @echosim/cognition   Personality · Needs · Utility AI · GOAP
-├── @echosim/world       Locations · Navigation · Jobs · Weather
-├── @echosim/social      Perception · Memory · Emotion · Relationships · Beliefs
-├── @echosim/simulation  Town composition root + PlanningDirector
-├── @echosim/content     Authored residents & fixtures
-└── @echosim/persistence Save/load with versioning
+├── @echosim/world       Locations · Navigation · Jobs · Weather · Events
+├── @echosim/social      Perception · Memory · Emotion · Relationships · Beliefs · Conversations
+├── @echosim/simulation  Town composition root + PlanningDirector + social wiring
+├── @echosim/content     Authored residents & fixtures (demo town)
+├── @echosim/persistence Save/load with versioning
+└── @echosim/inspector   Read-model snapshots for presentation layers
 
     ↓ consumed by ↓
 
-apps/sim-cli   Headless Node runner
-apps/game      Phaser 4 + Vite browser view
-tests/         Vitest suite (determinism + regression + architecture)
+apps/sim-cli     Headless Node runner (byte-reproducible per seed)
+apps/game        Phaser 4 + Vite browser view
+apps/debug-ui    React debug inspector (utility/plan/memory/belief/timeline)
+tests/           Vitest suite (determinism + regression + architecture + UI)
 ```
 
 **Core rule:** simulation packages never import Phaser, React, or DOM APIs. Enforced by `tests/architecture/`.
@@ -60,8 +65,9 @@ tests/         Vitest suite (determinism + regression + architecture)
 | Beliefs/Gossip | Hop-decayed provenance chains; loop guards; direct experience > hearsay |
 | Conversations | Deterministic intent selection; template utterances; no LLM required |
 | Economy | Items, stock scarcity, wages, gifts scaled by recipient preference |
-| Weather | Seeded Markov rolls; rain suppresses exploring unless you love rain |
+| Weather | Seeded daily Markov rolls; rain suppresses exploring unless you love rain |
 | Persistence | Versioned JSON saves; atomic writes; migration chain |
+| Debug Inspector | Read-only snapshots: utility breakdowns, plans/failures, memories, beliefs, timeline |
 
 ## Why These Bugs Matter
 
@@ -86,18 +92,19 @@ npm test                    # all tests
 npm run test:determinism   # golden vector cross-check against .NET
 npm run test:architecture  # engine independence guardrail
 npm run test:regression    # historical bug preservation
+npm run test:inspector     # debug read-model suite
 ```
 
 ## Known Limitations
 
-- Unity editor round-trip not yet exercised (headless CI verified)
 - Social conversations are template-based (no LLM required, LLM layer planned)
-- Movement is semantic teleport with travel times (no spatial pathfinding yet)
-- Content is 3 residents (target: 20–30)
-- Debug inspector is minimal DOM panel (React inspector planned)
+- Movement is semantic travel over an authored graph (no spatial pathfinding yet)
+- Content is 3 demo residents (target: 20–30)
+- Save/restore of the new social wiring is exercised via systems tests; full
+  persistence round-trip for conversations lands with the next persistence pass
 
 ## Roadmap
 
-Sprints 0–18 complete. Remaining: 19 (debug inspector), 20 (social graph), 21–22 (optional LLM), 23 (reflection), 24 (habits), 25 (groups), 26–27 (LOD/perf), 28 (soak), 29 (content), 30 (research mode), 31–35 (UX/polish/release).
+Sprints 0–19 complete. Remaining: 20 (social graph), 21–22 (optional LLM), 23 (reflection), 24 (habits), 25 (groups), 26–27 (LOD/perf), 28 (soak), 29 (content), 30 (research mode), 31–35 (UX/polish/release).
 
 See `docs/ROADMAP.md` for full status.

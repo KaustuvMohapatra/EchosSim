@@ -25,7 +25,8 @@ Source of truth for scope: `ECHOSIM.txt` master specification (35 sprints).
 | 16 | Weather & environmental pressure | **Done** |
 | 17 | Town events & storylets | **Done** |
 | 18 | Save/load & versioning | **Done** (round-trip determinism proven) |
-| 19 | Advanced debug tooling | Planned |
+| 18.5 | Engine-independent execution completion (TS monorepo port) | **Done** |
+| 19 | Advanced debug tooling (inspector API + React debug UI) | **Done** |
 | 20 | Relationship graph visualization | Planned |
 | 21 | LLM provider abstraction | Planned |
 | 22 | LLM dialogue rendering | Planned |
@@ -49,8 +50,9 @@ Sprints execute sequentially. A sprint is complete only when: code compiles,
 all tests pass, the demo scenario runs, docs are updated, and the diff has been
 reviewed (spec §14). Never claim unexecuted work as done (§53, §55).
 
-## Next up: Sprint 19
+## Next up: Sprint 20
 
-Advanced debug tooling: NPC inspector surfaces (goal scores, plan steps,
-memories, beliefs, relationships), plan viewer with failure reasons, and the
-event timeline.
+Social graph visualization: NPC nodes, directional relationship edges with
+dimension selection (affinity/trust/grievance/…), magnitude filters, ego
+graphs, and gossip-path views driven by belief provenance — built on the
+`@echosim/inspector` read models.

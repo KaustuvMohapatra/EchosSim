@@ -10,10 +10,13 @@
     "test:regression": "vitest run tests/regression",
     "test:determinism": "vitest run tests/deterministic",
     "test:architecture": "vitest run tests/architecture",
+    "test:inspector": "vitest run tests/inspector",
     "sim": "tsx apps/sim-cli/src/runner.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "dev": "vite apps/game",
-    "build:game": "cd apps/game && npx vite build"
+    "dev:debug": "vite apps/debug-ui",
+    "build:game": "cd apps/game && npx vite build",
+    "build:debug-ui": "cd apps/debug-ui && npx vite build"
   },
   "devDependencies": {
     "@echosim/core": "workspace:*",
@@ -23,6 +26,12 @@
     "@echosim/simulation": "workspace:*",
     "@echosim/content": "workspace:*",
     "@echosim/persistence": "workspace:*",
+    "@echosim/inspector": "workspace:*",
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/react": "^16.1.0",
+    "jsdom": "^25.0.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "typescript": "^5.7.2",
     "tsx": "^4.19.2",
     "vitest": "^3.0.5"

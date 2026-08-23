@@ -1,13 +1,13 @@
 {
-  "name": "@echosim/content",
+  "name": "@echosim/inspector",
   "version": "0.2.0",
   "private": true,
   "type": "module",
   "main": "src/index.ts",
   "types": "src/index.ts",
   "dependencies": {
-    "@echosim/core": "workspace:*",
     "@echosim/cognition": "workspace:*",
+    "@echosim/core": "workspace:*",
     "@echosim/social": "workspace:*",
     "@echosim/simulation": "workspace:*"
   }

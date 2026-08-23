@@ -188,7 +188,20 @@ export interface RetrievedMemory {
 
 export class MemoryRetriever {
   wRecency = 0.3; wImportance = 0.3; wActor = 0.25; wLocation = 0.15;
+  /**
+   * Read-only ranked retrieval: never touches accessCount/lastAccessMinutes.
+   * Used by debug inspection; gameplay retrieval uses retrieve().
+   */
+  peek(store: MemoryStore, q: { aboutAgent?: string; nearLocation?: string; nowMinutes: number; recencyHalfLifeHours?: number }, topN: number): RetrievedMemory[] {
+    return this.rankAll(store, q).slice(0, topN);
+  }
   retrieve(store: MemoryStore, q: { aboutAgent?: string; nearLocation?: string; nowMinutes: number; recencyHalfLifeHours?: number }, topN: number): RetrievedMemory[] {
+    const ranked = this.rankAll(store, q);
+    const out = ranked.slice(0, topN);
+    for (const r of out) { r.memory.accessCount++; r.memory.lastAccessMinutes = q.nowMinutes; }
+    return out;
+  }
+  private rankAll(store: MemoryStore, q: { aboutAgent?: string; nearLocation?: string; nowMinutes: number; recencyHalfLifeHours?: number }): RetrievedMemory[] {
     const halfLife = Math.max(0.1, q.recencyHalfLifeHours ?? 48);
     const ranked: RetrievedMemory[] = [];
     for (const m of store.all) {
@@ -206,9 +219,7 @@ export class MemoryRetriever {
       ]});
     }
     ranked.sort((x, y) => (y.score - x.score !== 0 ? y.score - x.score : x.memory.id - y.memory.id));
-    const out = ranked.slice(0, topN);
-    for (const r of out) { r.memory.accessCount++; r.memory.lastAccessMinutes = q.nowMinutes; }
-    return out;
+    return ranked;
   }
 }
 
@@ -387,6 +398,10 @@ export class BeliefSystem {
     let s = this.stores.get(owner);
     if (!s) { s = new BeliefStore(); this.stores.set(owner, s); }
     return s;
+  }
+  /** Read-only access for inspection: never creates a store. */
+  tryStoreFor(owner: string): BeliefStore | undefined {
+    return this.stores.get(owner);
   }
   owners(): Array<{ owner: string; store: BeliefStore }> {
     return [...this.stores].map(([owner, store]) => ({ owner, store }));
@@ -607,6 +622,11 @@ export class MemorySystem {
     let s = this.stores.get(owner);
     if (!s) { s = new MemoryStore(); this.stores.set(owner, s); }
     return s;
+  }
+
+  /** Read-only access for inspection: never creates a store. */
+  tryStoreFor(owner: string): MemoryStore | undefined {
+    return this.stores.get(owner);
   }
 
   ownerIds(): string[] { return [...this.stores.keys()]; }

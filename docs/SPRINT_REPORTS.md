@@ -1,10 +1,10 @@
-# EchoSim Sprint Reports
+﻿# EchoSim Sprint Reports
 
-Format follows master spec §15. Reports are appended; newest at bottom.
+Format follows master spec Â§15. Reports are appended; newest at bottom.
 
 ---
 
-## SPRINT 0 COMPLETE — Repository Bootstrap & Architecture Audit
+## SPRINT 0 COMPLETE â€” Repository Bootstrap & Architecture Audit
 
 1. **Summary.** No pre-existing repository (fresh start). Audited the machine
    toolchain, chose the dual-compilation architecture, scaffolded a Unity-6
@@ -29,7 +29,7 @@ Format follows master spec §15. Reports are appended; newest at bottom.
 11. **Performance notes.** n/a.
 12. **Known limitations.** Unity import not yet exercised; URP package deferred
     until visual sprints.
-13. **Technical debt.** Dual project metadata (asmdef+csproj) must stay in sync —
+13. **Technical debt.** Dual project metadata (asmdef+csproj) must stay in sync â€”
     guarded by convention and AGENTS.md note.
 14. **Documentation updated.** All five required docs + AGENTS.md + README.md.
 15. **Git status.** Branch `feature/echosim`, initial commit(s).
@@ -38,7 +38,7 @@ Format follows master spec §15. Reports are appended; newest at bottom.
 
 ---
 
-## SPRINT 1 COMPLETE — Core Simulation Foundation
+## SPRINT 1 COMPLETE â€” Core Simulation Foundation
 
 1. **Summary.** Deterministic simulation substrate implemented headlessly: typed
    stable IDs, minute-granularity clock with pause/scale, seeded RNG streams,
@@ -46,7 +46,7 @@ Format follows master spec §15. Reports are appended; newest at bottom.
    composition root. Demo reproduces byte-identical logs for seed 1234 over two
    simulated days.
 2. **Architecture implemented.** See `docs/ARCHITECTURE.md`. Dependency rule held:
-   Core ← nothing; Simulation ← Core only. No UnityEngine/Console references in
+   Core â† nothing; Simulation â† Core only. No UnityEngine/Console references in
    domain code.
 3. **Files created (domain).**
    - `Assets/EchoSim/Core/IDs/Ids.cs`
@@ -72,34 +72,34 @@ Format follows master spec §15. Reports are appended; newest at bottom.
    location definition + runtime occupancy; typed events
    `AgentSpawnedEvent`, `AgentMovedEvent`.
 7. **Tests created.** 59 across six suites: IdsTests, SimTimeTests (+clock),
-   SimRandomTests, EventBusTests, SchedulerTests, WorldTests — covering every
-   item in spec §1.10.
-8. **Tests executed.** Yes: `dotnet test` → **Passed! 59/59** (0 failed).
-9. **Build result.** `dotnet build EchoSim.sln` → succeeded, 0 warnings, 0 errors.
+   SimRandomTests, EventBusTests, SchedulerTests, WorldTests â€” covering every
+   item in spec Â§1.10.
+8. **Tests executed.** Yes: `dotnet test` â†’ **Passed! 59/59** (0 failed).
+9. **Build result.** `dotnet build EchoSim.sln` â†’ succeeded, 0 warnings, 0 errors.
 10. **Demo scenario result.** Seed 1234, 3 residents, 2 simulated days, 10-min
     steps: commutes, dawn bell, market crier, festival cancellation all logged;
-    run twice → identical SHA256 hashes (reproducibility verified). Two real bugs
+    run twice â†’ identical SHA256 hashes (reproducibility verified). Two real bugs
     were caught by demo/tests during the sprint and fixed with regression tests
     (spawn occupancy accounting; in-callback scheduling semantics).
 11. **Performance notes.** Scheduler insert O(n) list (fine at current scale);
     event bus copy-on-write arrays avoid publish allocations. Profiling deferred
-    per spec §43.
+    per spec Â§43.
 12. **Known limitations.** Movement is semantic teleport (navigation = Sprint 4);
     agents have no needs/personality yet; scheduler callbacks observe post-advance
     time (documented decision D5).
 13. **Technical debt.** AgentState allows public `Active` setter until behavior
     systems formalize state mutation (Sprint 2+).
-14. **Documentation updated.** ARCHITECTURE, ROADMAP, DECISIONS (D1–D8),
+14. **Documentation updated.** ARCHITECTURE, ROADMAP, DECISIONS (D1â€“D8),
     TESTING, README.
 15. **Git status.** Committed on `feature/echosim`.
-16. **Recommended next sprint work.** Sprint 2 — PersonalityProfile, NeedSystem
+16. **Recommended next sprint work.** Sprint 2 â€” PersonalityProfile, NeedSystem
     with hysteresis, utility curves + explainable goal selection.
 17. **Anything unverified.** Unity editor round-trip (first open/import) still
     pending; documented as environment follow-up.
 
 ---
 
-## SPRINT 2 COMPLETE — Personality + Needs + Utility AI
+## SPRINT 2 COMPLETE â€” Personality + Needs + Utility AI
 
 1. **Summary.** Residents gained internal motivation: 14-trait personality
    profiles, seven needs with threshold dynamics and hysteresis, five utility
@@ -115,30 +115,30 @@ Format follows master spec §15. Reports are appended; newest at bottom.
    `GoalSelector.cs`, `StandardGoals.cs`, `AgentMind.cs` (+registry+spec),
    `CognitionSystem.cs`; tests `PersonalityNeedGoalTests.cs`.
 4. **Files modified.** Core `Ids.cs` (+`GoalId`), `SimulationWorld`
-   (+`Residents`, `SpawnResident`), demo rewritten for the §2.10 scenario.
+   (+`Residents`, `SpawnResident`), demo rewritten for the Â§2.10 scenario.
 5. **Public APIs.** `PersonalityProfile(.Builder/.MiraLike)`, `PersonalityTrait`,
    `NeedKind/Definition/State/Set`, `StandardNeeds`,
    `UtilityCurve` family, `GoalDefinition/Context/ScoreEntry/SelectionResult`,
    `ScoreTerm/TraitTerm/NeedTerm/CustomTerm`, `GoalSelector(+Options)`,
    `StandardGoals`, `AgentMind`, `ResidentSpec/Registry`,
    `CognitionSystem`, `GoalDecision`.
-6. **Data models.** Need convention documented (0=satisfied → 100=critical);
-   goal scoring = Base + Σ(need/trait/custom terms) − inertia/cooldown +
+6. **Data models.** Need convention documented (0=satisfied â†’ 100=critical);
+   goal scoring = Base + Î£(need/trait/custom terms) âˆ’ inertia/cooldown +
    critical bonus.
 7. **Tests created.** 15 new (74 total): trait validation/immutability, Mira
-   fixture, growth/clamp/thresholds, personality→utility divergence,
+   fixture, growth/clamp/thresholds, personalityâ†’utility divergence,
    determinism, critical override bypassing inertia, commitment hysteresis,
    stable ordinal tie-break, breakdown-sums-to-final invariant, curve
    monotonicity/finiteness, schedule-pressure custom term.
-8. **Tests executed.** Yes — **Passed! 74/74**.
+8. **Tests executed.** Yes â€” **Passed! 74/74**.
 9. **Build result.** Succeeded, 0 warnings / 0 errors (two C#9 test-side syntax
    fixes during development).
 10. **Demo result.** Vera (sociability .95) selects Socialize; Ivo (hunger 82)
     selects Eat, escalating to CRITICAL override as hunger passes the interrupt
     threshold; hysteresis keeps Vera committed across ticks. Deterministic.
 11. **Performance notes.** Scoring allocates breakdown lists per evaluation;
-    acceptable now, flagged for §27 allocation pass.
-12. **Known limitations.** No execution yet — goals are intentions only until
+    acceptable now, flagged for Â§27 allocation pass.
+12. **Known limitations.** No execution yet â€” goals are intentions only until
     Sprint 3 planning; needs only grow (no activity relief wired).
 13. **Technical debt.** Breakdown list allocation in hot path; selector options
     global-per-selector rather than per-goal.
@@ -151,7 +151,7 @@ Format follows master spec §15. Reports are appended; newest at bottom.
 
 ---
 
-## SPRINT 3 COMPLETE — GOAP Planning
+## SPRINT 3 COMPLETE â€” GOAP Planning
 
 1. **Summary.** Intentions became plans: compact fact-based planner state with
    canonical hashing, data-driven planning actions (preconditions/effects/base+
@@ -169,7 +169,7 @@ Format follows master spec §15. Reports are appended; newest at bottom.
 4. **Files modified.** `GoalDefinition` (+`DesiredFacts`), `StandardGoals`
    (+planner bindings), `AgentMind` (+`PlannerMemory`), `CognitionSystem`
    (+commitment-break on unrelieved interrupts, +`FindGoal`), demo rewritten to
-   the §3 scenario matrix, Core gained an `IsExternalInit` polyfill.
+   the Â§3 scenario matrix, Core gained an `IsExternalInit` polyfill.
 5. **Public APIs.** `FactCondition/FactEffect/FactOperator/FactEffectMode`,
    `PlannerWorldState`, `PlanningAction`, `ActionCostContext`, `ActivityRelief`,
    `GoapPlan/PlanResult/PlannerMetrics/PlanFailureReason`, `GoapPlanner`,
@@ -179,34 +179,34 @@ Format follows master spec §15. Reports are appended; newest at bottom.
 6. **Data models.** Facts are string-keyed ints; goals bind via
    `DesiredFacts`; execution persists non-ephemeral effects into
    `AgentMind.PlannerMemory`; ephemeral completion flags reset per build.
-7. **Tests created.** 18 new (92 total) covering spec §3 acceptance: valid /
+7. **Tests created.** 18 new (92 total) covering spec Â§3 acceptance: valid /
    cheapest / alternative / impossible plans, cycle avoidance, max-expansions,
    deterministic ties, dynamic costs, state hashing, cafe-open & cafe-closed
-   integration runs, intervention→failure→replan recovery, critical preemption,
+   integration runs, interventionâ†’failureâ†’replan recovery, critical preemption,
    day-replay determinism, and a regression test for stale-completion isolation.
-8. **Tests executed.** Yes — **Passed! 92/92**.
+8. **Tests executed.** Yes â€” **Passed! 92/92**.
 9. **Build result.** Succeeded, 0 warnings / 0 errors.
-10. **Demo result.** Spec §3 branches verified: cafe open → GoTo>Buy>Eat;
-    closed → GetFood>Cook>Eat; empty pantry → Store>BuyIngredients>GoHome>Cook>
-    Eat. Live run: relax plan cancelled by hunger spike at 00:45 → eat chain
-    executed with exact durations (15/12/20 min steps) → success 01:35. Two runs
+10. **Demo result.** Spec Â§3 branches verified: cafe open â†’ GoTo>Buy>Eat;
+    closed â†’ GetFood>Cook>Eat; empty pantry â†’ Store>BuyIngredients>GoHome>Cook>
+    Eat. Live run: relax plan cancelled by hunger spike at 00:45 â†’ eat chain
+    executed with exact durations (15/12/20 min steps) â†’ success 01:35. Two runs
     byte-identical (SHA256 match).
 11. **Bugs found & fixed this sprint.**
     - Planner returned expensive single-step plans (goal checked at child
-      generation instead of pop) — fixed to true uniform-cost search.
-    - Cancelled plans' scheduled callbacks consumed steps of newer plans — fixed
+      generation instead of pop) â€” fixed to true uniform-cost search.
+    - Cancelled plans' scheduled callbacks consumed steps of newer plans â€” fixed
       via run generations + step-index stamps (`CompleteStepIfCurrent`).
-    - Commitment hysteresis vs interruption livelock — unrelieved interrupting
+    - Commitment hysteresis vs interruption livelock â€” unrelieved interrupting
       needs now release commitment before re-selection.
     - Interrupt thresholds retuned so comfort needs never outrank survival needs.
-12. **Performance notes.** Search clones states per node (fine at ≤4000
-    expansions); extract-min is linear scan; flagged for §27 heap optimization.
+12. **Performance notes.** Search clones states per node (fine at â‰¤4000
+    expansions); extract-min is linear scan; flagged for Â§27 heap optimization.
 13. **Known limitations.** Movement is instant teleport with fixed 15-min cost
     (real travel = Sprint 4); no reservations yet; money facts placeholder.
 14. **Technical debt.** Action set rebuilt per decision (cheap but wasteful);
     dynamic costs evaluated once per plan call (documented).
 15. **Documentation updated.** This report; ROADMAP Sprint 3 marked done;
-    DECISIONS D9–D11 added; TESTING map updated.
+    DECISIONS D9â€“D11 added; TESTING map updated.
 16. **Git status.** Committed on `feature/echosim`.
 17. **Recommended next sprint work.** Sprint 4: INavigationService with real
     travel times, stuck detection, affordances registry, reservation service.
@@ -214,7 +214,7 @@ Format follows master spec §15. Reports are appended; newest at bottom.
 
 ---
 
-## SPRINT 5 COMPLETE — Schedules, Jobs & Daily Rhythm
+## SPRINT 5 COMPLETE â€” Schedules, Jobs & Daily Rhythm
 
 1. **Summary.** The town gained a clock-shaped life: weekly schedules with
    weekday/weekend/special-day overrides, employment (job definitions with
@@ -240,7 +240,7 @@ Format follows master spec §15. Reports are appended; newest at bottom.
    `OpeningHours(.System)`, `LocationOpenStateChangedEvent`,
    `CognitionSystem.SuppressGoal`,
    `PlanningDirector.PlanningFailureBackoffMinutes`.
-6. **Data models.** Pressure: 1.0 across the offset-shifted shift with ±30-min
+6. **Data models.** Pressure: 1.0 across the offset-shifted shift with Â±30-min
    shoulders; rest day = empty profile for the date; manual closures always win
    over authored hours.
 7. **Tests created.** 13 new (118 total): wrap-midnight entries,
@@ -248,11 +248,11 @@ Format follows master spec §15. Reports are appended; newest at bottom.
    math incl. wrapped shifts, hours flip events, manual override precedence,
    critical hunger beating full work pressure, closed workplace avoidance,
    commute planning to an open workplace, planning-failure suppression timing.
-8. **Tests executed.** Yes — **Passed! 118/118**.
+8. **Tests executed.** Yes â€” **Passed! 118/118**.
 9. **Build result.** Succeeded, 0 warnings / 0 errors.
 10. **Demo result.** A full working day: residents socialize and explore
     overnight, Bosse forms his bakery commute inside the pre-shift shoulder,
-    both work their shifts, head home in the evening, sleep — and Bosse wakes
+    both work their shifts, head home in the evening, sleep â€” and Bosse wakes
     at midnight ravenous, abandoning sleep for food (survival-first emergence).
     Two runs byte-identical.
 11. **Bugs found & fixed this sprint.** Expired commitments let satisfied goals
@@ -267,13 +267,13 @@ Format follows master spec §15. Reports are appended; newest at bottom.
 14. **Documentation updated.** This report; ROADMAP Sprint 5 done; DECISIONS
     D13 added.
 15. **Git status.** Committed on `feature/echosim`.
-16. **Recommended next sprint work.** Sprint 6: perception — observations with
+16. **Recommended next sprint work.** Sprint 6: perception â€” observations with
     source/confidence, same-location visibility, town announcements.
 17. **Anything unverified.** Nothing within sprint scope.
 
 ---
 
-## SPRINT 6 COMPLETE — Perception & Event Observation
+## SPRINT 6 COMPLETE â€” Perception & Event Observation
 
 1. **Summary.** Residents stopped being omniscient. A `PerceptionSystem`
    converts world activity into personal `Observation`s with source and
@@ -299,11 +299,11 @@ Format follows master spec §15. Reports are appended; newest at bottom.
    actors; co-located visual observation; distant silence for quiet events;
    adjacency-bounded audibility; town-wide announcements; movement auto-
    perception scoping; ring-buffer eviction order.
-8. **Tests executed.** Yes — **Passed! 125/125**.
+8. **Tests executed.** Yes â€” **Passed! 125/125**.
 9. **Build result.** Succeeded, 0 warnings / 0 errors.
 10. **Demo result.** One cafe insult: participants hold it at confidence 1.00,
     a fellow guest saw it at 0.90, the baker next door heard it at 0.70, and a
-    librarian across town knows nothing of it — then everyone receives the
+    librarian across town knows nothing of it â€” then everyone receives the
     mayor's announcement at 0.95. Byte-identical across runs.
 11. **Bugs found & fixed this sprint.** Test fixture spawned plain agents where
     residents were required (perception is resident-scoped by design).
@@ -314,26 +314,26 @@ Format follows master spec §15. Reports are appended; newest at bottom.
 14. **Documentation updated.** This report; ROADMAP Sprint 6 done; DECISIONS
     D14 added.
 15. **Git status.** Committed on `feature/echosim`.
-16. **Recommended next sprint work.** Sprint 7: episodic memory — encode
+16. **Recommended next sprint work.** Sprint 7: episodic memory â€” encode
     observations into memories with importance/valence, decay, retrieval.
 17. **Anything unverified.** Nothing within sprint scope.
 
 ---
 
-## SPRINTS 7–9 COMPLETE — Memory, Emotion, Relationships
+## SPRINTS 7â€“9 COMPLETE â€” Memory, Emotion, Relationships
 
 1. **Summary.** Residents gained inner continuity. Observations encode into
    bounded episodic memories via an importance/valence table (noise skipped),
    grudge-holders retain negative events more strongly; retrieval is scored and
    fully explainable (recency/importance/actor/location breakdown); consolidation
-   prunes stale low-value entries. Emotion (valence −1..1, arousal 0..1) decays
+   prunes stale low-value entries. Emotion (valence âˆ’1..1, arousal 0..1) decays
    toward neutral and feeds goal scoring. Relationships are directional 8-
    dimensional vectors shaped by social events, scaled by observer personality,
-   softening through drift, with derived labels (Stranger→Enemy/Crush).
+   softening through drift, with derived labels (Strangerâ†’Enemy/Crush).
 2. **Files created.** `Memory/MemorySystem.cs`, `Emotion/EmotionSystem.cs`,
    `Relationships/RelationshipSystem.cs`, `Social/SocialReactionSystem.cs`
    (+`ObservationRecordedEvent` on the perception bus).
-3. **Tests.** +11 → **134 passing**: noise filtering, grudge amplification,
+3. **Tests.** +11 â†’ **134 passing**: noise filtering, grudge amplification,
    ranked retrieval w/ breakdown-sums invariant, consolidation survival,
    emotion clamp/decay/mood-shift, directional grievance, witness bias,
    personality scaling, drift/label evolution.
@@ -342,7 +342,7 @@ Format follows master spec §15. Reports are appended; newest at bottom.
 
 ---
 
-## SPRINTS 10–12 COMPLETE — Social Protocol, Beliefs, Conversations
+## SPRINTS 10â€“12 COMPLETE â€” Social Protocol, Beliefs, Conversations
 
 1. **Summary.** The full social stack without any LLM: fourteen social actions
    gated by co-location, mutual conversation locks and mood/personality-driven
@@ -353,20 +353,20 @@ Format follows master spec §15. Reports are appended; newest at bottom.
    from beliefs/memories, and speaks template utterances with seeded variation.
 2. **Files created.** `Social/SocialSystem.cs`, `Social/ConversationSystem.cs`,
    `Beliefs/BeliefSystem.cs`, `SocialBeliefConversationTests.cs`.
-3. **Tests.** +11 → **145 passing**: co-location gating, lock contention,
-   insult→memory→relationship→mood pipeline, urgent-need refusal (hardened to a
+3. **Tests.** +11 â†’ **145 passing**: co-location gating, lock contention,
+   insultâ†’memoryâ†’relationshipâ†’mood pipeline, urgent-need refusal (hardened to a
    hard refusal by design), hop decay & provenance, rumour loop-cutting,
    first-hand evidence overriding hearsay, no-teleporting-knowledge invariant,
    deterministic utterance replay, gossip belief transfer.
-4. **Bugs found & fixed.** Urgent listeners could still randomly accept chat —
+4. **Bugs found & fixed.** Urgent listeners could still randomly accept chat â€”
    now urgency is an absolute refusal for friendly actions.
 
 ---
 
-## SPRINTS 13–15 COMPLETE — Player, Mira, Economy
+## SPRINTS 13â€“15 COMPLETE â€” Player, Mira, Economy
 
 1. **Summary.** The player enters as just another stable-ID actor whose actions
-   flow through the identical social pipeline — NPCs remember, resent, and warm
+   flow through the identical social pipeline â€” NPCs remember, resent, and warm
    to them exactly like each other. Mira arrives as authored data (content key
    npc_mira_18nov, MiraLike personality, preference profile), her signature rare
    line "u dummy." emerging from generic gates: affinity > 0.5 + seeded 10%
@@ -376,38 +376,38 @@ Format follows master spec §15. Reports are appended; newest at bottom.
    wired into plan execution.
 2. **Files created.** `Player/PlayerFoundation.cs`, `Content/ContentFixtures.cs`,
    `Economy/EconomySystem.cs`, `PlayerMiraEconomyTests.cs`.
-3. **Tests.** +12 → **155 passing**: player pipeline identity, NPC grudges
+3. **Tests.** +12 â†’ **155 passing**: player pipeline identity, NPC grudges
    against the player, fixture distinctness, easter-egg rarity bounds,
    purchase money/stock/inventory/memory flows, sell-out scarcity, wage math,
    preference-scaled gifting, broke-resident planning failure path.
 4. **Bugs found & fixed.** Memory-subject convention regression caught here;
-   relationship links were forming from non-social noise events (movement) —
+   relationship links were forming from non-social noise events (movement) â€”
    now constrained to a social event whitelist.
 
 ---
 
-## SPRINTS 16–18 COMPLETE — Weather, Town Events, Save/Load
+## SPRINTS 16â€“18 COMPLETE â€” Weather, Town Events, Save/Load
 
-1. **Summary.** Seeded daily weather rolls (Clear↔HeavyRain Markov table)
+1. **Summary.** Seeded daily weather rolls (Clearâ†”HeavyRain Markov table)
    reach goal scoring: rain suppresses Explore for everyone except rain-lovers,
-   whose authored preference cancels the penalty — no special cases. Authored
+   whose authored preference cancels the penalty â€” no special cases. Authored
    town events activate in day/time windows and announce town-wide through the
    perception bus. Storylets fire when pair conditions hold (e.g., Trust > 0.75
-   plus third-party Grievance > 0.6 → confiding moment) with cooldowns.
+   plus third-party Grievance > 0.6 â†’ confiding moment) with cooldowns.
    Finally, persistence: versioned DTO save format (locations, agents with
    personalities/needs/wallets/inventories/planner-facts, relationships,
    memories with access counts, beliefs with provenance, suppression timers,
    in-flight plan runs with remaining step time), atomic writes with .bak
-   backups, explicit migration chain rejecting future versions gracefully —
+   backups, explicit migration chain rejecting future versions gracefully â€”
    and the crown-jewel guarantee:
 2. **The round-trip contract.** Save a living town mid-flight, restore it from
    disk, run both forward side-by-side: their futures are byte-for-byte
    IDENTICAL (37 = 37 planned events). A saved world is the same world.
-3. **Tests.** +18 total across the three sprints → **163 passing**.
-4. **Bugs found & fixed during 16–18.** Restored locations lost authored-hours
+3. **Tests.** +18 total across the three sprints â†’ **163 passing**.
+4. **Bugs found & fixed during 16â€“18.** Restored locations lost authored-hours
    reactivity via manual-override leakage (ForceOpen added); cognition timers
    (cooldowns/commitments/suppressions) missing from the format caused restored
-   towns to drift — now captured; duplicate location-registration crash during
+   towns to drift â€” now captured; duplicate location-registration crash during
    restore after an editing mishap.
 5. **Known limitations.** Jobs/schedules are re-authored by hosts rather than
    serialized (definitions are content, not state); observation logs are not
@@ -417,7 +417,7 @@ Format follows master spec §15. Reports are appended; newest at bottom.
 
 ---
 
-## SPRINT 4 COMPLETE — Navigation, Affordances & Reservations
+## SPRINT 4 COMPLETE â€” Navigation, Affordances & Reservations
 
 1. **Summary.** Semantic movement became physical travel: `INavigationService`
    with a timed headless implementation (authored symmetric travel minutes,
@@ -429,7 +429,7 @@ Format follows master spec §15. Reports are appended; newest at bottom.
 2. **Architecture implemented.** `Simulation/Navigation/*`, `Simulation/World/*`;
    services owned by `SimulationWorld`; the Unity NavMesh adapter will
    implement the same `INavigationService` contract later without touching
-   planning/execution (spec §4.2).
+   planning/execution (spec Â§4.2).
 3. **Files created.** `INavigationService.cs`, `TimedNavigationService.cs`,
    `Affordances.cs` (registry + reservations), tests
    `NavigationAffordanceReservationTests.cs`.
@@ -443,18 +443,18 @@ Format follows master spec §15. Reports are appended; newest at bottom.
    `NavigationState/PathStatus/Failure/RequestResult/Arrival`,
    `Affordance(.Registry)`, `ReservationService`, `ResourceId`.
 6. **Data models.** Travel table: symmetric minute matrix with default fallback;
-   reservations: resource→(owner, until) with sweep-based expiry.
+   reservations: resourceâ†’(owner, until) with sweep-based expiry.
 7. **Tests created.** 13 new (105 total): affordance lookup/order/gating;
    reservation conflict, ownership-validated release, owner extension,
    simulated-time expiry, expired-hold reclaim; navigation arrival timing,
    supersede resolution, target destruction, blocked destination, stuck after
    grace.
-8. **Tests executed.** Yes — **Passed! 105/105**.
+8. **Tests executed.** Yes â€” **Passed! 105/105**.
 9. **Build result.** Succeeded, 0 warnings / 0 errors.
 10. **Demo result.** Live run shows authored travel honored (goto=20 min:
-    00:45→01:05), full eat chain completes at 01:40; two runs byte-identical.
+    00:45â†’01:05), full eat chain completes at 01:40; two runs byte-identical.
 11. **Bugs found & fixed this sprint.** Superseded trips never resolved their
-    caller's callback — cancellation now reports failure exactly once per
+    caller's callback â€” cancellation now reports failure exactly once per
     request. Also repaired a self-inflicted factory edit that had broken the
     GetFood gating block before it ever compiled.
 12. **Performance notes.** Stuck/expiry sweeps are O(trips)/O(holds) per 5 min;
@@ -469,3 +469,78 @@ Format follows master spec §15. Reports are appended; newest at bottom.
 17. **Recommended next sprint work.** Sprint 5: schedules, jobs, opening hours,
     weekday/weekend rhythm, seeded routine offsets feeding schedule pressure.
 18. **Anything unverified.** Nothing within sprint scope.
+
+---
+
+## SPRINT 19 COMPLETE — Debug Inspector Application
+
+1. **Summary.** Developers can now answer "why is this NPC doing this?" in a
+   browser: a new @echosim/inspector package exposes side-effect-free read
+   models over the running town, and a React+Vite apps/debug-ui renders the
+   agent list, full agent inspector (needs / utility / plan / memories /
+   relationships / beliefs / timers), town stats, and a filterable event
+   timeline with pause/follow. The TS port had also silently dropped two
+   .NET-era behaviours which were restored: perception auto-sourcing and the
+   autonomous conversation flow (beliefs/gossip included).
+2. **Architecture implemented.** Read-model boundary per master spec 19:
+   React components never touch simulation internals; they consume
+   SimulationInspectorAPI snapshots via a SimHost that owns the tick loop and
+   records every manual debug command. Guardrail tests extended to cover the
+   inspector and content packages as engine-free.
+3. **Files created.**
+   - packages/inspector/src/{types,eventJournal,simulationInspector,index}.ts
+   - apps/debug-ui/** (Vite+React: SimHost, useSim hook, AgentList,
+     AgentInspector, PlanPanel, UtilityPanel, SocialPanels, EventTimeline,
+     HeaderBar, App shell)
+   - packages/content/src/demoTown.ts (shared deterministic demo composition)
+   - packages/simulation/src/socialWire.ts
+   - tests/inspector/inspector.test.ts, tests/ui/components.test.tsx,
+     tests/ui/simhost.test.ts
+4. **Files modified.** Town (+belief/social/conversation systems, seeded RNG
+   provider with attachRandoms, daily weather roll scheduling),
+   PlanningDirector (+PlanningDiagnostics: replan reason / planner outcome /
+   failure detail / nodes expanded / per-agent replans), social package
+   (+non-mutating MemoryRetriever.peek, tryStoreFor accessors), sim-cli runner
+   (shared demo town, conversation count), architecture guardrail lists,
+   root configs/scripts, README/ROADMAP/ARCHITECTURE/AGENTS docs.
+5. **Public APIs.** SimulationInspectorAPI, SimulationInspector, EventJournal,
+   snapshot types (AgentSummary, AgentInspectorSnapshot, PlanSnapshot,
+   UtilityCandidate, SimEventEntry, ...), PlanningDiagnostics, createDemoTown,
+   SimHost.
+6. **Data models.** Inspector snapshots are plain JSON-safe read models;
+   journal entries carry seq/kind/agent/location/text; manual command records
+   keep real + simulated timestamps for override auditability.
+7. **Tests created.** 23 new, giving **35 passing** total (11 inspector incl.
+   fingerprint-based read-only invariant; 12 UI component/host tests under
+   jsdom; 6 SimHost control tests; all pre-existing suites preserved).
+8. **Tests executed.** Yes: npm test gives 35/35 green; typecheck clean;
+   repeat headless runs byte-identical for seed 7001 over 2 days.
+9. **Build result.** build:debug-ui and build:game both succeed; debug UI dev
+   server verified serving HTTP 200.
+10. **Demo scenario result.** Headless seed 7001 x 2 days: 267 events,
+    170 memories, 6 relationships, 50 conversations, 132 plan successes /
+    19 failures - memories, relationships and conversations now flow
+    autonomously (all were zero since the port).
+11. **Bugs found & fixed this sprint.**
+    - apps/game called nonexistent town.attachRandoms(): browser game crashed
+      on load. Town now owns a lazily seeded provider plus host-replaceable
+      streams.
+    - Weather never changed at runtime: no host scheduled the daily roll.
+      Town now rolls seeded weather each simulated midnight.
+    - Inspector getters created empty memory/belief stores as a side effect,
+      violating the read-only contract. Added non-creating tryStoreFor
+      accessors and a whole-state fingerprint regression test.
+12. **Performance notes.** Journal is a bounded ring buffer (4000) with
+    newest-first filtered scans; UI refreshes ~4 Hz snapshots; fine at
+    current scale.
+13. **Known limitations.** Timeline filters are prefix/text based; inspector
+    is live-only (no historical replay); debug controls mutate the live world
+    by design but are recorded and never touch persistence paths.
+14. **Documentation updated.** ROADMAP (Sprint 19 done), ARCHITECTURE
+    (rewritten for the TypeScript monorepo), AGENTS.md (TS commands/rules),
+    README (debug UI + updated limitations), this report.
+15. **Git status.** Branch feature/echosim; sprint committed locally.
+16. **Recommended next sprint work.** Sprint 20 - social graph visualization
+    on top of inspector relationship/belief snapshots (ego graph, dimension
+    edges, gossip chains via provenance).
+17. **Anything unverified.** Nothing within sprint scope.

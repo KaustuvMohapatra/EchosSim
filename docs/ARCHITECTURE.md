@@ -5,79 +5,91 @@ Status markers follow the spec convention: **Implemented**, **Partial**, **Plann
 ## System overview
 
 ```
-World state (locations, agents)
-        |
-SimulationClock  ──►  SimulationScheduler  ──►  systems react
-        |
-   EventBus (typed pub/sub)
-        |
-Agent / Location repositories (deterministic insertion order)
+EchoSim core (engine-free TypeScript, Node.js)
+    │
+    ├── @echosim/core        IDs · Time · RNG streams · Scheduler · EventBus
+    ├── @echosim/cognition   Personality · Needs · Utility AI · GOAP · PlanningDirector support
+    ├── @echosim/world       Locations · Hours · Reservations · Navigation · Jobs · Weather · Events
+    ├── @echosim/social      Perception · Memory · Emotion · Relationships · Beliefs/Gossip · Conversations
+    ├── @echosim/simulation  Town composition root + PlanningDirector + social wiring
+    ├── @echosim/content     Authored residents/fixtures (incl. demo town)
+    ├── @echosim/persistence Versioned saves (Node fs; the only Node-dependent package)
+    └── @echosim/inspector   Read-model snapshots for presentation layers
+        ↓ consumed by
+    ┌──────────────┬────────────────┬─────────┬─────────────────┐
+ sim-cli        apps/game       apps/debug-ui   tests/research
+ (headless)     Phaser+Vite     React+Vite      vitest suites
 ```
 
-The simulation domain is **engine-free C#** (`netstandard2.1`, C# 9). Unity is a host,
-not a dependency of the domain.
+The simulation domain is **engine-free TypeScript**: no Phaser, React, DOM,
+canvas, or browser globals in any `packages/*` module. Enforced by
+`tests/architecture/engine-independence.test.ts` and duplicated as a regression
+guard.
 
-## Assembly map
+## Package map
 
-| Assembly | Location | Depends on | Status |
-|---|---|---|---|
-| `EchoSim.Core` | `Assets/EchoSim/Core` | nothing (no UnityEngine) | Implemented |
-| `EchoSim.Simulation` | `Assets/EchoSim/Simulation` | EchoSim.Core | Implemented (Sprint 1 scope) |
-| `EchoSim.World`, `.Player`, `.AI`, `.Presentation`, `.Debug` | planned | see spec §8 | Planned |
-
-### Dual compilation strategy
-
-Source of truth lives under `Assets/EchoSim/**` so Unity compiles it via `.asmdef`
-files (`noEngineReferences: true`). The same files are globbed by hand-authored
-csproj files under `src/` so the domain compiles headlessly:
-
-```
-dotnet build EchoSim.sln
-dotnet test  EchoSim.sln
-```
-
-This gives CI-grade verification without opening the editor and guarantees the
-"simulation runs independently of visuals" requirement from day one.
+| Package | Depends on | Status |
+|---|---|---|
+| `@echosim/core` | nothing | Implemented |
+| `@echosim/cognition` | core | Implemented |
+| `@echosim/world` | core | Implemented |
+| `@echosim/social` | core, cognition | Implemented |
+| `@echosim/simulation` | all of the above | Implemented |
+| `@echosim/content` | simulation (+cognition) | Implemented (demo scope) |
+| `@echosim/persistence` | simulation chain (+node fs) | Implemented |
+| `@echosim/inspector` | simulation chain | Implemented |
+| `apps/debug-ui` | inspector + content + React | Implemented |
+| `apps/game` | simulation + Phaser | Implemented |
+| LLM provider layer | — | Planned |
 
 ## Core services
 
-- **Stable IDs** (`Core/IDs`) — `AgentId`, `LocationId`, `MemoryId`, `EventId`,
-  `ActionId`. Validated readonly structs; ordinal equality; never derived from
-  display names.
-- **Time** (`Core/Time`) — `SimTime`/`SimDuration` (minute granularity, epoch =
-  Monday D0 00:00) and `SimulationClock` (pause/resume/scale presets 0.5×–16×).
-  No wall-clock access anywhere in the domain.
-- **RNG** (`Core/Random`) — SplitMix64-based `SeededRandom`; named streams
-  (`world`, `agents`, `events`, `social`, `content`) derived deterministically
-  from one master seed via `SimRandomProvider`.
-- **Scheduler** (`Core/Scheduling`) — deterministic due-time ordering (time,
-  then sequence); drift-free repeating ops; cancellation; auto-processes on clock
-  advance. No `Invoke()` semantics.
-- **EventBus** (`Core/Events`) — typed struct events, snapshot iteration (safe
-  subscribe/unsubscribe during publish), fault aggregation, statistics.
-- **Diagnostics** (`Core/Diagnostics`) — `ISimLog` keeps domain free of Console/Unity.
+- **Typed IDs** (`core/ids`) — branded string ids (`AgentId`, `LocationId`, …).
+- **Time** (`core/time`) — minute-granularity clock with pause/resume/scale;
+  integer minutes are authoritative.
+- **RNG** (`core/rng`) — SplitMix64 via BigInt; named streams derived from one
+  master seed via `SimRandomProvider`. No `Math.random()` in simulation code.
+- **Scheduler** (`core/scheduler`) — deterministic due-time ordering
+  (time, then sequence); repeating ops anchored to previous deadline.
+- **EventBus** (`core/events`) — typed channels, snapshot iteration, fault
+  aggregation and statistics.
 
 ## Simulation layer
 
-- `SimulationBootstrap.CreateWorld(config)` — composition root; fixed creation order.
-- `SimulationWorld` — aggregate root owning clock/RNG/bus/scheduler/repositories;
-  spawn/move operations maintain occupancy invariants and publish typed events.
-- `HeadlessSimulationRunner` — advances time in fixed steps for tools/tests/demo.
+- `Town` (`simulation/town`) — composition root wiring every system;
+  deterministic construction order; seeded RNG provider with host-replaceable
+  streams (`randoms()` / `attachRandoms()`).
+- `PlanningDirector` (`simulation/director`) — cognition → goal decision → GOAP
+  plan → timed execution loop with generation-tokened completions (stale
+  callbacks can never mutate newer plans), critical interruption, deferred
+  replanning, suppression backoff, and per-agent `PlanningDiagnostics`
+  (last replan reason, planner outcome, failure detail, nodes expanded).
+- `socialWire` (`simulation/socialWire`) — deterministic glue: movement
+  observations, relationship/emotion/belief reactions to observed social
+  events, conversation flow on Talk completion (intent selection, utterances,
+  belief transfer with hop decay).
 
-## Dependency rules (enforced by asmdef layout)
+## Inspector read models
+
+`SimulationInspector` implements `SimulationInspectorAPI`: `getAgents`,
+`getAgent`, `getEvents`, `getRelationships`, `getMemories` plus focused reads
+(utility breakdowns, plan snapshots, beliefs, time, town stats). Every getter
+is side-effect free — memory access uses a non-mutating `peek`, belief/memory
+stores are never created by inspection (`tryStoreFor`), and the read-only
+invariant is covered by a full-state fingerprint test. An `EventJournal` ring
+buffer captures bus events for timeline queries with filters.
+
+## Dependency rules (enforced by architecture tests)
 
 ```
-EchoSim.Core      ← no references at all
-EchoSim.Simulation ← EchoSim.Core only
+core ← nothing engine-related ever
+presentation → inspector → simulation → … → core   (never the reverse)
 ```
-
-Presentation, AI providers, and Unity glue must depend on Simulation contracts,
-never the reverse (see `docs/DECISIONS.md`).
 
 ## Determinism contract
 
-1. All randomness flows from `SimulationConfiguration.Seed` through named streams.
-2. Repository iteration order = insertion order; construction order is fixed.
-3. Scheduler ordering is total: `(due time, schedule sequence)`.
-4. Floating point appears only in scale conversion of *real* seconds; the
-   authoritative path (`Advance(SimDuration)`) is integer-only.
+1. All randomness flows from the seed through named RNG streams.
+2. Repositories iterate in insertion order; construction order is fixed.
+3. Scheduler ordering is total: `(due time, sequence)`.
+4. Same seed + same command sequence ⇒ byte-identical headless runs
+   (verified by repeat-run diff and golden vector tests).

@@ -25,9 +25,24 @@ export interface ActiveRun {
   currentStepDueMinutes: number;
 }
 
+/** Explainability read model: why is this agent doing what it is doing? */
+export interface PlanningDiagnostics {
+  agentId: string;
+  /** Why the most recent planning cycle began ("tick", "critical-interruption", ...). */
+  lastReplanReason?: string;
+  /** Outcome of the most recent planning attempt. */
+  lastPlanOutcome?: "planned" | "already-satisfied" | "utility-goal" | "planning-failed";
+  /** Human-readable detail of the most recent step/run failure. */
+  lastFailureDetail?: string;
+  lastPlannerNodesExpanded: number;
+  totalReplans: number;
+  lastCycleAtMinutes?: number;
+}
+
 export class PlanningDirector {
   private readonly active = new Map<string, ActiveRun>();
   private readonly generations = new Map<string, number>();
+  private readonly diagnostics = new Map<string, PlanningDiagnostics>();
   planningFailureBackoffMinutes = 90;
 
   totalPlansCreated = 0;
@@ -44,6 +59,17 @@ export class PlanningDirector {
   peekActive(agent: string): ActiveRun | undefined { return this.active.get(agent); }
   activeRunsSnapshot(): ActiveRun[] { return [...this.active.values()]; }
 
+  diagnosticsOf(agent: string): PlanningDiagnostics {
+    let d = this.diagnostics.get(agent);
+    if (!d) {
+      d = {
+        agentId: agent, lastPlannerNodesExpanded: 0, totalReplans: 0,
+      };
+      this.diagnostics.set(agent, d);
+    }
+    return d;
+  }
+
   tickAll(): void {
     for (const id of [...this.town.residents.orderedIds()]) this.tick(id as AgentId);
   }
@@ -54,8 +80,15 @@ export class PlanningDirector {
       if (!this.shouldInterrupt(running)) return;
       this.cancelRun(agent, "critical-interruption");
       this.totalReplans++;
+      const d = this.diagnosticsOf(agent);
+      d.totalReplans++;
+      d.lastReplanReason = "critical-interruption";
+      this.startFreshCycle(agent, "critical-interruption");
+      return;
     }
-    this.startFreshCycle(agent);
+    // Idle between cycles: retry deferred work at a slow cadence so we do not
+    // re-plan every single tick after a failure (backoff handles suppression).
+    this.startFreshCycle(agent, "idle");
   }
 
   private shouldInterrupt(running: ActiveRun): boolean {
@@ -67,14 +100,18 @@ export class PlanningDirector {
     return !goalDef.reliefNeeds.includes(interrupting.definition.kind);
   }
 
-  startFreshCycle(agent: AgentId): void {
+  startFreshCycle(agent: AgentId, reason = "tick"): void {
     const mind = this.town.residents.mind(agent);
     const now = this.town.clock.currentTime.totalMinutes;
+    const d = this.diagnosticsOf(agent);
+    d.lastReplanReason = reason;
+    d.lastCycleAtMinutes = now;
     const decision = this.town.cognition.decide(agent);
     const goalDef = this.town.cognition.findGoal(decision.effective.goal);
     if (!goalDef) throw new Error(`Selected goal '${decision.effective.goal}' has no definition.`);
 
     if (!goalDef.desiredFacts || goalDef.desiredFacts.length === 0) {
+      d.lastPlanOutcome = "utility-goal";
       this.publishStart(agent, goalDef.id, 0, 0, now);
       this.publishFinish(agent, goalDef.id, "Succeeded", "utility-goal", now);
       this.totalPlansCreated++;
@@ -87,9 +124,12 @@ export class PlanningDirector {
     const result = this.town.planner.plan(state, goalDef.desiredFacts, catalog, agent);
 
     this.nodesExpandedLastPlan = result.metrics.nodesExpanded;
+    d.lastPlannerNodesExpanded = result.metrics.nodesExpanded;
     this.totalPlansCreated++;
 
     if (!result.success || !result.plan) {
+      d.lastPlanOutcome = "planning-failed";
+      d.lastFailureDetail = "plan: " + PlanFailureReason[result.metrics.failureReason];
       this.totalPlansFailed++;
       this.town.cognition.suppressGoal(agent, goalDef.id, now + this.planningFailureBackoffMinutes);
       this.publishStart(agent, goalDef.id, 0, 0, now);
@@ -99,12 +139,15 @@ export class PlanningDirector {
     }
 
     if (result.plan.steps.length === 0) {
+      d.lastPlanOutcome = "already-satisfied";
       this.totalPlansSucceeded++;
       this.publishStart(agent, goalDef.id, 0, 0, now);
       this.publishFinish(agent, goalDef.id, "Succeeded", "already-satisfied", now);
       return;
     }
 
+    d.lastPlanOutcome = "planned";
+    d.lastFailureDetail = undefined;
     const run: ActiveRun = {
       agentId: agent, goalId: goalDef.id, plan: result.plan.steps,
       nextStepIndex: 0, lifecycle: "Starting",
@@ -158,6 +201,9 @@ export class PlanningDirector {
     // Between-steps critical check: cancel and yield.
     if (action.interruptible && this.shouldInterrupt(run)) {
       this.cancelRun(agent, "critical-interruption-between-steps");
+      const d = this.diagnosticsOf(agent);
+      d.totalReplans++;
+      d.lastReplanReason = "critical-interruption";
       this.totalReplans++;
       return; // deferred retry via next external tick
     }
@@ -246,6 +292,10 @@ export class PlanningDirector {
 
   private failStep(agent: AgentId, failureType: ActionFailureType, detail: string): void {
     this.totalPlansFailed++;
+    const d = this.diagnosticsOf(agent);
+    d.lastFailureDetail = ActionFailureType[failureType] + ": " + detail;
+    d.lastReplanReason = "action-failed";
+    d.totalReplans++;
     const run = this.active.get(agent);
     if (run) {
       run.lifecycle = "Failed";

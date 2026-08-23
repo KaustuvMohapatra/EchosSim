@@ -8,7 +8,9 @@
     { "path": "packages/simulation" },
     { "path": "packages/content" },
     { "path": "packages/persistence" },
+    { "path": "packages/inspector" },
     { "path": "apps/sim-cli" },
-    { "path": "apps/game" }
+    { "path": "apps/game" },
+    { "path": "apps/debug-ui" }
   ]
 }
