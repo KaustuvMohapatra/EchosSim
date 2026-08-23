@@ -14,9 +14,9 @@ function step(town: Town, director: PlanningDirector, minutes: number): void {
 }
 
 describe("S27/S28: performance & invariants", () => {
-  // Local measurement: ~5 s for this scenario. 30 s bound leaves ~6x
-  // headroom for slow CI machines while still catching gross regressions.
-  it("20 residents x 2 simulated days complete well within budget", () => {
+  // Local measurement: ~5 s for this scenario. The 30 s wall bound leaves ~6x
+  // headroom for slow CI machines; the vitest timeout is raised accordingly.
+  it("20 residents x 2 simulated days complete well within budget", { timeout: 60_000 }, () => {
     const world = createScaledTown(9001, 20);
     const started = performance.now();
     step(world.town, world.director, 2880);
@@ -26,7 +26,7 @@ describe("S27/S28: performance & invariants", () => {
     expect(world.director.totalPlansSucceeded).toBeGreaterThan(0);
   });
 
-  it("hourly invariant sweeps stay clean over a compressed soak", () => {
+  it("hourly invariant sweeps stay clean over a compressed soak", { timeout: 120_000 }, () => {
     const world = createScaledTown(4242, 25);
     const monitor = new SoakMonitor();
     let violations = 0;
