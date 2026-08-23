@@ -61,3 +61,8 @@ desktop.ini
 .env
 *.key
 secrets.json
+
+# ===== Node =====
+node_modules/
+dist/
+*.tsbuildinfo

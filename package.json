@@ -1,0 +1,30 @@
+{
+  "name": "echosim",
+  "private": true,
+  "version": "0.2.0",
+  "description": "Emergent social-simulation sandbox: engine-neutral simulation core, replaceable 2D presentation.",
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:regression": "vitest run tests/regression",
+    "test:determinism": "vitest run tests/deterministic",
+    "test:architecture": "vitest run tests/architecture",
+    "sim": "tsx apps/sim-cli/src/runner.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev": "pnpm --filter @echosim/game dev",
+    "build:game": "pnpm --filter @echosim/game build"
+  },
+  "devDependencies": {
+    "@echosim/core": "workspace:*",
+    "@echosim/cognition": "workspace:*",
+    "@echosim/world": "workspace:*",
+    "@echosim/social": "workspace:*",
+    "@echosim/simulation": "workspace:*",
+    "@echosim/content": "workspace:*",
+    "@echosim/persistence": "workspace:*",
+    "typescript": "^5.7.2",
+    "tsx": "^4.19.2",
+    "vitest": "^3.0.5"
+  }
+}

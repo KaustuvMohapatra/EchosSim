@@ -1,0 +1,13 @@
+{
+  "name": "@echosim/sim-cli",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@echosim/simulation": "workspace:*",
+    "@echosim/content": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2"
+  }
+}

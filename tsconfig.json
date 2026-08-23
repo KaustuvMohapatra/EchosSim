@@ -1,0 +1,14 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/core" },
+    { "path": "packages/cognition" },
+    { "path": "packages/world" },
+    { "path": "packages/social" },
+    { "path": "packages/simulation" },
+    { "path": "packages/content" },
+    { "path": "packages/persistence" },
+    { "path": "apps/sim-cli" },
+    { "path": "apps/game" }
+  ]
+}
