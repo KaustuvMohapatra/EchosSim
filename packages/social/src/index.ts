@@ -813,3 +813,96 @@ export class ReflectionSystem {
     if (sem.id >= this.nextId) this.nextId = sem.id + 1;
   }
 }
+
+// ---------------- Habits (Sprint 24) ----------------
+
+export interface Habit {
+  id: number;
+  behavior: string;
+  targetKey: string;
+  strength: number;
+  repetitionCount: number;
+  firstPerformedMinutes: number;
+  lastPerformedMinutes: number;
+}
+
+/**
+ * Repetition-formed behavioural continuity. A habit only becomes ACTIVE after
+ * `formationRepetitions` performances spanning at least a day (so "went to the
+ * cafe once during a storm" never sticks), then decays slowly when unused.
+ */
+export class HabitSystem {
+  formationRepetitions = 3;
+  minSpanMinutes = 1440;
+  decayPerSimDay = 0.06;
+  maxStrength = 0.8;
+
+  private readonly habits = new Map<string, Map<string, Habit>>();
+  private readonly candidateCounts = new Map<string, { count: number; first: number; last: number }>();
+  private nextId = 1;
+
+  record(agent: string, behavior: string, targetKey: string, atMinutes: number): void {
+    const key = `${behavior}:${targetKey}`;
+    let map = this.habits.get(agent);
+    if (map?.has(key)) {
+      const h = map.get(key)!;
+      h.repetitionCount++;
+      h.lastPerformedMinutes = atMinutes;
+      h.strength = Math.min(this.maxStrength,
+        h.strength + 0.08 + Math.min(0.04, 0.004 * h.repetitionCount));
+      return;
+    }
+
+    let c = this.candidateCounts.get(`${agent}|${key}`);
+    if (!c) {
+      c = { count: 0, first: atMinutes, last: atMinutes };
+      this.candidateCounts.set(`${agent}|${key}`, c);
+    }
+    c.count++;
+    c.last = atMinutes;
+    if (c.count >= this.formationRepetitions &&
+        c.last - c.first >= this.minSpanMinutes) {
+      if (!map) { map = new Map(); this.habits.set(agent, map); }
+      map.set(key, {
+        id: this.nextId++, behavior, targetKey,
+        strength: Math.min(0.35, 0.12 + 0.05 * (c.count - this.formationRepetitions)),
+        repetitionCount: c.count,
+        firstPerformedMinutes: c.first,
+        lastPerformedMinutes: c.last,
+      });
+      this.candidateCounts.delete(`${agent}|${key}`);
+    }
+  }
+
+  habitsOf(agent: string): Habit[] {
+    const map = this.habits.get(agent);
+    if (!map) return [];
+    return [...map.values()].sort((a, b) =>
+      b.strength - a.strength !== 0 ? b.strength - a.strength : a.id - b.id);
+  }
+
+  /** Bounded utility contribution for being AT the given location now. */
+  strengthAt(agent: string, locationKey: string | undefined): number {
+    if (!locationKey) return 0;
+    const h = this.habits.get(agent)?.get(`visit:${locationKey}`);
+    if (!h || h.strength < 0.05) return 0;
+    return Math.min(0.15, 0.5 * h.strength);
+  }
+
+  tickDecay(deltaMinutes: number): void {
+    const factor = this.decayPerSimDay * (deltaMinutes / 1440);
+    for (const map of this.habits.values()) {
+      for (const [key, h] of [...map]) {
+        h.strength = Math.max(0, h.strength - factor);
+        if (h.strength <= 0.001) map.delete(key);
+      }
+    }
+  }
+
+  import(agent: string, habit: Habit): void {
+    let map = this.habits.get(agent);
+    if (!map) { map = new Map(); this.habits.set(agent, map); }
+    map.set(`${habit.behavior}:${habit.targetKey}`, habit);
+    if (habit.id >= this.nextId) this.nextId = habit.id + 1;
+  }
+}

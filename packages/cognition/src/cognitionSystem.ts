@@ -37,6 +37,9 @@ export class CognitionSystem {
   private readonly goals: readonly GoalDefinition[];
   private schedulePressureProvider?: (agent: string, timeMinutes: number) => number;
   private weatherProvider?: () => number; // WeatherState numeric
+  private locationKeyProvider?: (agent: string) => string | undefined;
+  private habitProvider?: (agent: string, locationKey?: string) => number;
+  private intentionProvider?: (agent: string) => number;
   /** agent -> goal -> untilMinutes */
   private readonly suppressed = new Map<string, Map<string, number>>();
 
@@ -53,6 +56,15 @@ export class CognitionSystem {
   }
   setWeatherProvider(provider: () => number): void {
     this.weatherProvider = provider;
+  }
+  setLocationKeyProvider(provider: (agent: string) => string | undefined): void {
+    this.locationKeyProvider = provider;
+  }
+  setHabitProvider(provider: (agent: string, locationKey?: string) => number): void {
+    this.habitProvider = provider;
+  }
+  setIntentionProvider(provider: (agent: string) => number): void {
+    this.intentionProvider = provider;
   }
   findGoal(id: string): GoalDefinition | undefined {
     return this.goals.find((g) => g.id === id);
@@ -153,6 +165,8 @@ export class CognitionSystem {
   }
 
   private buildContext(mind: AgentMind): GoalContext {
+    const locationKey = this.locationKeyProvider?.(mind.agent);
+    const habitRaw = this.habitProvider?.(mind.agent, locationKey) ?? 0;
     return {
       timeMinutes: this.timeMinutes(),
       needs: mind.needs,
@@ -166,6 +180,10 @@ export class CognitionSystem {
       lastSelectedAt: mind.lastSelectedSnapshot(),
       weather: (this.weatherProvider ? this.weatherProvider() : 0),
       preferences: mind.preferences,
+      ...(locationKey !== undefined ? { currentLocationKey: locationKey } : {}),
+      habitBonus: Math.max(0, Math.min(0.15, habitRaw)),
+      intentionBias: Math.max(-0.1, Math.min(0.1,
+        this.intentionProvider ? this.intentionProvider(mind.agent) : 0)),
     };
   }
 }

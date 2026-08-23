@@ -28,6 +28,12 @@ export interface GoalContext {
   lastSelectedAt?: ReadonlyMap<string, number>;
   weather: WeatherState;
   preferences: PreferenceProfileLike;
+  /** Location key of the resident's current location ("loc_cafe"), if placed. */
+  currentLocationKey?: string;
+  /** Bounded habit bonus (≤0.15) supplied by the host for the current spot. */
+  habitBonus?: number;
+  /** Bounded long-term-intention bias (−0.1..+0.1), host-derived. */
+  intentionBias?: number;
 }
 
 export interface ScoreLine { label: string; value: number }

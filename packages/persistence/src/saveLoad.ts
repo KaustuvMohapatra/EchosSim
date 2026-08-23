@@ -76,6 +76,11 @@ export interface SaveDocument {
     confidence: number; supportingIds: number[];
     createdAtMinutes: number; lastReinforcedAtMinutes: number;
   }>>;
+  /** v3+: formed habits (Sprint 24). */
+  habitsByOwner?: Record<string, Array<{
+    id: number; behavior: string; targetKey: string; strength: number;
+    repetitionCount: number; firstPerformedMinutes: number; lastPerformedMinutes: number;
+  }>>;
 }
 
 // ---------------- Serialize ----------------
@@ -180,10 +185,14 @@ export function serializeTown(town: Town, director: PlanningDirector): SaveDocum
     });
 
   const semanticMemoriesByOwner: SaveDocument["semanticMemoriesByOwner"] = {};
-  for (const owner of town.memory.ownerIds()) {
+  const habitsByOwner: SaveDocument["habitsByOwner"] = {};
+  for (const owner of town.residents.orderedIds()) {
     const list = town.reflections.exportFor(owner);
     if (list.length > 0)
       semanticMemoriesByOwner[owner] = list.map((s) => ({ ...s, supportingIds: [...s.supportingIds] }));
+    const habits = town.habits.habitsOf(owner);
+    if (habits.length > 0)
+      habitsByOwner[owner] = habits.map((h) => ({ ...h }));
   }
 
   return {
@@ -203,6 +212,7 @@ export function serializeTown(town: Town, director: PlanningDirector): SaveDocum
     ...(Object.keys(semanticMemoriesByOwner).length > 0
       ? { semanticMemoriesByOwner }
       : {}),
+    ...(Object.keys(habitsByOwner).length > 0 ? { habitsByOwner } : {}),
   };
 }
 
@@ -307,10 +317,15 @@ export function deserializeAndRestore(doc: SaveDocument): RestoredWorld {
     }
   }
 
-  // Durable semantic knowledge (Sprint 23).
+  // Durable semantic knowledge (Sprint 23) + habits (Sprint 24).
   if (doc.semanticMemoriesByOwner !== undefined) {
     for (const [owner, list] of Object.entries(doc.semanticMemoriesByOwner)) {
       for (const s of list) town.reflections.import(owner, { ...s, supportingIds: [...s.supportingIds] });
+    }
+  }
+  if (doc.habitsByOwner !== undefined) {
+    for (const [owner, list] of Object.entries(doc.habitsByOwner)) {
+      for (const h of list) town.habits.import(owner, { ...h });
     }
   }
 

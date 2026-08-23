@@ -8,6 +8,7 @@ import type { AgentMind } from "@echosim/cognition";
 import { PersonalityTrait } from "@echosim/cognition";
 import { NeedKind } from "@echosim/cognition";
 import { PlanningDirector } from "@echosim/simulation";
+import { deriveIntentions } from "@echosim/simulation";
 import type { Town } from "@echosim/simulation";
 import {
   NEED_NAMES, TRAIT_NAMES,
@@ -130,6 +131,16 @@ export class SimulationInspector implements SimulationInspectorAPI {
   getSemanticMemories(id: string) {
     return this.town.reflections.semanticOf(id)
       .map((s) => ({ ...s, supportingIds: [...s.supportingIds] }));
+  }
+
+  /** Behavioural habits (Sprint 24). Read-only. */
+  getHabits(id: string) {
+    return this.town.habits.habitsOf(id).map((h) => ({ ...h }));
+  }
+
+  /** Derived long-term intentions (Sprint 24). Read-only. */
+  getIntentions(id: string) {
+    return deriveIntentions(this.town, id);
   }
 
   getEvents(filter?: EventFilter): SimEventEntry[] {

@@ -15,11 +15,12 @@ import {
 import {
   PerceptionSystem, MemorySystem, MemoryRetriever, EmotionSystem, RelationshipSystem,
   BeliefSystem, SocialSystem, ConversationSystem,
-  ObservationReach, ReflectionSystem,
+  ObservationReach, ReflectionSystem, HabitSystem,
 } from "@echosim/social";
 import type { SocialActorSnapshot } from "@echosim/social";
 import { PersonalityTrait } from "@echosim/cognition";
 import { wireAutonomousSocial } from "./socialWire.js";
+import { deriveIntentions, socialBiasOf } from "./intentions.js";
 
 declare module "@echosim/cognition" {
   interface AgentMind {
@@ -60,6 +61,7 @@ export class Town {
   readonly retriever = new MemoryRetriever();
   readonly reflections = new ReflectionSystem(
     () => this.clock.currentTime.totalMinutes);
+  readonly habits = new HabitSystem();
   readonly emotion: EmotionSystem;
   readonly relationships: RelationshipSystem;
   readonly weather: WeatherSystem;
@@ -170,6 +172,14 @@ export class Town {
       nowMinutes,
     );
     this.cognition.setWeatherProvider(() => this.weather.current);
+    this.cognition.setLocationKeyProvider((agent) => {
+      const state = this.agentsById.get(agent);
+      return state?.hasLocation ? state.currentLocationId : undefined;
+    });
+    this.cognition.setHabitProvider(
+      (agent, locationKey) => this.habits.strengthAt(agent, locationKey));
+    this.cognition.setIntentionProvider((agent) =>
+      socialBiasOf(deriveIntentions(this, agent)));
     this.cognition.setSchedulePressureProvider((agent, t) => {
       const mind = this.residents.tryMind(agent);
       if (!mind?.job) return 0;
@@ -187,6 +197,11 @@ export class Town {
     // Daily weather roll at each simulated midnight.
     this.scheduler.scheduleRepeating({ totalMinutes: 1440 }, () => {
       this.weather.rollForNewDay();
+    });
+
+    // Hourly habit decay (slow by design).
+    this.scheduler.scheduleRepeating({ totalMinutes: 60 }, () => {
+      this.habits.tickDecay(60);
     });
 
     wireAutonomousSocial(this);

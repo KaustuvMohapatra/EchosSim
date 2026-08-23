@@ -43,11 +43,13 @@ export interface ConversationRecord {
 }
 
 export function wireAutonomousSocial(town: Town): void {
-  // --- a) Movements become quiet same-location observations. ---
-  // "arrival" sits below the encode floor by design: perception logs stay
-  // alive without flooding episodic memory (noise filtering regression holds).
+  // --- a) Movements become quiet same-location observations + visit habits. ---
   town.events.subscribe<{ agent: string; to: string }>("sim:agent-moved", (e) => {
     town.perception.publish("arrival", [e.agent], e.to, ObservationReach.SameLocation, 0.3);
+    // Habit tracking: repeated non-home visits form location pull (Sprint 24).
+    const mind = town.residents.tryMind(e.agent);
+    if (mind && e.to !== mind.homeLocationId)
+      town.habits.record(e.agent, "visit", e.to, town.clock.currentTime.totalMinutes);
   });
 
   // --- b) Recorded social observations reshape observers. ---

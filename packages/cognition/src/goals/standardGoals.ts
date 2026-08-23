@@ -34,6 +34,8 @@ export function createDefaultGoals(): GoalDefinition[] {
         needTerm("Social", { kind: NeedKind.Social, curve: new QuadraticCurve(1.6), weight: 0.50 }),
         traitTerm("Sociability", { trait: PersonalityTrait.Sociability, min: -0.12, max: 0.28 }),
         customTerm("Emotion", (ctx) => ctx.emotionValence * 0.10),
+        // Long-term intentions nudge, never dictate (Sprint 24).
+        customTerm("Intentions", (ctx) => ctx.intentionBias ?? 0),
       ],
       { reliefNeeds: [NeedKind.Social], desiredFacts: [trueFact("socialized")] },
     ),
@@ -43,6 +45,8 @@ export function createDefaultGoals(): GoalDefinition[] {
         needTerm("Fun", { kind: NeedKind.Fun, curve: new LinearCurve(), weight: 0.40 }),
         needTerm("Comfort", { kind: NeedKind.Comfort, curve: new LinearCurve(), weight: 0.20 }),
         traitTerm("Openness", { trait: PersonalityTrait.Openness, min: -0.02, max: 0.06 }),
+        customTerm("Habit", (ctx) =>
+          (ctx.currentLocationKey !== undefined ? ctx.habitBonus ?? 0 : 0)),
       ],
       { reliefNeeds: [NeedKind.Fun], desiredFacts: [trueFact("relaxed")] },
     ),
@@ -58,6 +62,11 @@ export function createDefaultGoals(): GoalDefinition[] {
           ctx.weather === 2 /* Rain */ ? -0.14 * (1 - ctx.preferences.get("rain")) :
           ctx.weather === 3 /* HeavyRain */ ? -0.22 * (1 - ctx.preferences.get("rain")) :
           ctx.weather === 1 /* Cloudy */ ? -0.03 : 0),
+        // Familiar spots carry a modest habit pull (Sprint 24), hard-capped.
+        customTerm("Habit", (ctx) =>
+          ctx.currentLocationKey !== undefined
+            ? Math.min(0.15, ctx.habitBonus ?? 0)
+            : 0),
       ],
       { reliefNeeds: [NeedKind.Fun], desiredFacts: [trueFact("explored")] },
     ),
