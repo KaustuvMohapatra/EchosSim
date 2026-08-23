@@ -14,8 +14,7 @@ import { SimulationInspector } from "@echosim/inspector";
 import type {
   AgentSummary, SimEventEntry, TimeInfo, TownStats,
 } from "@echosim/inspector";
-import { PlanningDirector, Town } from "@echosim/simulation";
-import type { LodController } from "@echosim/simulation";
+import { PlanningDirector, Town, LodController } from "@echosim/simulation";
 
 export interface LifeSnapshot {
   time: TimeInfo;
@@ -59,7 +58,9 @@ export class LifeModeAdapter {
     this.inspector = new SimulationInspector(this.town, this.director);
     this.beatMs = options.beatMs ?? 400;
     this.stepMinutes = options.stepMinutes ?? 10;
-    this.lod = this.director.lod!;
+    // Player manual-priority + future LOD management route through here.
+    this.lod = new LodController();
+    this.director.attachLod(this.lod);
 
     // Player enters through the normal spawn pipeline — same downstream
     // systems as every NPC (needs, memory, relationships, planning).
@@ -116,6 +117,12 @@ export class LifeModeAdapter {
 
   /** Manual notification hook for presentation-side controllers. */
   touch(): void { this.emit(); }
+
+  /** Presentation hook used by the player controller to abandon seat poses. */
+  interactionsStandUp(): void {
+    this.playerSeatedAt = undefined;
+    this.lastCommandFeedback = "Action cancelled.";
+  }
 
   // ---------------- lifecycle ----------------
 

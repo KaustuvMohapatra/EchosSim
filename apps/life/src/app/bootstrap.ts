@@ -10,6 +10,7 @@ import { AgentLayer } from "../characters/AgentLayer.js";
 import { createLifeCamera } from "../camera/lifeCamera.js";
 import { CameraController } from "../camera/CameraController.js";
 import { InteractionController } from "../interaction/InteractionController.js";
+import { PlayerAgentController } from "../simulation/PlayerAgentController.js";
 import { lotOf } from "../world/layout.js";
 
 export interface LifeHandlers {
@@ -23,6 +24,7 @@ export interface LifeApp {
   agents: AgentLayer;
   camera: CameraController;
   interactions: InteractionController;
+  player: PlayerAgentController;
   start(): void;
   dispose(): void;
 }
@@ -51,6 +53,11 @@ export function createLifeApp(canvas: HTMLCanvasElement,
   agents.update();
 
   const interactions = new InteractionController(adapter);
+  const player = new PlayerAgentController(adapter);
+  const townDisplayName = (locationId: string): string =>
+    adapter.town.locations.tryGet(locationId as never)?.definition.displayName ?? locationId;
+  // Lot picks arrive before `player` exists in closure order; resolve lazily.
+  function appPlayer(): PlayerAgentController { return player; }
   placeFurniture(buildFurniture(scene), (id) => {
     const lot = lotOf(id);
     return lot ? { x: lot.x, z: lot.z } : undefined;
@@ -70,7 +77,8 @@ export function createLifeApp(canvas: HTMLCanvasElement,
     if (!meta?.kind) { handlers.onDismissMenu?.(); return; }
     if (meta.kind === "lot" && meta.locationId) {
       handlers.onDismissMenu?.();
-      adapter.commandMoveTo(meta.locationId);
+      const name = townDisplayName(meta.locationId);
+      appPlayer().enqueueMove(meta.locationId, name);
     } else if (meta.kind === "agent" && meta.agentId) {
       handlers.onDismissMenu?.();
       handlers.onAgentSelected?.(meta.agentId);
@@ -93,9 +101,11 @@ export function createLifeApp(canvas: HTMLCanvasElement,
     agents,
     camera: camCtl,
     interactions,
+    player,
     start(): void { adapter.play(); },
     dispose(): void {
       window.removeEventListener("resize", onResize);
+      player.dispose();
       interactions.dispose();
       adapter.dispose();
       agents.dispose();

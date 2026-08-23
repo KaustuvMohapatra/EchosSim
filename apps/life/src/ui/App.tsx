@@ -82,6 +82,36 @@ export function App() {
         </div>
       )}
 
+      {/* Action queue + autonomy (Sprint 39) */}
+      <div style={styles.queue} data-testid="action-queue">
+        <div style={styles.queueHead}>
+          <span>Actions</span>
+          <select aria-label="autonomy" style={styles.select as React.CSSProperties}
+            value={app?.player.autonomy ?? "assisted"}
+            onChange={(e) =>
+              app?.player.setAutonomy(e.target.value as "full-manual" | "assisted" | "autonomous")}>
+            <option value="full-manual">manual</option>
+            <option value="assisted">assisted</option>
+            <option value="autonomous">auto</option>
+          </select>
+          {app && app.player.items().length > 0 && (
+            <button style={styles.miniBtn}
+              onClick={() => app.player.cancelAll()}>clear</button>
+          )}
+        </div>
+        {(app?.player.items() ?? []).length === 0 ? (
+          <div style={{ color: "#475569", padding: "2px 4px" }}>Idle</div>
+        ) : (
+          app!.player.items().map((q) => (
+            <div key={q.id} style={styles.queueItem}>
+              <span>{iconFor(q.status)} {q.label}</span>
+              <button style={styles.miniBtn} title="cancel"
+                onClick={() => app?.player.cancel(q.id)}>✕</button>
+            </div>
+          ))
+        )}
+      </div>
+
       {/* Feedback strip */}
       {feedback && <div style={styles.feedback}>{feedback}</div>}
 
@@ -111,7 +141,36 @@ function weatherIndex(name: string): number {
 }
 function min(a: number, b: number): number { return Math.min(a, b); }
 
+function iconFor(status: string): string {
+  switch (status) {
+    case "walking": return "🚶";
+    case "active": return "▶";
+    case "done": return "✓";
+    case "failed": return "✗";
+    case "cancelled": return "⃠";
+    default: return "…";
+  }
+}
+
 const styles: Record<string, React.CSSProperties> = {
+  queue: {
+    position: "absolute", right: 12, bottom: 10, width: 230,
+    background: "rgba(13,18,32,.8)", border: "1px solid rgba(36,54,94,.6)",
+    borderRadius: 10, padding: 8, fontSize: 12, backdropFilter: "blur(6px)",
+  },
+  queueHead: { display: "flex", gap: 6, alignItems: "center", marginBottom: 4 },
+  select: {
+    background: "#16213e", border: "1px solid #24365e", color: "#94a3b8",
+    borderRadius: 5, fontSize: 11, padding: "2px 4px", flex: 1,
+  },
+  miniBtn: {
+    background: "transparent", border: "1px solid #24365e", color: "#94a3b8",
+    borderRadius: 4, fontSize: 10.5, padding: "1px 5px", cursor: "pointer",
+  },
+  queueItem: {
+    display: "flex", justifyContent: "space-between", alignItems: "center",
+    padding: "2px 4px", color: "#cbd5e1",
+  },
   menu: {
     position: "absolute", zIndex: 30, minWidth: 140,
     background: "rgba(13,18,32,.94)", border: "1px solid rgba(36,54,94,.7)",
