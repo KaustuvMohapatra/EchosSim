@@ -14,6 +14,9 @@ export interface StuckRecord {
   locationId?: string;
   firstSeenMinutes: number;
   seenCount: number;
+  /** Internal tracking (not part of the public report). */
+  reported?: boolean;
+  lastSeenSignature?: string;
 }
 
 export class SoakMonitor {
@@ -71,8 +74,9 @@ export class SoakMonitor {
             ? { locationId: state.currentLocationId } : {}),
           firstSeenMinutes: now,
           seenCount: 1,
+          reported: false,
           lastSeenSignature: sig,
-        } as StuckRecord & { reported?: boolean; lastSeenSignature: string });
+        });
       }
     }
 

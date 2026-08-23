@@ -159,7 +159,11 @@ function createConfiguredProvider(
 
 function resolveApiKey(envName?: string): string | undefined {
   if (!envName) return undefined;
-  const value = process.env[envName];
+  // Environment-agnostic lookup (Node exposes process; browsers do not).
+  const proc = (globalThis as {
+    process?: { env?: Record<string, string | undefined> };
+  }).process;
+  const value = proc?.env?.[envName];
   return value !== undefined && value.length > 0 ? value : undefined;
 }
 

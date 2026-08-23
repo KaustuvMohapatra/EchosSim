@@ -6,32 +6,55 @@
   <title>EchoSim — Living Town</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #1a1a2e; color: #e0e0e0; font-family: 'Segoe UI', system-ui, sans-serif;
-           display: flex; height: 100vh; overflow: hidden; }
+    body { background: #0b1220; color: #e2e8f0;
+           font-family: 'Segoe UI', system-ui, sans-serif;
+           display: flex; height: 100vh; overflow: hidden; font-size: 13px; }
     #game-container { flex: 1; position: relative; }
-    #inspector {
-      width: 340px; min-width: 280px; background: #16213e; padding: 16px;
-      overflow-y: auto; border-left: 1px solid #0f3460; font-size: 13px;
-    }
-    #inspector h3 { color: #7dd3fc; margin-bottom: 8px; border-bottom: 1px solid #0f3460; padding-bottom: 4px; }
-    #inspector .section { margin-bottom: 14px; }
-    #inspector .label { color: #94a3b8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
-    #inspector .value { color: #e2e8f0; margin-bottom: 4px; }
-    #inspector .bar { height: 6px; background: #334155; border-radius: 3px; overflow: hidden; margin: 2px 0 6px; }
-    #inspector .bar .fill { height: 100%; transition: width 0.3s; }
-    #hud {
-      position: absolute; top: 12px; left: 12px; z-index: 10;
-      background: rgba(22,33,62,0.9); padding: 10px 16px; border-radius: 8px;
-      font-size: 14px; color: #7dd3fc; pointer-events: none;
-    }
+    .side { width: 320px; min-width: 280px; background: #101828;
+            border-left: 1px solid #1e2a45; display: flex; flex-direction: column; }
+    .controls { padding: 8px; display: flex; gap: 6px; flex-wrap: wrap;
+                border-bottom: 1px solid #1e2a45; align-items: center; }
+    .controls button { background: #16213e; border: 1px solid #24365e;
+      color: #7dd3fc; border-radius: 4px; font-size: 12px; padding: 4px 9px;
+      cursor: pointer; }
+    .controls button:focus-visible { outline: 2px solid #7dd3fc; }
+    .hud { padding: 8px 10px; color: #7dd3fc; font-variant-numeric: tabular-nums;
+           border-bottom: 1px solid #1e2a45; }
+    #agents { flex: 1; overflow-y: auto; padding: 6px; display: grid;
+              grid-template-columns: 1fr 1fr; gap: 4px; align-content: start; }
+    .agent { text-align: left; background: #16213e; border: 1px solid #24365e;
+             color: #cbd5e1; border-radius: 5px; padding: 5px 7px;
+             cursor: pointer; font-size: 11px; line-height: 1.35; }
+    .agent.sel { border-color: #fbbf24; background: #1e293b; }
+    .dim { color: #64748b; }
+    #selected { padding: 10px; border-top: 1px solid #1e2a45; min-height: 120px; }
+    #selected h3 { color: #7dd3fc; margin-bottom: 6px; }
+    .kv { display: flex; justify-content: space-between; margin-bottom: 3px; color: #94a3b8; }
+    #feedback { padding: 8px 10px; color: #fde68a; font-size: 12px;
+                border-top: 1px solid #1e2a45; min-height: 34px; }
   </style>
 </head>
 <body>
   <div id="game-container"></div>
-  <div id="hud">EchoSim</div>
-  <div id="inspector">
-    <h3>EchoSim Inspector</h3>
-    <div class="section"><div class="label">Click a resident to inspect</div></div>
+  <div class="side">
+    <div class="hud" id="hud">EchoSim</div>
+    <div class="controls">
+      <button id="btn-pause" aria-label="pause or resume">⏸</button>
+      <button id="btn-x1">1×</button>
+      <button id="btn-x2">2×</button>
+      <button id="btn-x4">4×</button>
+      <span style="flex:1"></span>
+      <button id="cmd-greet" aria-label="greet">Greet</button>
+      <button id="cmd-chat" aria-label="chat">Talk</button>
+      <button id="cmd-compliment" aria-label="compliment">Compliment</button>
+      <button id="cmd-tease" aria-label="tease">Tease</button>
+      <button id="cmd-help" aria-label="help">Help</button>
+      <button id="cmd-apologize" aria-label="apologize">Apologize</button>
+      <button id="btn-ambient">🔇 ambience</button>
+    </div>
+    <div id="agents"></div>
+    <div id="selected"><i>Select a resident…</i></div>
+    <div id="feedback"></div>
   </div>
   <script type="module" src="/src/main.ts"></script>
 </body>

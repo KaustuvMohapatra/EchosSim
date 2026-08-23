@@ -1,212 +1,183 @@
-import { Town, PlanningDirector, EconomySystem } from "@echosim/simulation";
-import { PersonalityProfile } from "@echosim/cognition";
-import type { WeatherState } from "@echosim/cognition";
+/** Bootstrap: wires DOM panels, controls, and the scene together. */
 import Phaser from "phaser";
+import { SocialActionType } from "@echosim/social";
+import type { AgentSummary } from "@echosim/inspector";
+import { director, inspector, PLAYER_ID, town } from "./sim.js";
+import { issueMoveCommand, issueSocialCommand } from "./commands.js";
+import { TownScene, locationRects, locPositions, visuals } from "./scene.js";
 
-// ---- Build the simulation ----
-const town = new Town(42069n);
-town.registerLocation({ id: "loc_home_a", displayName: "Home A" });
-town.registerLocation({ id: "loc_cafe", displayName: "Corner Cafe", hours: { openMinuteOfDay: 360, closeMinuteOfDay: 1200 } });
-town.registerLocation({ id: "loc_park", displayName: "Park" });
-town.registerLocation({ id: "loc_bakery", displayName: "Bakery", hours: { openMinuteOfDay: 300, closeMinuteOfDay: 840 } });
+const $ = (id: string): HTMLElement => document.getElementById(id)!;
 
-const residents = [
-  { id: "npc_mira", name: "Mira", home: "loc_home_a", traits: PersonalityProfile.miraLike() },
-  { id: "npc_rohan", name: "Rohan", home: "loc_home_a",
-    traits: PersonalityProfile.balanced().edit().set(11 /* Ambition */, 0.85).build() },
-  { id: "npc_anika", name: "Anika", home: "loc_cafe",
-    traits: PersonalityProfile.balanced().edit().set(7 /* Sociability */, 0.9).build() },
-];
-
-for (const r of residents) {
-  town.spawnResident({
-    id: r.id, displayName: r.name, homeLocationId: r.home,
-    personality: r.traits,
-    initialNeeds: { [1 /* Hunger */]: 55 },
-  });
-}
-town.attachRandoms(town.randoms());
-
-const director = new PlanningDirector(town);
-
-// Location positions on the map (grid coordinates)
-const locPositions: Record<string, { x: number; y: number }> = {
-  loc_home_a: { x: 200, y: 150 },
-  loc_cafe: { x: 450, y: 250 },
-  loc_park: { x: 650, y: 120 },
-  loc_bakery: { x: 350, y: 400 },
-};
-
-// Agent visual state
-interface AgentVisual {
-  circle: Phaser.GameObjects.Arc;
-  label: Phaser.GameObjects.Text;
-  targetX: number;
-  targetY: number;
-}
-
-let agentVisuals = new Map<string, AgentVisual>();
-
-class TownScene extends Phaser.Scene {
-  constructor() {
-    super({ key: "TownScene" });
-  }
-
-  create(): void {
-    this.cameras.main.setBackgroundColor("#1a1a2e");
-
-    // Draw location nodes
-    for (const [locId, pos] of Object.entries(locPositions)) {
-      const def = town.locations.tryGet(locId as never);
-      const name = def ? def.definition.displayName : locId;
-      const isOpen = def?.isOpen ?? true;
-
-      this.add.rectangle(pos.x, pos.y, 140, 80,
-        isOpen ? 0x0f3460 : 0x444455).setStrokeStyle(2, isOpen ? 0x7dd3fc : 0x666666);
-      this.add.text(pos.x, pos.y - 28, name, {
-        fontSize: "13px", color: "#7dd3fc", fontStyle: "bold",
-      }).setOrigin(0.5);
-      if (!isOpen) {
-        this.add.text(pos.x + 55, pos.y - 38, "CLOSED", {
-          fontSize: "10px", color: "#f87171",
-        });
-      }
-    }
-
-    // Draw connections
-    const pairs = [
-      ["loc_home_a", "loc_cafe"], ["loc_cafe", "loc_park"],
-      ["loc_bakery", "loc_cafe"], ["loc_home_a", "loc_bakery"],
-    ];
-    for (const [a, b] of pairs) {
-      const pa = locPositions[a!], pb = locPositions[b!];
-      if (pa && pb) {
-        this.add.line(0, 0, pa.x, pa.y, pb.x, pb.y, 0x334155).setOrigin(0);
-      }
-    }
-
-    // Spawn agent circles
-    for (const r of residents) {
-      const mind = town.residents.mind(r.id as never);
-      const state = town.agentsById.get(r.id);
-      const homePos = locPositions[r.home] ?? { x: 300, y: 300 };
-
-      const color = r.id === "npc_mira" ? 0xc084fc :
-                     r.id === "npc_rohan" ? 0xfb923c : 0x34d399;
-
-      const circle = this.add.circle(homePos.x + (Math.random() - 0.5) * 60,
-        homePos.y + (Math.random() - 0.5) * 30, 12, color)
-        .setInteractive({ useHandCursor: true });
-
-      const label = this.add.text(circle.x, circle.y + 18, r.name, {
-        fontSize: "11px", color: "#94a3b8",
-      }).setOrigin(0.5);
-
-      agentVisuals.set(r.id, { circle, label, targetX: circle.x, targetY: circle.y });
-
-      circle.on("pointerdown", () => showInspector(r.id));
-    }
-
-    // Simulation tick loop — advance 5 sim minutes every ~500ms real time
-    this.time.addEvent({
-      delay: 500,
-      loop: true,
-      callback: () => {
-        town.advanceNeeds({ totalMinutes: 5 });
-        town.clock.advance({ totalMinutes: 5 });
-        director.tickAll();
-        updateAgentTargets();
-        updateHUD();
-      },
-    });
-  }
-
-  update(): void {
-    // Smooth movement toward targets
-    for (const [, vis] of agentVisuals) {
-      const dx = vis.targetX - vis.circle.x;
-      const dy = vis.targetY - vis.circle.y;
-      if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
-        vis.circle.x += dx * 0.05;
-        vis.circle.y += dy * 0.05;
-        vis.label.setPosition(vis.circle.x, vis.circle.y + 18);
-      }
-    }
-  }
-}
-
-function updateAgentTargets(): void {
-  for (const r of residents) {
-    const vis = agentVisuals.get(r.id);
-    if (!vis) continue;
-    const state = town.agentsById.get(r.id);
-    if (state?.currentLocationId) {
-      const pos = locPositions[state.currentLocationId];
-      if (pos) {
-        vis.targetX = pos.x + (hashOffset(r.id) % 80 - 40);
-        vis.targetY = pos.y + (hashOffset(r.id + "y") % 40 - 20);
-      }
-    }
-  }
-}
+let selectedId: string | null = PLAYER_ID;
+let paused = false;
+const SPEEDS = [1, 2, 4] as const;
+let speedIndex = 0;
+const agentSummaries = new Map<string, AgentSummary>();
+const STEP_MINUTES = 10;
 
 function hashOffset(seed: string): number {
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = ((h << 5) - h + seed.charCodeAt(i)) | 0;
   return Math.abs(h);
 }
-
-function updateHUD(): void {
-  const t = town.clock.currentTime;
-  const dayN = Math.floor(t.totalMinutes / 1440);
-  const hh = String(Math.floor((t.totalMinutes % 1440) / 60)).padStart(2, "0");
-  const mm = String(t.totalMinutes % 60).padStart(2, "0");
-  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const dayName = days[dayN % 7];
-  const weatherNames = ["☀ Clear", "☁ Cloudy", "🌧 Rain", "⛈ HeavyRain"];
-  const hud = document.getElementById("hud");
-  if (hud) hud.textContent = `${dayName} ${hh}:${mm} | Day ${dayN} | ${weatherNames[town.weather.current]}`;
+function nameOf(id: string): string {
+  return town.residents.tryMind(id)?.displayName ?? id;
+}
+function setFeedback(text: string): void { $("feedback").textContent = text; }
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
 }
 
-function showInspector(agentId: string): void {
-  const panel = document.getElementById("inspector");
-  if (!panel) return;
-  const mind = town.residents.mind(agentId as never);
+function shortGoal(s: AgentSummary): string {
+  return (s.currentGoal ?? "idle").replace(/^goal_/, "") +
+    (s.currentAction ? ` · ${s.currentAction.toLowerCase()}` : "");
+}
 
-  let html = `<h3>${mind.displayName}</h3>`;
+function refresh(): void {
+  agentSummaries.clear();
+  for (const s of inspector.getAgents()) agentSummaries.set(s.id, s);
 
-  html += `<div class="section"><div class="label">Current Goal</div><div class="value">${mind.currentGoalId ?? "—"}</div></div>`;
+  // HUD.
+  const t = inspector.getTime();
+  $("hud").textContent =
+    `${t.dayName} ${t.hhmm} · Day ${t.day + 1} · ${t.weather}` +
+    (paused ? " · PAUSED" : ` · ${SPEEDS[speedIndex]!}×`);
 
-  html += `<div class="section"><div class="label">Needs</div>`;
-  for (const n of mind.needs.all()) {
-    const kindName = ["Hunger","Energy","Social","Fun","Comfort","Hygiene","Safety"][n.definition.kind];
-    const color = n.current > 80 ? "#f87171" : n.current > 50 ? "#fbbf24" : "#34d399";
-    html += `<div style="display:flex;justify-content:space-between"><span>${kindName}</span><span>${Math.round(n.current)}</span></div>`;
-    html += `<div class="bar"><div class="fill" style="width:${n.current}%;background:${color}"></div></div>`;
+  // Locations open/closed + occupancy.
+  for (const { rect, locId } of locationRects) {
+    const rt = town.locations.get(locId as never);
+    rect.fillColor = rt.isOpen ? 0x14264a : 0x33384a;
+    (rect.getData("status") as Phaser.GameObjects.Text | null)
+      ?.setText(rt.isOpen ? `${rt.occupiedCount} here` : "CLOSED");
   }
-  html += `</div>`;
 
-  html += `<div class="section"><div class="label">Mood</div><div class="value">${mind.emotionValence >= 0 ? "+" : ""}${mind.emotionValence.toFixed(2)} valence</div></div>`;
+  // Weather presentation.
+  scene?.syncWeather(town.weather.current);
 
-  html += `<div class="section"><div class="label">Money</div><div class="value">${mind.money.toFixed(2)}</div></div>`;
-
-  html += `<div class="section"><div class="label">Memories</div>`;
-  const store = town.memory.storeFor(mind.agent);
-  const recent = store.all.slice(-3).reverse();
-  if (recent.length === 0) html += `<div class="value">None yet</div>`;
-  for (const m of recent)
-    html += `<div class="value" style="font-size:12px">${m.summary} (${m.importance.toFixed(2)})</div>`;
-  html += `</div>`;
-
-  panel.innerHTML = html;
+  renderAgentList();
+  renderSelected();
 }
 
-// ---- Phaser config ----
+function renderAgentList(): void {
+  const el = $("agents");
+  const rows: string[] = [];
+  for (const s of agentSummaries.values()) {
+    if (s.id === PLAYER_ID) continue;
+    rows.push(
+      `<button class="agent${s.id === selectedId ? " sel" : ""}" data-id="${s.id}"` +
+      ` aria-label="select ${escapeHtml(s.name)}">` +
+      `<b>${escapeHtml(s.name)}</b> <span class="dim">${escapeHtml(s.locationName ?? "")}</span><br>` +
+      `<span class="dim">${escapeHtml(shortGoal(s))}</span></button>`);
+  }
+  el.innerHTML = rows.join("");
+  for (const node of el.querySelectorAll<HTMLElement>(".agent"))
+    node.onclick = () => { selectedId = node.dataset["id"]!; refresh(); };
+}
+
+function renderSelected(): void {
+  const box = $("selected");
+  const target = selectedId && selectedId !== PLAYER_ID ? selectedId : undefined;
+  if (!target) {
+    box.innerHTML =
+      "<i>Select a resident to interact.</i><br><br>" +
+      "<span class='dim'>Click any building to walk there. " +
+      "Residents remember how you treat them.</span>";
+    return;
+  }
+  const snap = inspector.getAgent(target);
+  if (!snap) { box.innerHTML = "<i>Gone.</i>"; return; }
+  const rel = snap.relationships.find((r) => r.to === PLAYER_ID);
+  const label = rel?.label ?? "Stranger";
+  box.innerHTML =
+    `<h3>${escapeHtml(snap.summary.name)}</h3>` +
+    `<div class="kv"><span>Doing</span><span>${escapeHtml(shortGoal(snap.summary))}</span></div>` +
+    `<div class="kv"><span>Mood</span><span>${snap.emotionValence >= 0 ? "+" : ""}${snap.emotionValence.toFixed(2)}</span></div>` +
+    `<div class="kv"><span>Toward you</span><span>${label}</span></div>`;
+}
+
+// ---------------- Controls ----------------
+$("btn-pause").onclick = () => {
+  paused = !paused;
+  ($("btn-pause") as HTMLButtonElement).textContent = paused ? "▶" : "⏸";
+  refresh();
+};
+for (const [idx, mult] of SPEEDS.entries()) {
+  ($(`btn-x${mult}`) as HTMLButtonElement).onclick = () => {
+    speedIndex = idx; refresh();
+  };
+}
+for (const action of [
+  SocialActionType.Greet, SocialActionType.Chat, SocialActionType.Compliment,
+  SocialActionType.Tease, SocialActionType.Help, SocialActionType.Apologize,
+]) {
+  const btn = $(`cmd-${SocialActionType[action].toLowerCase()}`);
+  if (!btn) continue;
+  btn.onclick = () => {
+    if (!selectedId || selectedId === PLAYER_ID) { setFeedback("Select a resident first."); return; }
+    setFeedback(issueSocialCommand(town, PLAYER_ID, selectedId, action));
+    refresh();
+  };
+}
+
+$("btn-ambient").onclick = () => {
+  ambientOn = !ambientOn;
+  ($("btn-ambient") as HTMLButtonElement).textContent =
+    ambientOn ? "🔊 ambience" : "🔇 ambience";
+};
+let ambientOn = false;
+let audioCtx: AudioContext | null = null;
+setInterval(() => {
+  if (!ambientOn || paused || reducedMotionPrefers()) return;
+  audioCtx ??= new AudioContext();
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.frequency.value = 120 + (hashOffset(String(Date.now())) % 40);
+  osc.type = "sine";
+  gain.gain.setValueAtTime(0.012, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 1.6);
+  osc.connect(gain).connect(audioCtx.destination);
+  osc.start(); osc.stop(audioCtx.currentTime + 1.7);
+}, 2600);
+function reducedMotionPrefers(): boolean {
+  return typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+// ---------------- Scene wiring ----------------
+let scene: TownScene | null = null;
+
 new Phaser.Game({
   type: Phaser.AUTO,
   width: window.innerWidth - 340,
   height: window.innerHeight,
   parent: "game-container",
-  backgroundColor: "#1a1a2e",
+  backgroundColor: "#101728",
   scene: [TownScene],
+  callbacks: {
+    postBoot: (game) => {
+      scene = game.scene.getScene("TownScene") as TownScene;
+      scene.events.on("agent-selected", (id: string) => {
+        selectedId = id; refresh();
+      });
+      scene.events.on("player-move", (locId: string) => {
+        issueMoveCommand(town, PLAYER_ID, locId);
+        setFeedback(`Walking to ${nameOf(locId)}…`.replace(nameOf(locId),
+          town.locations.get(locId as never).definition.displayName));
+        setTimeout(refresh, 900); // arrival lands on a scheduler tick
+      });
+      scene.events.on("sim-beat", () => {
+        if (paused) return;
+        const minutes = STEP_MINUTES * SPEEDS[speedIndex]!;
+        for (let i = 0; i < minutes; i += STEP_MINUTES) {
+          town.cognition.advanceNeeds({ totalMinutes: STEP_MINUTES });
+          town.clock.advance({ totalMinutes: STEP_MINUTES });
+          director.tickAll();
+        }
+        refresh();
+      });
+      refresh();
+    },
+  },
 });
+
+void locPositions; void visuals;
