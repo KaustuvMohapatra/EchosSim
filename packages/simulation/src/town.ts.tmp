@@ -1,0 +1,6 @@
+/** Town: composition root wiring every system together, engine-free. */
+import {
+  NeedSet, CognitionSystem, GoapPlanner, standardNeedLibrary,
+  AgentMind,
+} from "@echosim/cognition";
+import { EventBus, SimulationClock, SimulationScheduler, AgentId, LocationId } from "@echosim/core";
