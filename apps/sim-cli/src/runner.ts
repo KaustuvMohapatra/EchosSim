@@ -5,9 +5,21 @@ const args = process.argv.slice(2);
 const seedArg = args.find((a) => a.startsWith("--seed="));
 const daysArg = args.find((a) => a.startsWith("--days="));
 const authored = args.includes("--authored");
-const seed = seedArg ? BigInt(seedArg.split("=")[1]!) : 42069n;
-const numDays = daysArg ? parseInt(daysArg.split("=")[1]!) : 7;
 
+let seed: bigint;
+try {
+  seed = seedArg ? BigInt(seedArg.split("=")[1]!.trim()) : 42069n;
+} catch {
+  console.error(`Invalid --seed value: '${seedArg?.split("=")[1]}'. Use an integer.`);
+  process.exit(1);
+}
+const numDays = daysArg ? parseInt(daysArg.split("=")[1]!) : 7;
+if (!Number.isFinite(numDays) || numDays <= 0) {
+  console.error("Invalid --days value. Use a positive integer.");
+  process.exit(1);
+}
+
+try {
 console.log("EchoSim Simulation");
 console.log(`Seed: ${seed}`);
 console.log(`Days: ${numDays}${authored ? " (authored town)" : ""}`);
@@ -54,4 +66,9 @@ console.log(`Relationships: ${town.relationships.all().length}`);
 console.log(`Conversations: ${conversations}`);
 console.log(`Plans succeeded: ${director.totalPlansSucceeded}`);
 console.log(`Plans failed: ${director.totalPlansFailed}`);
-console.log(`Replans: ${director.totalReplans}`);
+console.log(`Replans: ${director.totalPlansFailed > 0 ? director.totalReplans : director.totalReplans}`);
+
+} catch (err) {
+  console.error('Simulation failed:', err instanceof Error ? err.message : err);
+  process.exit(1);
+}

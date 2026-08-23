@@ -677,3 +677,32 @@ Format follows master spec Â§15. Reports are appended; newest at bottom.
    stable JSON). Suite total: 69 passing.
 6. **Tests executed.** Yes - npm test 69/69 green; typecheck clean.
 7. **Git status.** Committed on feature/echosim.
+
+---
+
+## SPRINTS 34-35 COMPLETE - Portfolio Polish + v0.1.0 Release Hardening
+
+1. **Summary.** README fully rewritten around real artefacts: measured
+   performance tables (pre/post planner fix), the real bug catalogue, a live
+   explainability breakdown, research-mode walkthrough and honest limitations.
+   Release hardening executed: frozen-lockfile fresh install verified,
+   automated secret audit clean, CLI input validation with graceful errors,
+   keyboard focus styles in both UIs, version 0.1.0 + CHANGELOG.md, ROADMAP
+   now shows all 35 sprints Done.
+2. **Files.** README.md (rewrite), CHANGELOG.md (new), package.json (0.1.0),
+   sim-cli runner (seed/days validation + top-level error guard),
+   debug-ui index.html (+focus-visible), docs updates.
+3. **Final gauntlet results.**
+   - typecheck: clean
+   - tests: **114/114** across 16 suites
+   - determinism: authored town seed 7001 x 2 days run twice -> byte-identical
+   - builds: game + debug-ui production bundles succeed
+   - headless demo + authored runs: green
+   - secret audit: clean; frozen-lockfile install: ok
+   - git diff --check: clean
+4. **Known limitations carried forward** (also in README): semantic movement
+   only; template dialogue unless optional LLM enabled; day-one plan-failure
+   counts high on authored content (cheap via suppression backoff); inspector
+   is live-only; minimal group calendars; no CI pipeline file yet.
+5. **Git status.** feature/echosim, release commit local; nothing pushed
+   (per standing instruction).

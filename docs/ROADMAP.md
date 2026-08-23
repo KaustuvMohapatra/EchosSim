@@ -31,18 +31,18 @@ Source of truth for scope: `ECHOSIM.txt` master specification (35 sprints).
 | 21 | LLM provider abstraction | **Done** |
 | 22 | LLM dialogue rendering | **Done** |
 | 23 | Reflection & semantic memory | **Done** |
-| 24 | Long-term goals & habits | Planned |
-| 25 | Households, friend groups | Planned |
-| 26 | Offscreen / multi-LOD simulation | Planned |
-| 27 | Performance & allocation control | Planned |
-| 28 | Soak tests & validation | Planned |
-| 29 | Content expansion | Planned |
-| 30 | Research / experiment mode | Planned |
-| 31 | UX & gameplay presentation | Planned |
-| 32 | Audio / animation / VFX polish | Planned |
-| 33 | Onboarding & demo mode | Planned |
-| 34 | Portfolio presentation | Planned |
-| 35 | Release hardening | Planned |
+| 24 | Habits & long-term intentions | **Done** |
+| 25 | Groups & social structure | **Done** |
+| 26 | Multi-LOD simulation | **Done** |
+| 27 | Performance measurement + planner optimization | **Done** |
+| 28 | Soak tests & validation (50x30 clean) | **Done** |
+| 29 | Content expansion (27 residents) | **Done** |
+| 30 | Research / experiment mode | **Done** |
+| 31 | Gameplay presentation (Phaser living town) | **Done** |
+| 32 | Presentation life (bubbles, rain, ambience) | **Done** |
+| 33 | Demo scenarios (self-verifying) | **Done** |
+| 34 | Portfolio presentation | **Done** |
+| 35 | Release hardening (v0.1.0) | **Done** |
 
 ## Sprint policy
 
