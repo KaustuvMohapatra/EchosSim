@@ -1,11 +1,14 @@
+import { useState } from "react";
 import { useSim } from "./api/useSim.js";
 import { HeaderBar } from "./components/HeaderBar.js";
 import { AgentList } from "./components/AgentList.js";
 import { AgentInspector } from "./components/AgentInspector.js";
 import { EventTimeline } from "./components/EventTimeline.js";
+import { SocialGraphView } from "./components/SocialGraphView.js";
 
 export default function App() {
   const { host, snap, selectedId, setSelectedId } = useSim(7001n);
+  const [view, setView] = useState<"inspector" | "graph">("inspector");
 
   const agentNames = new Map(snap.agents.map((a) => [a.id, a.name]));
   const stats = snap.stats;
@@ -24,15 +27,29 @@ export default function App() {
           />
         </div>
 
-        {/* Center: inspector */}
-        <div style={styles.center}>
-          {snap.selected ? (
-            <AgentInspector agent={snap.selected} />
-          ) : (
-            <div style={{ padding: 20, color: "#475569" }}>
-              Select a resident to inspect.
-            </div>
-          )}
+        {/* Center: inspector or graph */}
+        <div style={{ ...styles.center, display: "flex", flexDirection: "column" }}>
+          <div style={styles.tabs}>
+            <button style={tabBtn(view === "inspector")}
+              onClick={() => setView("inspector")} data-testid="tab-inspector">
+              Inspector
+            </button>
+            <button style={tabBtn(view === "graph")}
+              onClick={() => setView("graph")} data-testid="tab-graph">
+              Social Graph
+            </button>
+          </div>
+          <div style={{ flex: 1, minHeight: 0 }}>
+            {view === "graph" ? (
+              <SocialGraphView inspector={host.inspector} selectedId={selectedId} />
+            ) : snap.selected ? (
+              <AgentInspector agent={snap.selected} />
+            ) : (
+              <div style={{ padding: 20, color: "#475569" }}>
+                Select a resident to inspect.
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Right: town stats */}
@@ -85,6 +102,14 @@ function Stat({ label, value }: { label: string; value: number }) {
   );
 }
 
+function tabBtn(active: boolean): React.CSSProperties {
+  return {
+    background: active ? "#1e3a5f" : "transparent",
+    border: "1px solid #24365e", color: active ? "#7dd3fc" : "#64748b",
+    borderRadius: 4, fontSize: 12, padding: "3px 10px", cursor: "pointer",
+  };
+}
+
 const styles: Record<string, React.CSSProperties> = {
   app: {
     display: "flex", flexDirection: "column", height: "100vh",
@@ -100,6 +125,10 @@ const styles: Record<string, React.CSSProperties> = {
     background: "#101828", overflow: "hidden",
   },
   center: { flex: 1, overflow: "hidden", background: "#0d1526" },
+  tabs: {
+    display: "flex", gap: 4, padding: "6px 10px",
+    borderBottom: "1px solid #1e2a45",
+  },
   right: {
     width: 200, borderLeft: "1px solid #1e2a45",
     background: "#101828", padding: 10,

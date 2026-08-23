@@ -27,7 +27,7 @@ Source of truth for scope: `ECHOSIM.txt` master specification (35 sprints).
 | 18 | Save/load & versioning | **Done** (round-trip determinism proven) |
 | 18.5 | Engine-independent execution completion (TS monorepo port) | **Done** |
 | 19 | Advanced debug tooling (inspector API + React debug UI) | **Done** |
-| 20 | Relationship graph visualization | Planned |
+| 20 | Relationship graph visualization | **Done** |
 | 21 | LLM provider abstraction | Planned |
 | 22 | LLM dialogue rendering | Planned |
 | 23 | Reflection & semantic memory | Planned |

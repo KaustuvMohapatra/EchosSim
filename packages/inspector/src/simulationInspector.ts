@@ -13,11 +13,13 @@ import {
   NEED_NAMES, TRAIT_NAMES,
   relationshipLabelOf,
   type AgentInspectorSnapshot, type AgentSummary, type BeliefSnapshot,
-  type EventFilter, type JobSnapshot, type MemoryInspectorEntry,
+  type EventFilter, type GraphEdge, type GraphNode, type GraphSnapshot,
+  type JobSnapshot, type MemoryInspectorEntry,
   type NeedSnapshot, type PlanSnapshot, type PlanStepView,
-  type RelationshipSnapshot, type SimEventEntry,
+  type RelationshipDimensionName, type RelationshipSnapshot, type SimEventEntry,
   type SuppressionTimerView, type TimeInfo, type TownStats,
   type TraitSnapshot, type UtilityCandidate, type SimulationInspectorAPI,
+  type GossipChain,
 } from "./types.js";
 import { EventJournal, timeInfoOf } from "./eventJournal.js";
 
@@ -126,6 +128,114 @@ export class SimulationInspector implements SimulationInspectorAPI {
 
   getEvents(filter?: EventFilter): SimEventEntry[] {
     return this.journal.query(filter);
+  }
+
+  /**
+   * Whole-town relationship graph for the selected dimension. Directional:
+   * an edge exists per (from → to) link whose |magnitude| ≥ minMagnitude.
+   * egoOf restricts nodes to the first `hops` neighbourhoods of that resident.
+   */
+  getRelationshipGraph(opts: {
+    dimension?: RelationshipDimensionName;
+    minMagnitude?: number;
+    egoOf?: string;
+    hops?: 1 | 2;
+  } = {}): GraphSnapshot {
+    const dimension = opts.dimension ?? "affinity";
+    const min = opts.minMagnitude ?? 0;
+    const links = this.town.relationships.all();
+
+    let keep = new Set<string>(this.town.residents.orderedIds());
+    if (opts.egoOf !== undefined && this.town.residents.tryMind(opts.egoOf)) {
+      keep = new Set([opts.egoOf]);
+      const frontier1 = new Set<string>();
+      for (const l of links) {
+        if (l.from === opts.egoOf) frontier1.add(l.to);
+        if (l.to === opts.egoOf) frontier1.add(l.from);
+      }
+      for (const id of frontier1) keep.add(id);
+      if ((opts.hops ?? 1) >= 2) {
+        for (const l of links) {
+          if (frontier1.has(l.from) || frontier1.has(l.to)) {
+            if (l.from === opts.egoOf || l.to === opts.egoOf) continue;
+            keep.add(l.from); keep.add(l.to);
+          }
+        }
+      }
+    }
+
+    const edges: GraphEdge[] = [];
+    for (const l of links) {
+      if (!keep.has(l.from) || !keep.has(l.to)) continue;
+      const magnitude = l.rel[dimension];
+      if (Math.abs(magnitude) < min) continue;
+      edges.push({
+        from: l.from, to: l.to, dimension, magnitude,
+        label: magnitude.toFixed(2),
+      });
+    }
+
+    const nodes: GraphNode[] = [];
+    for (const id of this.town.residents.orderedIds()) {
+      if (!keep.has(id)) continue;
+      const state = this.town.agentsById.get(id);
+      nodes.push({
+        id,
+        name: this.town.residents.mind(id).displayName,
+        ...(state?.hasLocation ? { locationId: state.currentLocationId } : {}),
+      });
+    }
+    return {
+      dimension,
+      nodes,
+      edges,
+      ...(opts.egoOf !== undefined ? { egoOf: opts.egoOf } : {}),
+    };
+  }
+
+  /**
+   * Reconstructs rumour transmission chains from belief provenance:
+   * holder ← source ← … until a first-hand (hop 0) belief or unknown source.
+   */
+  getGossipChains(limit = 20): GossipChain[] {
+    const chains: GossipChain[] = [];
+    for (const { owner, store } of this.town.beliefs.owners()) {
+      for (const b of store.all) {
+        if (b.hopCount <= 0) continue;
+        const chain: string[] = [owner];
+        let currentSource = b.sourceAgent;
+        const guard = new Set<string>([owner]);
+        while (currentSource !== undefined && !guard.has(currentSource)) {
+          chain.unshift(currentSource);
+          guard.add(currentSource);
+          const upstream = this.town.beliefs.tryStoreFor(currentSource)
+            ?.tryGet(b.subjectKey, b.predicate);
+          currentSource = upstream && upstream.hopCount > 0
+            ? upstream.sourceAgent
+            : undefined;
+          if (chain.length > 12) break; // provenance is shallow by design
+        }
+        // Origin must be someone holding the first-hand version.
+        const origin = chain[0]!;
+        const originBelief = this.town.beliefs.tryStoreFor(origin)
+          ?.tryGet(b.subjectKey, b.predicate);
+        if (!originBelief || originBelief.hopCount > 0) continue;
+
+        chains.push({
+          beliefSubjectKey: b.subjectKey,
+          predicate: b.predicate,
+          stance: b.stance,
+          confidence: b.confidence,
+          chain,
+        });
+      }
+    }
+    // Deterministic order: subject, then chain join.
+    chains.sort((x, y) =>
+      x.beliefSubjectKey < y.beliefSubjectKey ? -1 :
+      x.beliefSubjectKey > y.beliefSubjectKey ? 1 :
+      x.chain.join("<").localeCompare(y.chain.join("<")));
+    return chains.slice(0, limit);
   }
 
   getBeliefs(id: string): BeliefSnapshot[] {

@@ -544,3 +544,31 @@ Format follows master spec Â§15. Reports are appended; newest at bottom.
     on top of inspector relationship/belief snapshots (ego graph, dimension
     edges, gossip chains via provenance).
 17. **Anything unverified.** Nothing within sprint scope.
+
+---
+
+## SPRINT 20 COMPLETE — Social Graph Visualization
+
+1. **Summary.** The debug UI gained a Social Graph tab: SVG node-link view of
+   the whole town (deterministic circular layout), directional edges with
+   arrowheads, width scaled by magnitude, numeric labels, dimension selector
+   (affinity/trust/respect/fear/grievance/attraction/familiarity/obligation),
+   min-magnitude filter, ego mode (first-hop neighbourhood of the selected
+   resident), and a rumour-chain panel reconstructing origin-to-holder
+   provenance from belief hops.
+2. **Architecture implemented.** All graph data flows through two new side-
+   effect-free inspector reads; the React component holds no simulation refs.
+3. **Files created/modified.** packages/inspector/src/types.ts (+GraphNode/
+   GraphEdge/GraphSnapshot/GossipChain), simulationInspector.ts (+getRelationshipGraph,
+   +getGossipChains), apps/debug-ui SocialGraphView.tsx, App.tsx tab switch,
+   tests/inspector/graph.test.ts, tests/ui/graph.test.tsx.
+4. **Public APIs.** getRelationshipGraph({dimension,minMagnitude,egoOf,hops}),
+   getGossipChains(limit).
+5. **Tests.** +7 (30 in these suites): directionality (victim resents insulter),
+   dimension switching, magnitude filtering, ego restriction invariant, read-only
+   fingerprint, chain origin validation, component rendering/filter interactions.
+6. **Tests executed.** Yes - all suites green (35+7=42 total at this point).
+7. **Known limitations.** Layout is circular (no force-directed physics);
+   chains capped at depth 12; time-comparison (day N vs day M) intentionally
+   deferred until basic graph is validated per spec 20.7.
+8. **Git status.** Committed on feature/echosim.

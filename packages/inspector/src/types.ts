@@ -168,6 +168,43 @@ export interface TownStats {
   replans: number;
 }
 
+// ---------------- Social graph (Sprint 20) ----------------
+
+export type RelationshipDimensionName =
+  | "familiarity" | "affinity" | "trust" | "respect"
+  | "attraction" | "fear" | "grievance" | "obligation";
+
+export interface GraphNode {
+  id: string;
+  name: string;
+  locationId?: string;
+}
+
+export interface GraphEdge {
+  from: string;
+  to: string;
+  dimension: RelationshipDimensionName;
+  /** Signed magnitude in [-1,1] for the selected dimension. */
+  magnitude: number;
+  label: string;
+}
+
+export interface GraphSnapshot {
+  dimension: RelationshipDimensionName;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  egoOf?: string;
+}
+
+export interface GossipChain {
+  beliefSubjectKey: string;
+  predicate: string;
+  stance: number;
+  confidence: number;
+  /** Ordered origin → … → current holder. */
+  chain: string[];
+}
+
 /**
  * The only surface a presentation layer may use to read simulation state.
  * Implementations must be side-effect free.
@@ -186,7 +223,6 @@ export interface SimulationInspectorAPI {
     },
   ): MemoryInspectorEntry[];
 }
-
 export const NEED_NAMES = [
   "Hunger", "Energy", "Social", "Fun", "Comfort", "Hygiene", "Safety",
 ] as const;
