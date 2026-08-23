@@ -15,7 +15,7 @@ import {
 import {
   PerceptionSystem, MemorySystem, MemoryRetriever, EmotionSystem, RelationshipSystem,
   BeliefSystem, SocialSystem, ConversationSystem,
-  ObservationReach,
+  ObservationReach, ReflectionSystem,
 } from "@echosim/social";
 import type { SocialActorSnapshot } from "@echosim/social";
 import { PersonalityTrait } from "@echosim/cognition";
@@ -58,6 +58,8 @@ export class Town {
   readonly perception: PerceptionSystem;
   readonly memory = new MemorySystem();
   readonly retriever = new MemoryRetriever();
+  readonly reflections = new ReflectionSystem(
+    () => this.clock.currentTime.totalMinutes);
   readonly emotion: EmotionSystem;
   readonly relationships: RelationshipSystem;
   readonly weather: WeatherSystem;
@@ -103,8 +105,16 @@ export class Town {
         if (!mind) return;
         ++this.memoryIdCounter;
         const encoded = this.memory.encoder.encode(o, mind.personality, ++this.memoryIdCounter);
-        if (encoded)
+        if (encoded) {
           this.memory.storeFor(o.observer).add(nowMinutes(), () => encoded!);
+          // Reflection: significance accumulates; patterns crystallise when
+          // the threshold crosses (Sprint 23).
+          this.reflections.accumulate(o.observer, encoded!.importance);
+          const produced =
+            this.reflections.maybeReflect(o.observer, this.memory.storeFor(o.observer));
+          for (const sem of produced)
+            this.events.publish("sim:reflected", { agent: o.observer, semantic: sem });
+        }
         this.events.publish("sim:observation-recorded", o);
       },
     );
@@ -199,6 +209,11 @@ export class Town {
   }
   socialChance(p: number): boolean {
     return this.socialRng().chance(p);
+  }
+
+  /** Persistence hook: keep the encoder id counter clear of imported ids. */
+  ensureMemoryIdBeyond(value: number): void {
+    if (this.memoryIdCounter < value) this.memoryIdCounter = value;
   }
 
   registerLocation(def: { id: string; displayName: string; capacity?: number; hours?: { openMinuteOfDay: number; closeMinuteOfDay: number } }): void {

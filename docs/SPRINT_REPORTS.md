@@ -631,3 +631,49 @@ Format follows master spec Â§15. Reports are appended; newest at bottom.
    by the no-mutation test.
 7. **Tests executed.** Yes - 5/5 green; suite total 58.
 8. **Git status.** Committed on feature/echosim.
+
+---
+
+## SPRINT 23 COMPLETE - Reflection & Semantic Memory (+ deferred persistence port)
+
+1. **Summary.** Residents now generalise: a rule-based ReflectionSystem
+   accumulates episodic significance and, once a threshold crosses, extracts
+   repeated interpersonal patterns about a subject into durable SemanticMemory
+   entries (reliability / unpleasantness) with polarity, confidence, supporting
+   episode ids and timestamps. Existing concepts are reinforced (confidence
+   up, polarity blended, support merged, deduped by concept identity); strong
+   opposite evidence revises the held belief instead of spawning a rival
+   concept. Wired into Town via the perception encode path; exposed through the
+   inspector; persisted in save v3.
+2. **DEFERRED WORK COMPLETED - full TS persistence port.** The repository's
+   persistence package was an empty stub (migrations only): the .NET save/load
+   had never actually been ported despite commit messages claiming Sprint 18
+   done. Implemented now in packages/persistence/saveLoad.ts: versioned v3
+   document (locations incl. open-state with forceOpen restore semantics,
+   agents with personality/needs/wallet/planner-memory/inventory/cooldowns/
+   commitments/jobs, relationships, episodic memories with access accounting,
+   beliefs with provenance, suppression timers, in-flight plan runs with
+   remaining minutes, director lifetime counters, semantic memories). The
+   round-trip contract is now genuinely proven by tests: mid-flight save ->
+   restore -> both towns advance byte-identically.
+3. **Bugs found & fixed this sprint.**
+   - Arrival observations were NOT in the importance table, so they fell to the
+     default (0.4) and were encoded as episodic memories on every move -
+     memory spam + restored-town divergence (placement moves got encoded only
+     in restored worlds because spawnResident bypasses moveAgent). Added
+     explicit below-floor "arrival" entry; regression covered by round-trip.
+   - Director counters were unserialised (restored stats diverged); added
+     planTotals to the document.
+   - Memory id counter collision after import of saved memories; added
+     Town.ensureMemoryIdBeyond.
+4. **Public APIs.** ReflectionSystem (accumulate/maybeReflect/semanticOf/
+   tryGet/import/exportFor), SemanticMemory, serializeTown/saveToJson,
+   deserializeAndRestore/restoreFromJson, SaveDocument v3,
+   SimulationInspector.getSemanticMemories.
+5. **Tests.** +7 reflection (threshold quiet/crossing, reinforcement dedup,
+   contradiction dent-and-shift, autonomous formation, semantic round-trip
+   incl. forward identity, LLM phrasing isolation) and +4 persistence
+   (mid-flight round trip, restore determinism, future-version rejection,
+   stable JSON). Suite total: 69 passing.
+6. **Tests executed.** Yes - npm test 69/69 green; typecheck clean.
+7. **Git status.** Committed on feature/echosim.

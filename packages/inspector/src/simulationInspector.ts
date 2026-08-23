@@ -126,6 +126,12 @@ export class SimulationInspector implements SimulationInspectorAPI {
     return entries;
   }
 
+  /** Durable generalisations formed by reflection (Sprint 23). Read-only. */
+  getSemanticMemories(id: string) {
+    return this.town.reflections.semanticOf(id)
+      .map((s) => ({ ...s, supportingIds: [...s.supportingIds] }));
+  }
+
   getEvents(filter?: EventFilter): SimEventEntry[] {
     return this.journal.query(filter);
   }
@@ -241,8 +247,7 @@ export class SimulationInspector implements SimulationInspectorAPI {
   getBeliefs(id: string): BeliefSnapshot[] {
     const store = this.town.beliefs.tryStoreFor(id);
     if (!store) return [];
-    return store.all
-      .map((b) => ({
+    return store.all      .map((b) => ({
         subjectKey: b.subjectKey, predicate: b.predicate,
         stance: b.stance, confidence: b.confidence, hopCount: b.hopCount,
         ...(b.sourceAgent !== undefined ? { sourceAgent: b.sourceAgent } : {}),

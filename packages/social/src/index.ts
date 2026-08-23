@@ -88,6 +88,9 @@ export interface EpisodicMemory {
 }
 
 const IMPORTANCE_TABLE: Record<string, { importance: number; valence: number }> = {
+  // Arrivals are perceptual noise: logged in observation rings but always
+  // below the encode floor so they never become episodic memories.
+  arrival: { importance: 0.1, valence: 0 },
   insult_incident: { importance: 0.72, valence: -0.8 },
   insult: { importance: 0.7, valence: -0.75 },
   help: { importance: 0.75, valence: 0.7 },
@@ -634,4 +637,179 @@ export class MemorySystem {
   }
 
   ownerIds(): string[] { return [...this.stores.keys()]; }
+}
+
+// ---------------- Reflection & semantic memory (Sprint 23) ----------------
+
+export interface SemanticMemory {
+  id: number;
+  subjectKey: string;
+  /** e.g. "reliability" | "unpleasantness". */
+  concept: string;
+  polarity: number;        // -1..1
+  confidence: number;      // 0..1
+  supportingIds: number[];
+  createdAtMinutes: number;
+  lastReinforcedAtMinutes: number;
+}
+
+const INTERPERSONAL_EVENT_TYPES: ReadonlySet<string> = new Set([
+  "insult", "insult_incident", "confront", "tease",
+  "help", "comfort", "compliment", "gift", "apologize",
+]);
+
+/**
+ * Rule-based reflection: repeated interpersonal episodes about one subject
+ * crystallise into a durable semantic generalisation (spec 23.1–23.5).
+ * Deterministic; the LLM may later phrase it but never form it (23.6).
+ */
+export class ReflectionSystem {
+  /** Accumulated episodic significance needed before reflecting again. */
+  significanceThreshold = 8;
+  /** Episodes required to generalise about a subject. */
+  minSupport = 2;
+  maxSupportingIds = 10;
+
+  private readonly accumulated = new Map<string, number>();
+  private readonly consumedIds = new Map<string, Set<number>>();
+  private readonly stores = new Map<string, Map<string, SemanticMemory>>();
+  private nextId = 1;
+
+  constructor(private readonly nowMinutes: () => number) {}
+
+  accumulate(agent: string, importance: number): void {
+    this.accumulated.set(agent, (this.accumulated.get(agent) ?? 0) + importance);
+  }
+
+  accumulatedSignificance(agent: string): number {
+    return this.accumulated.get(agent) ?? 0;
+  }
+
+  tryGet(agent: string, subjectKey: string, concept: string): SemanticMemory | undefined {
+    return this.stores.get(agent)?.get(`${subjectKey}|${concept}`);
+  }
+
+  semanticOf(agent: string): SemanticMemory[] {
+    const map = this.stores.get(agent);
+    if (!map) return [];
+    return [...map.values()].sort((a, b) =>
+      a.subjectKey < b.subjectKey ? -1 : a.subjectKey > b.subjectKey ? 1 :
+      a.concept < b.concept ? -1 : a.concept > b.concept ? 1 : a.id - b.id);
+  }
+
+  /**
+   * Extracts patterns from not-yet-consumed interpersonal episodes once the
+   * significance threshold is crossed. Returns newly created or reinforced
+   * semantic memories (may be empty even after reset if nothing repeats yet).
+   */
+  maybeReflect(agent: string, store: MemoryStore): SemanticMemory[] {
+    if ((this.accumulated.get(agent) ?? 0) < this.significanceThreshold) return [];
+    this.accumulated.set(agent, 0);
+
+    const consumed = this.consumedIds.get(agent) ?? new Set<number>();
+    this.consumedIds.set(agent, consumed);
+
+    const groups = new Map<string, EpisodicMemory[]>();
+    for (const m of store.all) {
+      if (consumed.has(m.id)) continue;
+      if (!INTERPERSONAL_EVENT_TYPES.has(m.eventType)) continue;
+      if (!m.subject || m.subject === agent) continue;
+      let list = groups.get(m.subject);
+      if (!list) { list = []; groups.set(m.subject, list); }
+      list.push(m);
+    }
+
+    const now = this.nowMinutes();
+    const results: SemanticMemory[] = [];
+
+    for (const [subject, episodes] of [...groups].sort()) {
+      const positive = episodes.filter((e) => e.valence > 0);
+      const negative = episodes.filter((e) => e.valence < 0);
+      const pool = positive.length >= negative.length ? positive : negative;
+      if (pool.length < this.minSupport) continue;
+
+      const concept = pool === positive ? "reliability" : "unpleasantness";
+      const avgValence = clampRange(
+        pool.reduce((s, e) => s + e.valence, 0) / pool.length, -1, 1);
+      const evidence = {
+        count: pool.length,
+        avgValence,
+        ids: pool.map((e) => e.id),
+      };
+
+      let map = this.stores.get(agent);
+      if (!map) { map = new Map(); this.stores.set(agent, map); }
+      const key = `${subject}|${concept}`;
+      const matching = map.get(key);
+
+      if (matching !== undefined) {
+        results.push(this.reinforce(matching, evidence, now));
+      } else {
+        // Opposite-polarity generalisation already held for this subject?
+        // Strong counter-evidence revises THAT belief (spec 23.4) instead of
+        // spawning a rival concept.
+        const rival = [...map.values()].find(
+          (s) => s.subjectKey === subject && Math.sign(s.polarity) !== Math.sign(avgValence));
+        if (rival !== undefined && evidence.count >= 3) {
+          results.push(this.reinforce(rival, evidence, now));
+        } else {
+          results.push(this.create(agent, subject, concept, evidence, now));
+        }
+      }
+
+      for (const e of pool) consumed.add(e.id);
+    }
+    return results;
+  }
+
+  private create(
+    agent: string, subjectKey: string, concept: string,
+    ev: { count: number; avgValence: number; ids: number[] }, now: number,
+  ): SemanticMemory {
+    let map = this.stores.get(agent);
+    if (!map) { map = new Map(); this.stores.set(agent, map); }
+    const sem: SemanticMemory = {
+      id: this.nextId++,
+      subjectKey, concept,
+      polarity: clampRange(ev.avgValence, -1, 1),
+      confidence: Math.min(0.9, 0.4 + 0.12 * ev.count),
+      supportingIds: ev.ids.slice(-this.maxSupportingIds),
+      createdAtMinutes: now,
+      lastReinforcedAtMinutes: now,
+    };
+    map.set(`${subjectKey}|${concept}`, sem);
+    return sem;
+  }
+
+  /** Reinforcement incl. the contradiction branch (spec 23.4). */
+  private reinforce(
+    sem: SemanticMemory,
+    ev: { count: number; avgValence: number; ids: number[] },
+    now: number,
+  ): SemanticMemory {
+    const contradicts =
+      Math.sign(ev.avgValence) !== 0 && Math.sign(sem.polarity) !== 0 &&
+      Math.sign(ev.avgValence) !== Math.sign(sem.polarity);
+
+    if (contradicts && ev.count >= 3) {
+      sem.confidence = clampRange(sem.confidence - 0.15, 0.1, 0.95);
+      sem.polarity = clampRange(0.5 * sem.polarity + 0.5 * ev.avgValence, -1, 1);
+    } else {
+      sem.confidence = clampRange(sem.confidence + 0.06 * ev.count, 0, 0.95);
+      sem.polarity = clampRange(0.7 * sem.polarity + 0.3 * ev.avgValence, -1, 1);
+    }
+    sem.lastReinforcedAtMinutes = now;
+    const merged = new Set([...sem.supportingIds, ...ev.ids]);
+    sem.supportingIds = [...merged].slice(-this.maxSupportingIds);
+    return sem;
+  }
+
+  // Persistence (order-stable).
+  exportFor(agent: string): SemanticMemory[] { return this.semanticOf(agent); }
+  import(agent: string, sem: SemanticMemory): void {
+    let map = this.stores.get(agent);
+    if (!map) { map = new Map(); this.stores.set(agent, map); }
+    map.set(`${sem.subjectKey}|${sem.concept}`, sem);
+    if (sem.id >= this.nextId) this.nextId = sem.id + 1;
+  }
 }
