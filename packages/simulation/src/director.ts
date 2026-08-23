@@ -6,6 +6,7 @@ import {
 } from "@echosim/cognition";
 import { AgentId, LocationId } from "@echosim/core";
 import { computeJobPressure } from "@echosim/world";
+import { LodLevel, LodController } from "./lod.js";
 import type { Town } from "./town.js";
 
 export enum ActionFailureType {
@@ -52,6 +53,11 @@ export class PlanningDirector {
   nodesExpandedLastPlan = 0;
 
   intervention?: (agent: string, action: PlanningAction) => ActionFailureType | null;
+  lod?: LodController;
+
+  attachLod(controller: LodController): void {
+    this.lod = controller;
+  }
 
   constructor(private readonly town: Town) {}
 
@@ -75,8 +81,14 @@ export class PlanningDirector {
   }
 
   tick(agent: AgentId): void {
+    const lod = this.lod?.levelOf(agent) ?? LodLevel.Full;
+    const mind = this.town.residents.mind(agent);
+    const critical = mind.needs.findInterrupting() !== null;
+
     const running = this.active.get(agent);
     if (running) {
+      // Reduced LOD: let in-flight plans run without per-tick replan checks.
+      if (!critical && lod === LodLevel.Reduced) return;
       if (!this.shouldInterrupt(running)) return;
       this.cancelRun(agent, "critical-interruption");
       this.totalReplans++;
@@ -86,9 +98,17 @@ export class PlanningDirector {
       this.startFreshCycle(agent, "critical-interruption");
       return;
     }
-    // Idle between cycles: retry deferred work at a slow cadence so we do not
-    // re-plan every single tick after a failure (backoff handles suppression).
-    this.startFreshCycle(agent, "idle");
+
+    // Critical needs bypass every LOD throttle (promotion by survival).
+    if (!critical) {
+      if (lod === LodLevel.Coarse || lod === LodLevel.Dormant) return;
+      if (lod === LodLevel.Reduced) {
+        const d = this.diagnosticsOf(agent);
+        const last = d.lastCycleAtMinutes ?? -Infinity;
+        if (this.now() - last < (this.lod?.reducedCadenceMinutes ?? 30)) return;
+      }
+    }
+    this.startFreshCycle(agent, critical ? "critical-promotion" : "idle");
   }
 
   private shouldInterrupt(running: ActiveRun): boolean {
