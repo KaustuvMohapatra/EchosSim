@@ -1,3 +1,4 @@
+import { SCENARIOS } from "@echosim/content";
 import type { SimHost, UiSnapshot } from "../sim/SimHost.js";
 
 export function HeaderBar({ host, snap }: { host: SimHost; snap: UiSnapshot }) {
@@ -9,6 +10,24 @@ export function HeaderBar({ host, snap }: { host: SimHost; snap: UiSnapshot }) {
       <span style={styles.time} data-testid="clock">
         {snap.time.dayName} {snap.time.hhmm} · Day {snap.time.day + 1} · {snap.time.weather}
       </span>
+
+      <select
+        style={styles.select}
+        value=""
+        aria-label="run demo scenario"
+        onChange={(e) => {
+          const def = SCENARIOS.find((s) => s.key === e.target.value);
+          if (!def) return;
+          const result = def.run();
+          window.alert(`Demo: ${result.name}\n${result.passed ? "✔ " : "✗ "}${result.detail}`);
+        }}
+        data-testid="demo-select"
+      >
+        <option value="" disabled>Demo…</option>
+        {SCENARIOS.map((s) => (
+          <option key={s.key} value={s.key}>{s.title}</option>
+        ))}
+      </select>
 
       <span style={{ flex: 1 }} />
 
