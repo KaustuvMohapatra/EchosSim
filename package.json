@@ -19,21 +19,23 @@
     "build:debug-ui": "cd apps/debug-ui && npx vite build"
   },
   "devDependencies": {
-    "@echosim/core": "workspace:*",
+    "@echosim/ai": "workspace:*",
     "@echosim/cognition": "workspace:*",
-    "@echosim/world": "workspace:*",
-    "@echosim/social": "workspace:*",
-    "@echosim/simulation": "workspace:*",
     "@echosim/content": "workspace:*",
-    "@echosim/persistence": "workspace:*",
+    "@echosim/core": "workspace:*",
     "@echosim/inspector": "workspace:*",
+    "@echosim/persistence": "workspace:*",
+    "@echosim/simulation": "workspace:*",
+    "@echosim/social": "workspace:*",
+    "@echosim/world": "workspace:*",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.1.0",
+    "@types/node": "^22.10.2",
     "jsdom": "^25.0.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "typescript": "^5.7.2",
     "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
     "vitest": "^3.0.5"
   }
 }

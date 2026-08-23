@@ -572,3 +572,32 @@ Format follows master spec Â§15. Reports are appended; newest at bottom.
    chains capped at depth 12; time-comparison (day N vs day M) intentionally
    deferred until basic graph is validated per spec 20.7.
 8. **Git status.** Committed on feature/echosim.
+
+---
+
+## SPRINT 21 COMPLETE - LLM Provider Abstraction
+
+1. **Summary.** Optional AI layer landed as packages/ai (@echosim/ai):
+   vendor-free LanguageModelProvider contract (generateDialogue/generateReflection),
+   three providers (deterministic Mock, deterministic Template fallback,
+   OpenAICompatible over plain fetch with strict-JSON responses), hand-rolled
+   schema validators, retry/timeout/metrics/cache guarded LanguageModelService,
+   and clean AI-disabled mode (template path, zero network, zero errors).
+2. **Architecture implemented.** No vendor SDK types cross the contract;
+   secrets resolve from an env-var NAME at call time only; failures classified
+   (timeout/aborted/rate-limited/server/network/invalid-json/schema-mismatch/
+   empty-result/overlong) with retry only for retryable kinds.
+3. **Files created.** packages/ai/src/{types,validation,providers,metrics,
+   managed,index}.ts; tests/ai/providers.test.ts.
+4. **Public APIs.** LanguageModelProvider, AiConfig(+DEFAULT_AI_CONFIG),
+   AiError/isRetryable, validateDialogue/validateReflection,
+   TemplateLanguageModelProvider, MockLanguageModelProvider,
+   OpenAICompatibleLanguageModelProvider, AiMetrics(+snapshot),
+   LanguageModelService (managed facade).
+5. **Tests.** +11, all offline (injected fetch / scripted mocks): determinism,
+   strict-JSON parsing incl. code fences, invalid-json->fallback metrics,
+   500-then-success retry, timeout abort fallback, archetype cache hits,
+   reflection cache exclusion, schema mismatch rejection, disabled-mode
+   network isolation, secret hygiene.
+6. **Tests executed.** Yes - 11/11 green; full suite 53 passing.
+7. **Git status.** Committed on feature/echosim.
