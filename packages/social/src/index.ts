@@ -115,6 +115,8 @@ export const MEMORY_ENCODE_FLOOR = 0.15;
 export class MemoryEncoder {
   /** Returns null for noise below the floor. Subject = the OTHER party (regression-tested). */
   encode(observation: Observation, personality: { get(t: PersonalityTrait): number }, id: number): EpisodicMemory | null {
+    // Declined social attempts are perceptual noise, never memories.
+    if (observation.eventType.endsWith("_rejected")) return null;
     const t = importanceFor(observation.eventType);
     let importance = t.importance;
     if (importance < MEMORY_ENCODE_FLOOR) return null;

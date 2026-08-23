@@ -16,7 +16,9 @@
     "dev": "vite apps/game",
     "dev:debug": "vite apps/debug-ui",
     "build:game": "cd apps/game && npx vite build",
-    "build:debug-ui": "cd apps/debug-ui && npx vite build"
+    "build:debug-ui": "cd apps/debug-ui && npx vite build",
+    "bench": "tsx tools/bench.ts",
+    "soak": "tsx tools/soak.ts"
   },
   "devDependencies": {
     "@echosim/ai": "workspace:*",

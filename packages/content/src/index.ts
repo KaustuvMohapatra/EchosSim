@@ -5,3 +5,4 @@ export const ContentFixtures = {
 };
 
 export * from "./demoTown.js";
+export * from "./scaledTown.js";
