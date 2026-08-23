@@ -1,0 +1,14 @@
+{
+  "name": "@echosim/research",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "@echosim/content": "workspace:*",
+    "@echosim/inspector": "workspace:*",
+    "@echosim/simulation": "workspace:*",
+    "@echosim/social": "workspace:*"
+  }
+}

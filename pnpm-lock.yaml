@@ -26,6 +26,9 @@ importers:
       '@echosim/persistence':
         specifier: workspace:*
         version: link:packages/persistence
+      '@echosim/research':
+        specifier: workspace:*
+        version: link:packages/research
       '@echosim/simulation':
         specifier: workspace:*
         version: link:packages/simulation
@@ -180,6 +183,21 @@ importers:
       '@echosim/simulation':
         specifier: workspace:*
         version: link:../simulation
+
+  packages/research:
+    dependencies:
+      '@echosim/content':
+        specifier: workspace:*
+        version: link:../content
+      '@echosim/inspector':
+        specifier: workspace:*
+        version: link:../inspector
+      '@echosim/simulation':
+        specifier: workspace:*
+        version: link:../simulation
+      '@echosim/social':
+        specifier: workspace:*
+        version: link:../social
 
   packages/simulation:
     dependencies:

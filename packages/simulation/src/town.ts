@@ -63,6 +63,21 @@ export class Town {
     () => this.clock.currentTime.totalMinutes);
   readonly habits = new HabitSystem();
   readonly groups = new GroupSystem();
+
+  /**
+   * Research feature switches (Sprint 30). Defaults reproduce normal
+   * behaviour exactly; ablation runners flip these BEFORE advancing time.
+   */
+  readonly features = {
+    /** Episodic memory encoding. */
+    memory: true,
+    /** Reflection/semantic-memory crystallisation. */
+    reflection: true,
+    /** Gossip belief transfer during conversations. */
+    gossip: true,
+    /** Habit recording + habit utility pull. */
+    habits: true,
+  };
   readonly emotion: EmotionSystem;
   readonly relationships: RelationshipSystem;
   readonly weather: WeatherSystem;
@@ -107,16 +122,20 @@ export class Town {
         const mind = this.residents.tryMind(o.observer);
         if (!mind) return;
         ++this.memoryIdCounter;
-        const encoded = this.memory.encoder.encode(o, mind.personality, ++this.memoryIdCounter);
+        const encoded = this.features.memory
+          ? this.memory.encoder.encode(o, mind.personality, ++this.memoryIdCounter)
+          : null;
         if (encoded) {
           this.memory.storeFor(o.observer).add(nowMinutes(), () => encoded!);
           // Reflection: significance accumulates; patterns crystallise when
           // the threshold crosses (Sprint 23).
-          this.reflections.accumulate(o.observer, encoded!.importance);
-          const produced =
-            this.reflections.maybeReflect(o.observer, this.memory.storeFor(o.observer));
-          for (const sem of produced)
-            this.events.publish("sim:reflected", { agent: o.observer, semantic: sem });
+          if (this.features.reflection) {
+            this.reflections.accumulate(o.observer, encoded!.importance);
+            const produced =
+              this.reflections.maybeReflect(o.observer, this.memory.storeFor(o.observer));
+            for (const sem of produced)
+              this.events.publish("sim:reflected", { agent: o.observer, semantic: sem });
+          }
         }
         this.events.publish("sim:observation-recorded", o);
       },
@@ -178,7 +197,8 @@ export class Town {
       return state?.hasLocation ? state.currentLocationId : undefined;
     });
     this.cognition.setHabitProvider(
-      (agent, locationKey) => this.habits.strengthAt(agent, locationKey));
+      (agent, locationKey) =>
+        this.features.habits ? this.habits.strengthAt(agent, locationKey) : 0);
     this.cognition.setIntentionProvider((agent) =>
       socialBiasOf(deriveIntentions(this, agent)));
     this.cognition.setSchedulePressureProvider((agent, t) => {

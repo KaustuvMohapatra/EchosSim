@@ -1,0 +1,14 @@
+{
+  "experimentId": "memory-ablation",
+  "seeds": [1001, 1002],
+  "population": "authored",
+  "durationDays": 2,
+  "variants": [
+    { "name": "baseline", "features": {} },
+    { "name": "memory-off", "features": { "memory": false } },
+    { "name": "reflection-off", "features": { "reflection": false } },
+    { "name": "gossip-off", "features": { "gossip": false } },
+    { "name": "personality-off", "features": { "personality": false } },
+    { "name": "habits-off", "features": { "habits": false } }
+  ]
+}

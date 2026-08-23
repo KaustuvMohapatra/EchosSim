@@ -47,9 +47,11 @@ export function wireAutonomousSocial(town: Town): void {
   town.events.subscribe<{ agent: string; to: string }>("sim:agent-moved", (e) => {
     town.perception.publish("arrival", [e.agent], e.to, ObservationReach.SameLocation, 0.3);
     // Habit tracking: repeated non-home visits form location pull (Sprint 24).
-    const mind = town.residents.tryMind(e.agent);
-    if (mind && e.to !== mind.homeLocationId)
-      town.habits.record(e.agent, "visit", e.to, town.clock.currentTime.totalMinutes);
+    if (town.features.habits) {
+      const mind = town.residents.tryMind(e.agent);
+      if (mind && e.to !== mind.homeLocationId)
+        town.habits.record(e.agent, "visit", e.to, town.clock.currentTime.totalMinutes);
+    }
   });
 
   // --- b) Recorded social observations reshape observers. ---
@@ -175,7 +177,7 @@ function driveConversation(town: Town, initiatorId: string): void {
   );
 
   let transferredBelief: string | undefined;
-  if (transferSubject) {
+  if (transferSubject && town.features.gossip) {
     const trust = town.relationships.getOrCreate(listener, initiatorId).trust;
     const moved = town.beliefs.tryTransfer(
       initiatorId, listener, transferSubject, "regard", originEvent, trust, now);

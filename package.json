@@ -18,7 +18,8 @@
     "build:game": "cd apps/game && npx vite build",
     "build:debug-ui": "cd apps/debug-ui && npx vite build",
     "bench": "tsx tools/bench.ts",
-    "soak": "tsx tools/soak.ts"
+    "soak": "tsx tools/soak.ts",
+    "experiment": "tsx packages/research/src/cli.ts"
   },
   "devDependencies": {
     "@echosim/ai": "workspace:*",
@@ -27,6 +28,7 @@
     "@echosim/core": "workspace:*",
     "@echosim/inspector": "workspace:*",
     "@echosim/persistence": "workspace:*",
+    "@echosim/research": "workspace:*",
     "@echosim/simulation": "workspace:*",
     "@echosim/social": "workspace:*",
     "@echosim/world": "workspace:*",

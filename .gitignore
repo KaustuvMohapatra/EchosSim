@@ -66,3 +66,6 @@ secrets.json
 node_modules/
 dist/
 *.tsbuildinfo
+
+results/
+results-test/

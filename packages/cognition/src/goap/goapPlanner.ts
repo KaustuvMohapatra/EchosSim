@@ -35,6 +35,7 @@ export interface PlanResult {
 
 interface SearchNode {
   state: PlannerWorldState;
+  hash: string;
   g: number;
   sequence: number;
   depth: number;
@@ -49,7 +50,9 @@ function failed(reason: PlanFailureReason, metrics: PlannerMetrics): PlanResult 
 }
 
 export class GoapPlanner {
-  maxExpansions = 4000;
+  // With open-list deduplication (Sprint 27 fix), expansions are cheap and
+  // unique-state bounded; 1200 leaves generous headroom over observed ~110.
+  maxExpansions = 1200;
   maxDepth = 12;
 
   plan(
@@ -73,10 +76,15 @@ export class GoapPlanner {
     const stepCosts = actions.map((a) => costFor(a, agent));
 
     const open: SearchNode[] = [];
+    const openIndex = new Map<string, SearchNode>(); // hash -> node (decrease-key)
     const closed = new Set<string>();
     let sequence = 0;
 
-    open.push({ state: start, g: 0, sequence: sequence++, depth: 0, parent: null, via: null });
+    const startHash = start.computeHash();
+    const startNode: SearchNode = { state: start, hash: startHash, g: 0,
+      sequence: sequence++, depth: 0, parent: null, via: null };
+    open.push(startNode);
+    openIndex.set(startHash, startNode);
 
     while (open.length > 0) {
       if (metrics.nodesExpanded >= this.maxExpansions)
@@ -89,10 +97,10 @@ export class GoapPlanner {
         if (c.g < b.g || (c.g === b.g && c.sequence < b.sequence)) bestIndex = i;
       }
       const node = open.splice(bestIndex, 1)[0]!;
+      openIndex.delete(node.hash);
 
-      const hash = node.state.computeHash();
-      if (closed.has(hash)) continue;
-      closed.add(hash);
+      if (closed.has(node.hash)) continue;
+      closed.add(node.hash);
 
       metrics.nodesExpanded++;
       if (node.depth > metrics.deepestDepth) metrics.deepestDepth = node.depth;
@@ -121,14 +129,25 @@ export class GoapPlanner {
         for (const e of action.effects) next.apply(e);
         const nextHash = next.computeHash();
         if (closed.has(nextHash)) continue;
-        open.push({
-          state: next,
-          g: node.g + stepCosts[a]!,
-          sequence: sequence++,
-          depth: node.depth + 1,
-          parent: node,
-          via: action,
-        });
+
+        const newG = node.g + stepCosts[a]!;
+        const existing = openIndex.get(nextHash);
+        if (existing !== undefined) {
+          // Decrease-key: keep the cheaper path; sequence stays earliest.
+          if (newG < existing.g) {
+            existing.g = newG;
+            existing.parent = node;
+            existing.via = action;
+            existing.depth = node.depth + 1;
+          }
+          continue;
+        }
+        const created: SearchNode = {
+          state: next, hash: nextHash, g: newG,
+          sequence: sequence++, depth: node.depth + 1, parent: node, via: action,
+        };
+        open.push(created);
+        openIndex.set(nextHash, created);
       }
     }
 

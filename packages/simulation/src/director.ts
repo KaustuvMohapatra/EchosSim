@@ -343,13 +343,26 @@ export class PlanningDirector {
     for (const id of this.town.locations.orderedIds)
       locations.push({ id: id as string, name: this.town.locations.get(id).definition.displayName });
 
-    const list: PlanningAction[] = [];
+    // Catalog slimming (Sprint 27): goto actions exist only for destinations
+    // some action can actually USE, plus a few wander targets. Movement
+    // effects only clear at_-keys within this set — without this, every goto
+    // carried O(allLocations) effects and searches went quadratic.
     const home = mind.homeLocationId || undefined;
     const job = mind.job;
+    const relevant = new Set<string>([home ?? "", "cafe", "store", "bakery", "park", "library", "hall", "studio", "restaurant"]
+      .filter((s): s is string => !!s));
+    const cafe = locations.find((l) => l.id.includes("cafe"));
+    const store = locations.find((l) => l.id.includes("store"));
+    if (cafe) relevant.add(cafe.id);
+    if (store) relevant.add(store.id);
+    if (job?.workplace) relevant.add(job.workplace);
+
+    const list: PlanningAction[] = [];
     const openOf = (loc?: string) => (loc ? this.town.locations.get(loc as never).isOpen : false);
 
     const moveEffects = (primaryKey: string, includeAlias: boolean) => {
-      const effects = [setFalse(HOME), ...locations.map((l) => setFalse("at_" + l.id))];
+      const effects = [setFalse(HOME)];
+      for (const id of relevant) effects.push(setFalse("at_" + id));
       effects.push(setTrue(primaryKey));
       if (includeAlias && primaryKey !== HOME) effects.push(setTrue(HOME));
       return effects;
@@ -365,6 +378,7 @@ export class PlanningDirector {
     }
 
     for (const loc of locations) {
+      if (!relevant.has(loc.id)) continue;
       if (home && loc.id === home) continue;
       list.push(defineAction("act_goto_" + loc.id, "GoTo " + loc.name, {
         preconditions: undefined,
@@ -375,7 +389,6 @@ export class PlanningDirector {
     }
 
     // Cafe food chain
-    const cafe = locations.find((l) => l.id.includes("cafe"));
     if (cafe) {
       list.push(defineAction("act_buy_meal", "BuyFood", {
         preconditions: [trueFact("at_" + cafe.id), trueFact("cafe_open")],
@@ -385,7 +398,6 @@ export class PlanningDirector {
       }));
     }
 
-    const store = locations.find((l) => l.id.includes("store"));
     if (store) {
       list.push(defineAction("act_buy_ingredients", "BuyIngredients", {
         preconditions: [trueFact("at_" + store.id), trueFact("store_open")],
