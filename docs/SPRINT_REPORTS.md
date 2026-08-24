@@ -744,3 +744,34 @@ Format follows master spec Â§15. Reports are appended; newest at bottom.
 7. **Next.** Sprint 41 HUD depth (needs bars/mood/money/household), then
    interiors+cutaway (42), build mode v1 (43), structural build (44),
    world map/lots (45).
+
+---
+
+## PHASE II SPRINTS 41-60 COMPLETE - EchoSim Life v0.2.0
+
+1. **Summary.** The playable life-simulation layer shipped on top of the
+   untouched v0.1.0 brain: Babylon.js 9 client (apps/life) with a full-resident
+   player, three camera modes, action queue + autonomy modes, object/venue
+   interactions, interiors with privacy + cutaway, build mode with structural
+   editing and persistence, world map/districts, character creator, skills +
+   promotions, switchable households, active venue activities, crowding/
+   privacy/cleanliness realism, phone (messages/calendar/invitations),
+   friendship milestones and a knowledge-filtered town stories feed,
+   daylight/ambience/streaming presentation systems, and a life-mode soak.
+2. **Architecture held.** Babylon/React never reach past the engine-free
+   LifeModeAdapter; every sprint kept the adapter Node-testable.
+3. **Real defects found & fixed during Phase II.** authored-hours ignored at
+   composition; occupancy desync on capacity rejection (origin mutated before
+   validation); interaction-controller re-entrancy stack overflow; NaN wall-gap
+   bounds from width-less door specs; cutaway midpoint test missing long walls;
+   casing-corrupted Math helpers from tooling; several test-fixture bugs.
+4. **Verification.** Suite grew 114 -> **213 tests / 38 files**, all green;
+   typecheck clean; production builds for life/game/debug-ui succeed; headless
+   authored runs byte-reproducible; life soak 7 days x 27+1 residents with 0
+   invariant violations and mid-run save/load identity; secret audit clean;
+   frozen-lockfile install ok; git diff --check clean.
+5. **Git status.** feature/echosim, release commit local, nothing pushed.
+6. **Known limitations carried forward.** Semantic movement only; template
+   dialogue unless optional LLM enabled; placeholder capsule characters;
+   group calendars minimal; no CI pipeline file; single-floor interiors;
+   streaming logic tested but scene integration is basic.
