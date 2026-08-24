@@ -1,7 +1,7 @@
 /** Sprint 47 — character creator model. */
 import { describe, expect, it } from "vitest";
 import {
-  profileFromPicks, nextCreatorId, resetCreatorId,
+  profileFromPicks, nextCreatorId, resetCreatorIds,
 } from "../../apps/life/src/creator/creatorModel.js";
 import { PersonalityTrait } from "@echosim/cognition";
 import { LifeModeAdapter } from "../../apps/life/src/simulation/LifeModeAdapter.js";
