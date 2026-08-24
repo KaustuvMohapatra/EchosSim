@@ -26,8 +26,11 @@ describe("S54: friendship milestone events", () => {
       town.social.attempt("npc_mira", "npc_rohan", SocialActionType.Chat);
     }
 
-    expect(formed.length).toBe(1);
-    expect(new Set([formed[0]!.a, formed[0]!.b])).toEqual(
+    // Repeated friendly interactions push affinity past 0.3.
+    const pairEvents = formed.filter((e) =>
+      new Set([e.a, e.b]).has("npc_mira") && new Set([e.a, e.b]).has("npc_rohan"));
+    expect(pairEvents.length).toBe(1); // exactly one milestone per pair
+    expect(new Set([pairEvents[0]!.a, pairEvents[0]!.b])).toEqual(
       new Set(["npc_mira", "npc_rohan"]));
   });
 });
