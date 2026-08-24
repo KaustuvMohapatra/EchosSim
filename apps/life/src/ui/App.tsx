@@ -1,7 +1,18 @@
 import { useState } from "react";
 import { useLife } from "./useLife.js";
+import { characterCard, type CharacterCardModel } from "./hudModel.js";
 
 const WEATHER_ICON = ["☀", "☁", "🌧", "⛈"] as const;
+
+function moodIcon(mood: string): string {
+  switch (mood) {
+    case "Happy": case "Playful": case "Good": return "🙂";
+    case "Angry": return "😠";
+    case "Tense": case "Downbeat": return "🙁";
+    case "Exhausted": return "🥱";
+    default: return "😐";
+  }
+}
 
 export function App() {
   const life = useLife();
@@ -13,6 +24,9 @@ export function App() {
   const camMode = app?.camera.mode ?? "life";
 
   const selectedSummary = snap?.agents.find((a) => a.id === selected);
+  const playerSnap = app ? app.inspector.getAgent(app.adapter.playerId) : undefined;
+  const playerCard: CharacterCardModel | null = playerSnap
+    ? characterCard(playerSnap) : null;
 
   return (
     <div style={{ width: "100%", height: "100%", position: "relative" }}
@@ -123,6 +137,32 @@ export function App() {
           {selectedSummary.currentAction && (
             <div style={{ color: "#64748b" }}>→ {selectedSummary.currentAction}</div>
           )}
+        </div>
+      )}
+
+      {/* Character card: needs / mood / money (Sprint 41). */}
+      {playerCard && (
+        <div style={styles.charCard} data-testid="character-card">
+          <div style={styles.charHead}>
+            <b style={{ color: "#fbbf24" }}>{playerCard.name}</b>
+            <span title={playerCard.mood}>{moodIcon(playerCard.mood)} {playerCard.mood}</span>
+            <span style={{ marginLeft: "auto", color: "#a7f3d0" }}>
+              §{playerCard.money.toFixed(0)}
+            </span>
+          </div>
+          {playerCard.needs.map((n) => (
+            <div key={n.key} style={styles.needRow} title={`${n.key} — ${n.level}`}>
+              <span style={styles.needName}>{n.key.slice(0, 4)}</span>
+              <div style={styles.needTrack}>
+                <div style={{
+                  width: `${n.fill * 100}%`, height: "100%",
+                  borderRadius: 2,
+                  background: n.level === "critical" ? "#ef4444"
+                    : n.level === "warn" ? "#f59e0b" : "#34d399",
+                }} />
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
@@ -242,6 +282,21 @@ const styles: Record<string, React.CSSProperties> = {
     background: "rgba(13,18,32,.82)", border: "1px solid rgba(36,54,94,.6)",
     borderRadius: 10, padding: "8px 11px", fontSize: 12.5,
     backdropFilter: "blur(6px)",
+  },
+  charCard: {
+    position: "absolute", left: 12, bottom: 42, width: 200,
+    background: "rgba(13,18,32,.82)", border: "1px solid rgba(36,54,94,.6)",
+    borderRadius: 10, padding: "8px 11px", backdropFilter: "blur(6px)",
+  },
+  charHead: {
+    display: "flex", gap: 7, alignItems: "center", marginBottom: 6,
+    fontSize: 12.5,
+  },
+  needRow: { display: "flex", gap: 6, alignItems: "center", margin: "3px 0" },
+  needName: { width: 30, fontSize: 10, color: "#8ea2bd" },
+  needTrack: {
+    flex: 1, height: 6, background: "#1e293b",
+    borderRadius: 3, overflow: "hidden",
   },
   feedback: {
     position: "absolute", bottom: 42, left: 12, right: 12,
