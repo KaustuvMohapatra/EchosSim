@@ -115,3 +115,56 @@ describe("S43: persistence", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 });
+
+describe("S44: structural build", () => {
+  it("places an axis-aligned wall snapped to grid, inside the lot", () => {
+    resetBuildIds();
+    const b = new BuildController(boundsOf);
+    const r = b.placeWall("cafe", 0, -4, 5, -3.6);
+    expect(r.ok).toBe(true);
+    expect(b.wallsList()).toHaveLength(1);
+    const w = b.wallsList()[0]!;
+    expect(w.z1).toBe(w.z2); // horizontal after axis snap
+    // Out of bounds rejected.
+    expect(b.placeWall("cafe", 8, -4, 20, -4).ok).toBe(false);
+  });
+
+  it("door splits a wall into two segments with a gap", () => {
+    resetBuildIds();
+    const b = new BuildController(boundsOf);
+    b.placeWall("cafe", -4, 0, 4, 0);
+    const before = b.wallsList()[0]!;
+    const r = b.placeDoor("cafe", 0, 0);
+    expect(r.ok).toBe(true);
+    expect(b.doorsList()).toHaveLength(1);
+    expect(b.wallsList()).toHaveLength(2);
+    // Gap around the door centre.
+    for (const w of b.wallsList())
+      expect(pxInRange(0, Math.min(w.x1, w.x2), Math.max(w.x1, w.x2))).toBe(false);
+    void before;
+    // Undo restores single wall and removes door.
+    expect(b.undo()).toBe(true);
+    expect(b.wallsList()).toHaveLength(1);
+    expect(b.doorsList()).toHaveLength(0);
+  });
+
+  it("floor rects validate size and bounds; serialize includes structure", () => {
+    resetBuildIds();
+    const b = new BuildController(boundsOf);
+    expect(b.addFloorRect("cafe", -5, -4, 0, 0).ok).toBe(true);
+    expect(b.addFloorRect("cafe", 6, -4, 9, 0).ok).toBe(false); // outside
+    b.placeWall("cafe", -2, 2, 2, 2);
+    const doc = JSON.parse(b.serialize()) as { walls: unknown[]; floors: unknown[] };
+    expect(doc.walls).toHaveLength(1);
+    expect(doc.floors).toHaveLength(1);
+
+    const c = new BuildController(boundsOf);
+    c.load(b.serialize());
+    expect(c.wallsList()).toHaveLength(1);
+    expect(c.floorsList()).toHaveLength(1);
+  });
+});
+
+function pxInRange(v: number, lo: number, hi: number): boolean {
+  return v >= lo && v <= hi;
+}
