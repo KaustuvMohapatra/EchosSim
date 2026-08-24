@@ -98,6 +98,16 @@ export function createLifeApp(canvas: HTMLCanvasElement,
     const saved = window.localStorage.getItem("echosim-life-build");
     if (saved) build.load(saved);
   } catch { /* private mode etc. */ }
+  // Venue edits (Sprint 46): persisted overrides re-applied at boot.
+  let venueEdits: Record<string, { displayName?: string; capacity?: number;
+    hours?: { openMinuteOfDay: number; closeMinuteOfDay: number } }> = {};
+  try {
+    const rawV = window.localStorage.getItem("echosim-life-venues");
+    if (rawV) venueEdits = JSON.parse(rawV) as typeof venueEdits;
+    for (const [locationId, edit] of Object.entries(venueEdits)) {
+      adapter.town.locations.updateDefinition(locationId as never, edit as never);
+    }
+  } catch { /* ignore */ }
   const persist = (): void => {
     try { window.localStorage.setItem("echosim-life-build", build.serialize()); }
     catch { /* ignore */ }

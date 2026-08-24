@@ -67,6 +67,20 @@ export class LocationRepository {
     if (!s) throw new Error(`Unknown location '${id}'.`);
     return s;
   }
+  /** Venue editing (Sprint 46): patch authored definition fields live. */
+  updateDefinition(id: LocationId, patch: {
+    displayName?: string;
+    capacity?: number;
+    hours?: OpeningHours | undefined;
+  }): LocationRuntimeState {
+    const rt = this.get(id);
+    const d = rt.definition as unknown as Record<string, unknown>;
+    if (patch.displayName !== undefined) d.displayName = patch.displayName;
+    if (patch.capacity !== undefined) d.capacity = patch.capacity;
+    if (patch.hours !== undefined || "hours" in (patch as object)) d.hours = patch.hours;
+    // Callers re-evaluate open state against the new hours with their clock.
+    return rt;
+  }
 }
 
 // ---------------- Reservations ----------------
