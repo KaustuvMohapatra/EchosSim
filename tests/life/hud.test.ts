@@ -11,7 +11,7 @@ function fakeAgent(overrides: {
       status: "Idle" },
     traits: [],
     needs: (overrides.needs ?? ["Hunger", "Energy", "Social", "Fun", "Comfort",
-      "Hygiene", "Safety"].map((name, kind) => ({ kind, name, value: 20 })))
+      "Hygiene", "Safety"].map((name, kind) => ({ kind, name, value: 40 })))
       .map((n) => ({
         kind: n.kind, name: n.name, value: n.value,
         satisfied: n.value <= 30, critical: n.value >= 80, interrupting: false,
@@ -30,19 +30,22 @@ function fakeAgent(overrides: {
 
 describe("S41: needs views", () => {
   it("maps raw values to fills and levels (no raw numbers in UI model)", () => {
-    const a = fakeAgent({});
-    a.needs[0]!.value = 90; // Hunger critical
+    const a = fakeAgent({ needs: [
+      { kind: 0, name: "Hunger", value: 90 },
+      { kind: 1, name: "Energy", value: 15 },
+    ] });
     const views = needViews(a);
-    expect(views).toHaveLength(7);
-    expect(views[0]).toMatchObject({ key: "Hunger", fill: 0.9, level: "critical" });
-    expect(views[1]!.level).toBe("good");
+    expect(views[0]).toEqual({ key: "Hunger", fill: 0.9, level: "critical" });
+    expect(views[1]).toMatchObject({ key: "Energy", level: "good" });
   });
 });
 
 describe("S41: mood derivation", () => {
   it("survival exhaustion outranks positive valence", () => {
-    const a = fakeAgent({ valence: 0.6 });
-    a.needs[1]!.value = 95;
+    const a = fakeAgent({
+      valence: 0.6,
+      needs: [{ kind: 1, name: "Energy", value: 95 }],
+    });
     expect(moodOf(a)).toBe("Exhausted");
   });
 
