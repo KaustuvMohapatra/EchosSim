@@ -112,19 +112,25 @@ export function buildInteriors(): Map<string, InteriorDef> {
                             roomB: Omit<RoomDef, "lotId" | "x1" | "z1" | "x2" | "z2"> }>,
     entranceDoor: { x: number; z: number },
   ): void => {
-    const { walls, doorPlacements } = ring(lotId, outer, 0.35, [entranceDoor], lotId);
+    const { walls, doorPlacements } =
+      ring(lotId, outer, 0.35,
+        [{ x: entranceDoor.x, z: entranceDoor.z, width: 1.8 }], lotId);
     const rooms: RoomDef[] = [];
     for (const d of dividers) {
       rooms.push({ ...d.roomA, lotId,
         x1: outer.x1, z1: outer.z1, x2: d.x2, z2: outer.z2 });
       rooms.push({ ...d.roomB, lotId,
         x1: d.x1, z1: d.z1, x2: outer.x2, z2: outer.z2 });
-      // Divider wall with a doorway gap in its middle.
+      // Divider: two vertical segments leaving a centred doorway gap.
+      const T = 0.15;
       const midZ = (d.z1 + d.z2) / 2;
-      const segs = ring(lotId,
-        { x1: d.x1, z1: d.z1, x2: d.x1, z2: d.z2 }, 0.3,
-        [{ x: d.x1, z: midZ, width: 1.4 }], `${lotId}-div`);
-      walls.push(...segs.walls);
+      const gap = 0.7;
+      walls.push({ id: `${lotId}-div-${rooms.length}-a`, lotId,
+        x1: d.x1 - T, z1: d.z1, x2: d.x1 + T, z2: midZ - gap });
+      walls.push({ id: `${lotId}-div-${rooms.length}-b`, lotId,
+        x1: d.x1 - T, z1: midZ + gap, x2: d.x1 + T, z2: d.z2 });
+      doorPlacements.push({ id: `${lotId}-div-door-${rooms.length}`, lotId,
+        x: d.x1, z: midZ, horizontal: false, width: gap * 2 });
     }
     rooms.push({
       roomId: `${lotId}_outdoor`, lotId, type: "Outdoor",
