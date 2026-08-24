@@ -13,7 +13,10 @@ export interface Affordance {
   id: string;
   label: string;
   /** Simulation command this maps to today (S39 expands to queued goals). */
-  command: { type: "move"; locationId: string } | { type: "none" };
+  command:
+    | { type: "move"; locationId: string }
+    | { type: "activity"; activity: string }
+    | { type: "none" };
 }
 
 export interface PlacedObject {
@@ -55,12 +58,12 @@ export const PLACED_OBJECTS: readonly PlacedObject[] = [
   chair(1, "cafe", -3.5, 0.5, Math.PI / 2),
   chair(2, "cafe", 2.5, -2.5, -Math.PI / 2),
   chair(3, "cafe", 2.5, 0.5, -Math.PI / 2),
-  // Cafe counter (no sit; service landmark for later staffing).
+  // Cafe counter (service landmark; ordering is an activity).
   {
     objectId: "cafe_counter", kind: "counter", lotId: "cafe",
     dx: 0, dz: 4.2, rotationY: 0, anchorDx: 0, anchorDz: 3.0,
-    affordances: [{ id: "order", label: "Order",
-      command: { type: "move", locationId: "cafe" } }],
+    affordances: [{ id: "order", label: "Order coffee",
+      command: { type: "activity", activity: "order_coffee" } }],
   },
 
   // Library reading chairs + shelves.
@@ -69,29 +72,37 @@ export const PLACED_OBJECTS: readonly PlacedObject[] = [
   {
     objectId: "library_shelf_a", kind: "bookshelf", lotId: "library",
     dx: 5, dz: -3, rotationY: -Math.PI / 2, anchorDx: 3.8, anchorDz: -3,
-    affordances: [read("library")],
+    affordances: [{ id: "read", label: "Read",
+      command: { type: "activity", activity: "read_book" } }],
   },
   {
     objectId: "library_shelf_b", kind: "bookshelf", lotId: "library",
     dx: 5, dz: 1.5, rotationY: -Math.PI / 2, anchorDx: 3.8, anchorDz: 1.5,
-    affordances: [read("library")],
+    affordances: [{ id: "read", label: "Read",
+      command: { type: "activity", activity: "read_book" } }],
   },
 
-  // Park benches facing the pond side.
+  // Park benches facing the pond side + a jogging affordance.
   chair(0, "park", -9, 4, 0),
   chair(1, "park", -4, 6.5, 0),
   chair(2, "park", 1, 4, Math.PI),
+  {
+    objectId: "park_trail", kind: "bench", lotId: "park",
+    dx: 8, dz: -3, rotationY: Math.PI / 2, anchorDx: 8, anchorDz: -1.5,
+    affordances: [{ id: "jog", label: "Jog",
+      command: { type: "activity", activity: "jog" } }],
+  },
 
   // Restaurant pairs.
   chair(0, "restaurant", -4, -2, Math.PI / 2),
   chair(1, "restaurant", 3, -2, -Math.PI / 2),
 
-  // Studio workstation.
+  // Studio workstation (sketching is an activity).
   {
     objectId: "studio_desk_mira", kind: "desk", lotId: "studio",
     dx: -3, dz: -2, rotationY: Math.PI / 2, anchorDx: -3, anchorDz: -0.8,
     affordances: [{ id: "sketch", label: "Sketch",
-      command: { type: "move", locationId: "studio" } }],
+      command: { type: "activity", activity: "sketch" } }],
   },
 ];
 

@@ -3,6 +3,7 @@
  * simulation commands plus presentation-only seat poses. Engine-free.
  */
 import type { LifeModeAdapter } from "../simulation/LifeModeAdapter.js";
+import { performVenueActivity } from "@echosim/simulation";
 import { PLACED_OBJECTS, SeatRegistry, anchorsInWorld } from "./catalog.js";
 import { lotOf } from "../world/layout.js";
 
@@ -43,11 +44,24 @@ export class InteractionController {
     const def = this.objectDef(objectId);
     const aff = def?.affordances.find((a) => a.id === affordanceId);
     if (!def || !aff) return { ok: false, feedback: "Nothing happens." };
+    if (aff.command.type === "activity") {
+      // Activities act where you stand; travel first if needed.
+      const defLot = def.lotId;
+      if (this.adapter.playerLocationId() !== defLot) {
+        const moved = this.adapter.commandMoveTo(defLot);
+        if (!moved) return { ok: false, feedback: this.adapter.lastCommandFeedback };
+        return { ok: true, feedback: `Heading to ${defLot.replace("loc_", "")}…` };
+      }
+      return performVenueActivity(
+        this.adapter.town, this.adapter.playerId,
+        aff.command.activity as never);
+    }
+
     if (aff.command.type !== "move")
       return { ok: false, feedback: `${aff.label}: not available yet.` };
 
     if (SEAT_KINDS.has(def.kind)) {
-      this.standUp(this.adapter.playerId); // legacy default; controller passes explicit agent
+      this.standUp(this.adapter.playerId);
       this.pendingSeatForPlayer = def.objectId;
     }
 
