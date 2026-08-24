@@ -16,7 +16,9 @@ import {
   PerceptionSystem, MemorySystem, MemoryRetriever, EmotionSystem, RelationshipSystem,
   BeliefSystem, SocialSystem, ConversationSystem,
   ObservationReach, ReflectionSystem, HabitSystem, GroupSystem,
+  SkillSystem,
 } from "@echosim/social";
+import { evaluatePromotion } from "@echosim/world";
 import type { SocialActorSnapshot } from "@echosim/social";
 import { PersonalityTrait } from "@echosim/cognition";
 import { wireAutonomousSocial } from "./socialWire.js";
@@ -63,6 +65,7 @@ export class Town {
     () => this.clock.currentTime.totalMinutes);
   readonly habits = new HabitSystem();
   readonly groups = new GroupSystem();
+  readonly skills = new SkillSystem();
 
   /**
    * Research feature switches (Sprint 30). Defaults reproduce normal
@@ -224,6 +227,45 @@ export class Town {
     this.scheduler.scheduleRepeating({ totalMinutes: 60 }, () => {
       this.habits.tickDecay(60);
     });
+
+    // Skill XP from real behaviour (Sprint 48): cooking/work via plan steps,
+    // social XP via accepted conversations.
+    this.events.subscribe<{ agent: string; action: string }>(
+      "sim:plan-step-completed", (e) => {
+        if (e.action === "act_cook_meal")
+          this.skills.award(e.agent, "Cooking", 8);
+        else if (e.action === "act_work") {
+          this.skills.award(e.agent, "Professional", 6);
+          const mind = this.residents.tryMind(e.agent);
+          if (mind?.job) {
+            const days = (mind.plannerMemory.get("career_days") ?? 0) + 1;
+            mind.plannerMemory.set("career_days", days);
+            // Promotion check on shift completion (Sprint 48).
+            const lvl = this.skills.stateOf(e.agent, "Professional").level;
+            const promo = evaluatePromotion(mind.job, lvl, days);
+            if (promo.promoted && promo.toTitle && promo.newIncome !== undefined) {
+              const from = mind.job.title;
+              mind.job.title = promo.toTitle;
+              mind.job.incomePerHour = promo.newIncome;
+              mind.plannerMemory.set("career_days", 0);
+              this.events.publish("sim:promoted", {
+                agent: e.agent, fromTitle: from, toTitle: promo.toTitle,
+                income: promo.newIncome,
+              });
+            }
+          }
+        } else if (e.action === "act_read")
+          this.skills.award(e.agent, "Knowledge", 6);
+        else if (e.action === "act_sketch" || e.action === "act_write")
+          this.skills.award(e.agent, "Creativity", 7);
+        else if (e.action === "act_exercise" || e.action === "act_jog")
+          this.skills.award(e.agent, "Fitness", 7);
+      });
+    this.events.subscribe<{ initiator: string; intent: string }>(
+      "sim:conversation", (c) => {
+        this.skills.award(c.initiator, "Social", 5);
+        this.skills.award(c.listener, "Social", 3);
+      });
 
     wireAutonomousSocial(this);
   }

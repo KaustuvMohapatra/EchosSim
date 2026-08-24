@@ -973,3 +973,58 @@ export class GroupSystem {
     return out;
   }
 }
+
+// ---------------- Skills (Sprint 48) ----------------
+
+export type SkillName =
+  | "Cooking" | "Social" | "Fitness" | "Knowledge"
+  | "Creativity" | "Technology" | "Professional";
+
+/** Level curve: level L requires L*L*10 XP (L in 0..10). */
+export function xpForLevel(level: number): number {
+  return level * level * 10;
+}
+export function levelForXp(xp: number): number {
+  let lvl = 0;
+  while (lvl < 10 && xp >= xpForLevel(lvl + 1)) lvl++;
+  return lvl;
+}
+
+export interface SkillState { xp: number; level: number }
+
+export class SkillSystem {
+  private readonly byAgent = new Map<string, Map<SkillName, SkillState>>();
+
+  award(agent: string, skill: SkillName, amount: number): SkillState {
+    let map = this.byAgent.get(agent);
+    if (!map) { map = new Map(); this.byAgent.set(agent, map); }
+    const cur = map.get(skill) ?? { xp: 0, level: 0 };
+    const before = cur.level;
+    cur.xp = Math.max(0, cur.xp + amount);
+    cur.level = levelForXp(cur.xp);
+    map.set(skill, cur);
+    return { xp: cur.xp, level: cur.level,
+             ...(before !== cur.level ? {} : {}) } as SkillState;
+  }
+
+  levelUpFrom(oldLevel: number, state: SkillState): boolean {
+    return state.level > oldLevel;
+  }
+
+  stateOf(agent: string, skill: SkillName): SkillState {
+    return this.byAgent.get(agent)?.get(skill) ?? { xp: 0, level: 0 };
+  }
+
+  allOf(agent: string): Array<{ skill: SkillName } & SkillState> {
+    const out: Array<{ skill: SkillName } & SkillState> = [];
+    for (const [skill, s] of this.byAgent.get(agent) ?? [])
+      out.push({ skill, ...s });
+    return out.sort((a, b) => a.skill.localeCompare(b.skill));
+  }
+
+  import(agent: string, skill: SkillName, state: SkillState): void {
+    let map = this.byAgent.get(agent);
+    if (!map) { map = new Map(); this.byAgent.set(agent, map); }
+    map.set(skill, { ...state });
+  }
+}

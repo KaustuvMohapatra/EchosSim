@@ -301,3 +301,67 @@ export function isActiveOn(def: TownEventDefinition, timeMinutes: number): boole
 export interface StoryletConditionCtx {
   subject: string; other: string; services: Record<string, unknown>;
 }
+
+// ---------------- Careers (Sprint 48) ----------------
+
+export interface CareerTier { title: string; requiredLevel: number; incomePerHour: number }
+
+const TIER_TABLE: Record<string, CareerTier[]> = {
+  bakery: [
+    { title: "Baker", requiredLevel: 0, incomePerHour: 12 },
+    { title: "Head Baker", requiredLevel: 3, incomePerHour: 16 },
+    { title: "Master Baker", requiredLevel: 6, incomePerHour: 21 },
+  ],
+  cafe: [
+    { title: "Barista", requiredLevel: 0, incomePerHour: 10 },
+    { title: "Senior Barista", requiredLevel: 3, incomePerHour: 13 },
+    { title: "Cafe Supervisor", requiredLevel: 6, incomePerHour: 17 },
+  ],
+  studio: [
+    { title: "Junior Architect", requiredLevel: 0, incomePerHour: 16 },
+    { title: "Designer", requiredLevel: 3, incomePerHour: 22 },
+    { title: "Senior Designer", requiredLevel: 5, incomePerHour: 29 },
+    { title: "Project Architect", requiredLevel: 8, incomePerHour: 38 },
+  ],
+  store: [
+    { title: "Store Clerk", requiredLevel: 0, incomePerHour: 9 },
+    { title: "Shift Lead", requiredLevel: 3, incomePerHour: 12 },
+    { title: "Store Manager", requiredLevel: 6, incomePerHour: 16 },
+  ],
+};
+
+export function careerTiersFor(workplaceId: string): CareerTier[] {
+  for (const [key, tiers] of Object.entries(TIER_TABLE))
+    if (workplaceId.includes(key)) return tiers;
+  return [
+    { title: "Worker", requiredLevel: 0, incomePerHour: 9 },
+    { title: "Senior Worker", requiredLevel: 4, incomePerHour: 13 },
+  ];
+}
+
+export interface PromotionResult {
+  promoted: boolean;
+  fromTitle?: string;
+  toTitle?: string;
+  newIncome?: number;
+}
+
+/**
+ * Evaluates a working resident for promotion. Promotion requires the next
+ * tier's Professional skill level plus five recorded shift-days at (or above)
+ * the current tier.
+ */
+export function evaluatePromotion(
+  job: { title: string; workplace: string; incomePerHour: number },
+  professionalLevel: number,
+  daysWorkedAtTier: number,
+): PromotionResult {
+  const tiers = careerTiersFor(job.workplace);
+  const idx = Math.max(0, tiers.findIndex((t) => t.title === job.title));
+  if (idx < 0 || idx === tiers.length - 1) return { promoted: false };
+  const next = tiers[idx + 1]!;
+  if (professionalLevel >= next.requiredLevel && daysWorkedAtTier >= 5)
+    return { promoted: true, fromTitle: job.title, toTitle: next.title,
+             newIncome: next.incomePerHour };
+  return { promoted: false };
+}
