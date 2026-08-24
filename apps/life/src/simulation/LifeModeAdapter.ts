@@ -76,6 +76,40 @@ export class LifeModeAdapter {
 
   // ---------------- player commands ----------------
 
+  /** Registers a brand-new resident through the normal spawn pipeline. */
+  createResident(spec: {
+    id: string; name: string; pronouns?: string;
+    personality: import("@echosim/cognition").PersonalityProfile;
+    lifeGoal?: string;
+    homeLocationId?: string;
+  }): void {
+    this.town.spawnResident({
+      id: spec.id,
+      displayName: spec.name,
+      homeLocationId: spec.homeLocationId ?? "apt_b",
+      personality: spec.personality,
+      initialNeeds: { [1 /* Hunger */]: 45 },
+    });
+    const mind = this.town.residents.mind(spec.id);
+    if (spec.lifeGoal) {
+      // Life goals bias social/exploratory utility via the preference channel.
+      const base = mind.preferences;
+      mind.setPreferences({
+        get(key) {
+          if (key === "goal_social" && spec.lifeGoal === "goal_friends") return 0.6;
+          if (key === "goal_explore" && spec.lifeGoal === "goal_explore") return 0.6;
+          if (key === "goal_work" && spec.lifeGoal === "goal_success") return 0.6;
+          return base.get(key);
+        },
+      });
+    }
+    if (spec.pronouns) {
+      (mind as unknown as { pronouns?: string }).pronouns = spec.pronouns;
+    }
+    this.lastCommandFeedback = `${spec.name} moved into the neighbourhood.`;
+    this.emit();
+  }
+
   /**
    * Player travel command: enters via the simulation's own navigation
    * service, exactly like any semantic move. Feedback string for the HUD.
