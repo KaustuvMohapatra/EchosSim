@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLife } from "./useLife.js";
 import { characterCard } from "./hudModel.js";
+import { mapLots, DISTRICTS } from "../world/map.js";
 import { SocialActionType } from "@echosim/social";
 import type { LifeApp } from "../app/bootstrap.js";
 import type { LifeSnapshot } from "../simulation/LifeModeAdapter.js";
@@ -145,6 +146,7 @@ export function App() {
   const life = useLife();
   const { hostRef, snap, app, selected, menu, closeMenu } = life;
   const [flash, setFlash] = useState<string | null>(null);
+  const [showMap, setShowMap] = useState(false);
   const t = snap?.time;
   const mult = app?.speed ?? 1;
   const feedback = flash ?? app?.adapter.lastCommandFeedback ?? "";
@@ -163,6 +165,48 @@ export function App() {
         style={{ position: "absolute", inset: 0, width: "100%", height: "100%",
                  display: "block", touchAction: "none" }} />
 
+      {/* World map overlay (Sprint 45) */}
+      {showMap && (
+        <div style={styles.mapWrap} data-testid="world-map"
+          onClick={() => setShowMap(false)}>
+          <div style={styles.mapCard} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.menuTitle}>Town Map — click a lot to travel</div>
+            <div style={{ position: "relative", width: 520, height: 380,
+                          background: "#0d1526", border: "1px solid #1e2a45",
+                          borderRadius: 8 }}>
+              {mapLots().map((l) => (
+                <button key={l.locationId}
+                  title={`${l.locationId} — ${l.district?.name ?? "?"}`}
+                  onClick={() => {
+                    app?.player.enqueueMove(l.locationId, l.locationId);
+                    setFlash(`Travelling to ${l.locationId}…`);
+                    setShowMap(false);
+                  }}
+                  style={{
+                    position: "absolute",
+                    left: `${l.x * 100}%`, top: `${l.z * 100}%`,
+                    width: `${Math.max(0.05, l.width) * 100}%`,
+                    height: `${Math.max(0.05, l.depth) * 100}%`,
+                    background: (l.district?.tint ?? "#64748b") + "33",
+                    border: `1px solid ${l.district?.tint ?? "#64748b"}`,
+                    borderRadius: 4, cursor: "pointer", fontSize: 9.5,
+                    color: "#cbd5e1", overflow: "hidden",
+                  }}>
+                  {l.locationId.replace(/^(apt|loc)_/, "")}
+                </button>
+              ))}
+            </div>
+            <div style={{ marginTop: 6, display: "flex", gap: 12 }}>
+              {DISTRICTS.map((d) => (
+                <span key={d.id} style={{ fontSize: 10.5, color: d.tint }}>
+                  ■ {d.name}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Top HUD */}
       <div style={styles.hud}>
         <span style={{ fontWeight: 700, letterSpacing: 0.4, color: "#7dd3fc" }}>
@@ -176,6 +220,7 @@ export function App() {
         </button>
         <span style={{ flex: 1 }} />
         <button style={button(app?.buildMode ?? false)}
+        <button style={button(false)} onClick={() => setShowMap(true)}>?? Map</button>
           onClick={() => app?.setBuildMode(!app.buildMode)}>
           🔨 Build
         </button>
@@ -367,6 +412,15 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 10, padding: 6, backdropFilter: "blur(8px)",
     display: "flex", flexDirection: "column", gap: 2,
   },
+  mapWrap: {
+    position: "absolute", inset: 0, zIndex: 40,
+    background: "rgba(5,8,15,.72)", display: "flex",
+    alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)",
+  },
+  mapCard: {
+    background: "#101828", border: "1px solid rgba(36,54,94,.8)",
+    borderRadius: 12, padding: 14,
+  },
   feedback: {
     position: "absolute", bottom: 150, left: 12, right: 260,
     color: "#fde68a", fontSize: 12, textShadow: "0 1px 2px #000",
@@ -378,3 +432,4 @@ const styles: Record<string, React.CSSProperties> = {
     backdropFilter: "blur(6px)",
   },
 };
+
