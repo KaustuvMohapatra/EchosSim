@@ -24,9 +24,26 @@ npm run sim -- --seed=7001 --days=2 --authored   # full 27-resident cast
 
 npm run dev                                # playable living town (browser)
 npm run dev:debug                          # debug inspector (why this NPC?)
+npm run dev:life                           # EchoSim Life — 3D life-sim client (Babylon)
 
 npm run typecheck && npm test              # everything must be green
 ```
+
+## EchoSim Life (v0.2.0 headline)
+
+`apps/life` is the playable life-simulation client (Babylon.js 9 + React):
+
+- **You are a full resident** — same needs, memory, relationships and
+  planning pipeline as every NPC. The only difference: you choose the commands.
+- Walk the neighbourhood, visit venues, sit down, order coffee, read, sketch,
+  jog, buy groceries — every activity touches money, needs, skills and memory.
+- Build relationships over days; residents remember, gossip, reflect and
+  change their routines. Promotions, friendship milestones and invitations
+  emerge from systems, not scripts.
+- **Build Mode** pauses the simulation for grid-snapped furniture and
+  structural editing with undo/redo; edits persist.
+- **Autonomy modes** let your character act on their own whenever you stop
+  commanding — manual priority simply gates utility AI while you drive.
 
 ## Architecture
 

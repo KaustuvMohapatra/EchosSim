@@ -1,7 +1,7 @@
 {
   "name": "echosim",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Emergent social-simulation sandbox: engine-neutral simulation core, replaceable 2D presentation.",
   "packageManager": "pnpm@9.15.0",
   "scripts": {
