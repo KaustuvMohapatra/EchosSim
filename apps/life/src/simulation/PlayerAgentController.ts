@@ -25,13 +25,51 @@ let NEXT_ID = 1;
 
 export class PlayerAgentController {
   autonomy: AutonomyMode = "assisted";
+  /** Which resident the human currently drives (Sprint 49). */
+  controlled: string;
   private readonly queue: QueuedAction[] = [];
   private unsubscribe: () => void;
 
   constructor(private readonly adapter: LifeModeAdapter) {
+    this.controlled = adapter.playerId;
     // Start gated: nothing queued yet, but full-manual must hold from birth.
     this.applyGate();
     this.unsubscribe = this.adapter.subscribe(() => this.pump());
+  }
+
+  // ---------------- control switching (Sprint 49) ----------------
+
+  /** Household (kind=Household) groups shared by the controlled resident. */
+  householdIds(): string[] {
+    return this.adapter.town.groups
+      .groupsOf(this.controlled)
+      .filter((g) => g.kind === "Household")
+      .map((g) => g.id);
+  }
+
+  householdMembers(): string[] {
+    const ids = new Set<string>();
+    for (const gid of this.householdIds())
+      for (const m of this.adapter.town.groups.membersOf(gid)) ids.add(m);
+    return [...ids].sort();
+  }
+
+  canSwitchTo(agentId: string): boolean {
+    if (!this.adapter.town.residents.tryMind(agentId)) return false;
+    for (const gid of this.householdIds())
+      if (this.adapter.town.groups.isMember(gid, agentId)) return true;
+    return false;
+  }
+
+  /** Switch control within the household; previous member resumes autonomy. */
+  switchTo(agentId: string): boolean {
+    if (!this.canSwitchTo(agentId)) return false;
+    const prev = this.controlled;
+    this.cancelAllFor(prev); // drop stale queued actions silently
+    this.controlled = agentId;
+    this.applyGate();
+    this.emit();
+    return true;
   }
 
   // ---------------- queue surface ----------------
@@ -61,7 +99,7 @@ export class PlayerAgentController {
     if (!item) return;
     if (item.status === "walking" || item.status === "active") {
       // Abandon in-flight work: navigation supersede handles travel; seat poses release.
-      this.adapter.interactionsStandUp();
+      this.adapter.interactionsStandUp(this.controlled);
       item.status = "cancelled";
       this.applyGate();
       this.emit();
@@ -71,10 +109,15 @@ export class PlayerAgentController {
     this.afterMutation();
   }
 
+  cancelAllFor(agentId: string): void {
+    void agentId; // queue is per-controller (per controlled agent)
+    this.cancelAll();
+  }
+
   cancelAll(): void {
     for (const q of this.queue)
       if (q.status !== "done" && q.status !== "failed") q.status = "cancelled";
-    this.adapter.interactionsStandUp();
+    this.adapter.interactionsStandUp(this.controlled);
     this.drainToFinished();
     this.afterMutation();
   }
@@ -117,9 +160,9 @@ export class PlayerAgentController {
   /** LOD gate = manual priority over utility AI (spec §10). */
   private applyGate(): void {
     if (this.busy || this.autonomy === "full-manual")
-      this.adapter.lod.setLevel(this.adapter.playerId, 2 /* Coarse */);
+      this.adapter.lod.setLevel(this.controlled, 2 /* Coarse */);
     else
-      this.adapter.lod.setLevel(this.adapter.playerId, 0 /* Full */);
+      this.adapter.lod.setLevel(this.controlled, 0 /* Full */);
   }
 
   private emit(): void {
@@ -137,7 +180,8 @@ export class PlayerAgentController {
 
     if (head.command.type === "move") {
       const cmd = head.command;
-      const here = this.adapter.playerLocationId();
+      const here = this.adapter.town.agentsById.get(this.controlled)?.hasLocation
+        ? this.adapter.town.agentsById.get(this.controlled)!.currentLocationId : undefined;
       if (here === cmd.locationId) {
         head.status = "done";
         this.applyGate();
@@ -146,7 +190,7 @@ export class PlayerAgentController {
       }
       if (head.status === "pending") {
         head.status = "walking";
-        const ok = this.adapter.commandMoveTo(cmd.locationId);
+        const ok = this.adapter.commandMoveTo(cmd.locationId, this.controlled);
         if (!ok) head.status = "failed";
       }
       return; // walking: wait for arrival on a later beat
@@ -157,7 +201,7 @@ export class PlayerAgentController {
       head.status = "active";
       const cmd = head.command;
       const result = this.adapter.town.social.attempt(
-        this.adapter.playerId, cmd.targetId as never, cmd.action);
+        this.controlled, cmd.targetId as never, cmd.action);
       head.label += result.accepted ? "" : " ✗";
       head.status = result.accepted ? "done" : "failed";
       this.applyGate();

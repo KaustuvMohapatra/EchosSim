@@ -150,7 +150,7 @@ export function createLifeApp(canvas: HTMLCanvasElement,
   });
 
   const camCtl = new CameraController(camera, scene, () => {
-    const p = agents.positionOf(adapter.playerId);
+    const p = agents.positionOf(player.controlled);
     return p ? { x: p.x, z: p.z } : undefined;
   });
 

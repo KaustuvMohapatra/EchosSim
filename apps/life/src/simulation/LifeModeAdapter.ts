@@ -71,6 +71,9 @@ export class LifeModeAdapter {
         homeLocationId: "apt_b",
         personality: PersonalityProfile.balanced(),
       });
+      // Join the household matching the home lot (Sprint 49 switching).
+      if (this.town.groups.definitionOf("fam_birch"))
+        this.town.groups.addMember("fam_birch", this.playerId);
     }
   }
 
@@ -114,7 +117,7 @@ export class LifeModeAdapter {
    * Player travel command: enters via the simulation's own navigation
    * service, exactly like any semantic move. Feedback string for the HUD.
    */
-  commandMoveTo(locationId: string): boolean {
+  commandMoveTo(locationId: string, agentId?: string): boolean {
     const rt = this.town.locations.tryGet(locationId as never);
     if (!rt) {
       this.lastCommandFeedback = `Unknown place: ${locationId}`;
@@ -143,18 +146,22 @@ export class LifeModeAdapter {
   }
 
   /**
-   * Presentation hint: when the interaction controller seats the player, the
-   * character layer parks the avatar here. Purely visual — simulation truth
-   * remains the semantic location.
+   * Presentation hint: seated avatars park at these anchors (visual only —
+   * simulation truth remains the semantic location). Keyed by agent so
+   * household control switching works naturally (Sprint 49).
    */
-  playerSeatedAt?: { x: number; z: number; rotY: number };
+  readonly seatedAt = new Map<string, { x: number; z: number; rotY: number }>();
 
   /** Manual notification hook for presentation-side controllers. */
   touch(): void { this.emit(); }
 
   /** Presentation hook used by the player controller to abandon seat poses. */
-  interactionsStandUp(): void {
-    this.playerSeatedAt = undefined;
+  interactionsStandUp(agentId?: string): void {
+    if (agentId !== undefined) {
+      this.seatedAt.delete(agentId);
+    } else {
+      this.seatedAt.clear();
+    }
     this.lastCommandFeedback = "Action cancelled.";
   }
 

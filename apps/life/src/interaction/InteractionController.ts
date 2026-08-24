@@ -47,7 +47,7 @@ export class InteractionController {
       return { ok: false, feedback: `${aff.label}: not available yet.` };
 
     if (SEAT_KINDS.has(def.kind)) {
-      this.standUp(this.adapter.playerId);
+      this.standUp(this.adapter.playerId); // legacy default; controller passes explicit agent
       this.pendingSeatForPlayer = def.objectId;
     }
 
@@ -66,7 +66,7 @@ export class InteractionController {
     const seatId = this.pendingSeatForPlayer;
     if (!seatId) return;
     const def = this.objectDef(seatId)!;
-    if (this.adapter.playerLocationId() !== def.lotId) return;
+    if (this.adapter.playerLocationId() !== def.lotId) return; // player-only seats for now
 
     const anchor = this.anchors.get(seatId);
     this.pendingSeatForPlayer = null; // resolve exactly once
