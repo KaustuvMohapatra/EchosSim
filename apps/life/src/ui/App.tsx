@@ -220,10 +220,10 @@ export function App() {
         </button>
         <span style={{ flex: 1 }} />
         <button style={button(app?.buildMode ?? false)}
-        <button style={button(false)} onClick={() => setShowMap(true)}>?? Map</button>
           onClick={() => app?.setBuildMode(!app.buildMode)}>
           🔨 Build
         </button>
+        <button style={button(false)} onClick={() => setShowMap(true)}>🗺 Map</button>
         <button style={button(app?.running === false)} onClick={() => app?.togglePause()}>
           {app?.running ? "⏸" : "▶"}
         </button>
