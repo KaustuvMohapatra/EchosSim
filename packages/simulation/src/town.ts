@@ -12,6 +12,7 @@ import {
   LocationRepository, ReservationService, TimedNavigationService,
   WeatherSystem, computeJobPressure,
 } from "@echosim/world";
+import { TownStories } from "./stories.js";
 import {
   PerceptionSystem, MemorySystem, MemoryRetriever, EmotionSystem, RelationshipSystem,
   BeliefSystem, SocialSystem, ConversationSystem,
@@ -19,6 +20,7 @@ import {
   SkillSystem,
 } from "@echosim/social";
 import { evaluatePromotion } from "@echosim/world";
+import { TownStories } from "./stories.js";
 import type { SocialActorSnapshot } from "@echosim/social";
 import { PersonalityTrait } from "@echosim/cognition";
 import { wireAutonomousSocial } from "./socialWire.js";
@@ -66,6 +68,7 @@ export class Town {
   readonly habits = new HabitSystem();
   readonly groups = new GroupSystem();
   readonly skills = new SkillSystem();
+  readonly stories = new TownStories(this);
 
   /**
    * Research feature switches (Sprint 30). Defaults reproduce normal

@@ -15,6 +15,16 @@ import {
 } from "@echosim/social";
 import { PersonalityTrait } from "@echosim/cognition";
 
+function relLabelFor(r: { affinity: number; trust: number; grievance: number; familiarity: number; attraction: number }): string {
+  if (r.grievance >= 0.6 && r.affinity <= -0.2) return "Enemy";
+  if (r.affinity <= -0.35) return "Rival";
+  if (r.familiarity < 0.15) return "Stranger";
+  if (r.attraction >= 0.6) return "Crush";
+  if (r.affinity >= 0.6 && r.trust >= 0.5) return "CloseFriend";
+  if (r.affinity >= 0.3) return "Friend";
+  return "Acquaintance";
+}
+
 /** Event types that reshape relationships (whitelist — noise never links people). */
 const SOCIAL_EVENT_TYPES: ReadonlySet<string> = new Set([
   "greeting", "chat", "compliment", "tease", "joke", "help", "ask_for_help",
@@ -79,6 +89,9 @@ function onObservation(
   const second = o.actors.length >= 2 ? o.actors[1] : undefined;
   const target = second !== undefined && second !== actor ? second : null;
   town.relationships.handleSocialEvent(o.observer, o.eventType, actor, target, o.confidence);
+  // Milestone: first time a pair crosses into Friend tier (Sprint 54).
+  const relAfter = town.relationships.tryGet(o.observer, actor);
+  if (relAfter) town.stories.noteFriendship(o.observer, actor, relLabelFor(relAfter));
 
   // Shared-group participants warm slightly faster (spec 25.5) — direct
   // participants only; witnesses gain nothing extra.

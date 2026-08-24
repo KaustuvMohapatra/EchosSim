@@ -7,3 +7,4 @@ export * from "./lod.js";
 export * from "./activities.js";
 export * from "./realism.js";
 export * from "./phone.js";
+export * from "./stories.js";
