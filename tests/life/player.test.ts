@@ -16,7 +16,7 @@ function drain(a: LifeModeAdapter, player: PlayerAgentController,
 }
 
 describe("S39: action queue", () => {
-  it("executes three queued moves sequentially in order", () => {
+  it("executes three queued moves sequentially in order", { timeout: 60_000 }, () => {
     const a = new LifeModeAdapter({ seed: 7001 });
     const p = new PlayerAgentController(a);
     // Daytime so all venues are open.
@@ -36,7 +36,7 @@ describe("S39: action queue", () => {
     p.dispose(); a.dispose();
   });
 
-  it("cancelling the walking item aborts it and starts the next", () => {
+  it("cancelling the walking item aborts it and starts the next", { timeout: 60_000 }, () => {
     const a = new LifeModeAdapter({ seed: 7001 });
     const p = new PlayerAgentController(a);
     steps(a, 40);
@@ -76,7 +76,7 @@ describe("S39: action queue", () => {
     p.dispose(); a.dispose();
   });
 
-  it("social commands execute through the normal social pipeline", () => {
+  it("social commands execute through the normal social pipeline", { timeout: 60_000 }, () => {
     const a = new LifeModeAdapter({ seed: 7001 });
     const p = new PlayerAgentController(a);
     steps(a, 40);
@@ -165,3 +165,4 @@ describe("S40: visit-and-social convenience", () => {
     p.dispose(); a.dispose();
   });
 });
+

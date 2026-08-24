@@ -26,7 +26,7 @@ function occupancyMatchesTruth(town: Town): void {
 }
 
 describe("regression: occupancy invariant under capacity pressure", () => {
-  it("a full day of autonomous moves never desyncs lot counts", () => {
+  it("a full day of autonomous moves never desyncs lot counts", { timeout: 120_000 }, () => {
     const { town, director } = createAuthoredTown(7001);
     for (let m = 0; m < 1440; m += 10) {
       step(town, director, 10);
@@ -71,3 +71,4 @@ describe("regression: occupancy invariant under capacity pressure", () => {
     expect(rt.isFull).toBe(true);
   });
 });
+

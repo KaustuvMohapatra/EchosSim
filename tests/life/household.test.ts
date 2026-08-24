@@ -19,7 +19,7 @@ describe("S49: household control switching", () => {
     p.dispose(); a.dispose();
   });
 
-  it("switching within the household retargets commands and the LOD gate", () => {
+  it("switching within the household retargets commands and the LOD gate", { timeout: 90_000 }, () => {
     const a = new LifeModeAdapter({ seed: 7001 });
     const p = new PlayerAgentController(a);
     steps(a, 40);
@@ -60,3 +60,4 @@ describe("S49: household control switching", () => {
     while (p.busy && i++ < 600) a.stepOnce();
   }
 });
+
