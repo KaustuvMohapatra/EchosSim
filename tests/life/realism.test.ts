@@ -20,8 +20,9 @@ describe("S51: crowding utility", () => {
     const { town } = createAuthoredTown(7001);
     const miraId = "npc_mira";
     for (let i = 0; i < 60; i++) town.clock.advance({ totalMinutes: 10 }); // 10:00
-    // Fill the cafe to its authored capacity of 8 with ghosts.
-    for (let i = 0; i < 8; i++) {
+    // Fill the cafe to just under its authored capacity of 8 with ghosts —
+    // Mira takes the last seat, making the venue full.
+    for (let i = 0; i < 7; i++) {
       const ghost = `crowd_${i}`;
       town.spawnResident({ id: ghost, displayName: ghost,
         homeLocationId: "apt_a", personality: town.residents.mind("npc_rohan").personality });
