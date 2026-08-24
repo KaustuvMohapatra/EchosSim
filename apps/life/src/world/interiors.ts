@@ -194,11 +194,20 @@ export function wallsToHide(
     const mz = (w.z1 + w.z2) / 2;
     const t = ((mx - cam.x) * dx + (mz - cam.z) * dz) / len2;
     if (t <= 0.05 || t >= 0.95) continue; // not between
-    // Projection distance from the wall midpoint onto the view line.
+    // Point→segment distance so LONG walls qualify via their nearest part.
     const px = cam.x + dx * t;
     const pz = cam.z + dz * t;
-    const dist = Math.hypot(mx - px, mz - pz);
-    if (dist < 2.2) hidden.add(w.id);
+    const dist = segmentDistance(px, pz, w);
+    if (dist < 1.6) hidden.add(w.id);
   }
   return hidden;
+}
+
+function segmentDistance(px: number, pz: number, w: WallSegment): number {
+  const sx = w.x2 - w.x1;
+  const sz = w.z2 - w.z1;
+  const len2 = sx * sx + sz * sz || 1;
+  let u = ((px - w.x1) * sx + (pz - w.z1) * sz) / len2;
+  u = Math.max(0, Math.min(1, u));
+  return Math.hypot(px - (w.x1 + u * sx), pz - (w.z1 + u * sz));
 }
