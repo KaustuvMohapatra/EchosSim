@@ -17,7 +17,8 @@ function step(town: Town, director: PlanningDirector, minutes: number): void {
 
 describe("S51: crowding utility", () => {
   it("occupancy ratio feeds the goal context via the provider", () => {
-    const { town, miraId } = createAuthoredTown(7001);
+    const { town } = createAuthoredTown(7001);
+    const miraId = "npc_mira";
     for (let i = 0; i < 60; i++) town.clock.advance({ totalMinutes: 10 }); // 10:00
     // Fill the cafe to its authored capacity of 8 with ghosts.
     for (let i = 0; i < 8; i++) {

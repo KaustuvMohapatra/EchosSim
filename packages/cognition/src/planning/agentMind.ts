@@ -86,3 +86,4 @@ export function copyPlannerMemoryInto(state: { set(key: string, value: number): 
   }
   for (const key of EPHEMERAL_FACTS) state.set(key, 0);
 }
+

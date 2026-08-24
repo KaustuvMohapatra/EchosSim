@@ -187,8 +187,9 @@ export class CognitionSystem {
       ...(locationKey !== undefined ? { currentLocationKey: locationKey } : {}),
       habitBonus: Math.max(0, Math.min(0.15, habitRaw)),
       crowding: Math.max(0, this.crowdingProvider ? this.crowdingProvider(mind.agent) : 0),
-      intentionBias: Math.Max(-0.1, Math.min(0.1,
+      intentionBias: Math.max(-0.1, Math.min(0.1,
         this.intentionProvider ? this.intentionProvider(mind.agent) : 0)),
     };
   }
 }
+

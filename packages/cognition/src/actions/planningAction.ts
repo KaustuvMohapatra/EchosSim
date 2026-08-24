@@ -68,3 +68,4 @@ export function costFor(action: PlanningAction, agent: AgentId): number {
   if (!Number.isFinite(cost)) throw new Error(`Action '${action.id}' produced non-finite cost.`);
   return cost < 0 ? 0 : cost;
 }
+
