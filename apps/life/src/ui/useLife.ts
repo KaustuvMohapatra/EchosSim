@@ -33,6 +33,8 @@ export function useLife(): LifeHandle & {
       },
       onObjectMenu: (objectId, x, y) =>
         setMenu(x >= 0 ? { objectId, x, y } : null),
+      onBuiltMenu: (objectId, x, y) =>
+        setMenu({ objectId: `built:${objectId}`, x, y }),
       onDismissMenu: () => setMenu(null),
     });
     setApp(life);
