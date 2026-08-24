@@ -5,3 +5,4 @@ export * from "./dialogue.js";
 export * from "./intentions.js";
 export * from "./lod.js";
 export * from "./activities.js";
+export * from "./realism.js";

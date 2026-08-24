@@ -36,6 +36,9 @@ export function createDefaultGoals(): GoalDefinition[] {
         customTerm("Emotion", (ctx) => ctx.emotionValence * 0.10),
         // Long-term intentions nudge, never dictate (Sprint 24).
         customTerm("Intentions", (ctx) => ctx.intentionBias ?? 0),
+        // Crowded rooms push sociable residents in, others out (Sprint 51).
+        customTerm("Crowding", (ctx) =>
+          -(ctx.crowding ?? 0) * 0.12 * (1.2 - ctx.personality.get(2 as never)))
       ],
       { reliefNeeds: [NeedKind.Social], desiredFacts: [trueFact("socialized")] },
     ),

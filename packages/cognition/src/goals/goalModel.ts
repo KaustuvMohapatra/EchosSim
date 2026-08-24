@@ -34,6 +34,8 @@ export interface GoalContext {
   habitBonus?: number;
   /** Bounded long-term-intention bias (−0.1..+0.1), host-derived. */
   intentionBias?: number;
+  /** Occupancy ratio (0..1+) of the resident's current venue, if any. */
+  crowding?: number;
 }
 
 export interface ScoreLine { label: string; value: number }

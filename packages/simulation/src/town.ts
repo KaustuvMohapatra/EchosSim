@@ -202,6 +202,14 @@ export class Town {
     this.cognition.setHabitProvider(
       (agent, locationKey) =>
         this.features.habits ? this.habits.strengthAt(agent, locationKey) : 0);
+    this.cognition.setCrowdingProvider((agent) => {
+      const s = this.agentsById.get(agent);
+      if (!s?.hasLocation || !s.currentLocationId) return 0;
+      const rt = this.locations.get(s.currentLocationId as never);
+      const cap = rt.definition.capacity;
+      if (!cap || cap === Number.MAX_SAFE_INTEGER) return 0;
+      return Math.max(0, rt.occupiedCount / cap);
+    });
     this.cognition.setIntentionProvider((agent) =>
       socialBiasOf(deriveIntentions(this, agent)));
     this.cognition.setSchedulePressureProvider((agent, t) => {

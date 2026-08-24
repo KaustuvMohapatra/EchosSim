@@ -40,6 +40,7 @@ export class CognitionSystem {
   private locationKeyProvider?: (agent: string) => string | undefined;
   private habitProvider?: (agent: string, locationKey?: string) => number;
   private intentionProvider?: (agent: string) => number;
+  private crowdingProvider?: (agent: string) => number;
   /** agent -> goal -> untilMinutes */
   private readonly suppressed = new Map<string, Map<string, number>>();
 
@@ -65,6 +66,9 @@ export class CognitionSystem {
   }
   setIntentionProvider(provider: (agent: string) => number): void {
     this.intentionProvider = provider;
+  }
+  setCrowdingProvider(provider: (agent: string) => number): void {
+    this.crowdingProvider = provider;
   }
   findGoal(id: string): GoalDefinition | undefined {
     return this.goals.find((g) => g.id === id);
@@ -182,7 +186,8 @@ export class CognitionSystem {
       preferences: mind.preferences,
       ...(locationKey !== undefined ? { currentLocationKey: locationKey } : {}),
       habitBonus: Math.max(0, Math.min(0.15, habitRaw)),
-      intentionBias: Math.max(-0.1, Math.min(0.1,
+      crowding: Math.max(0, this.crowdingProvider ? this.crowdingProvider(mind.agent) : 0),
+      intentionBias: Math.Max(-0.1, Math.min(0.1,
         this.intentionProvider ? this.intentionProvider(mind.agent) : 0)),
     };
   }
