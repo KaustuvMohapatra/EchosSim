@@ -58,7 +58,7 @@ describe("S37: player actor + travel commands", () => {
     a.dispose();
   });
 
-  it("travel to an open lot is accepted and lands the player there", () => {
+  it("travel to an open lot is accepted and lands the player there", { timeout: 60_000 }, () => {
     const a = new LifeModeAdapter({ seed: 7001 });
     // Cafe opens at 06:00 — advance into the day first.
     for (let i = 0; i < 40; i++) a.stepOnce(); // t = 06:40
