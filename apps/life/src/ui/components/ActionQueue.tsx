@@ -1,0 +1,63 @@
+import { useState } from "react";
+import type { LifeApp } from "../../app/bootstrap.js";
+import type { AutonomyMode } from "../../simulation/LifeModeAdapter.js";
+import { autonomyView } from "../models/residentView.js";
+
+export function ActionQueue({ app }: { app: LifeApp | null }) {
+  const [expanded, setExpanded] = useState(false);
+  if (!app) return null;
+  const items = app.player.items();
+  const current = items.find((item) =>
+    item.status === "pending" || item.status === "walking" || item.status === "active");
+  const autonomy = autonomyView(app.player.autonomy);
+  const modes: AutonomyMode[] = ["full-manual", "assisted", "autonomous"];
+
+  return (
+    <section className={`action-queue${expanded ? " is-expanded" : ""}`}
+      data-testid="action-queue">
+      <div className="action-queue__head">
+        <span>
+          <small>Current action</small>
+          <strong>{current?.label ?? "No queued action"}</strong>
+        </span>
+        <button type="button" className="icon-button" aria-expanded={expanded}
+          aria-label={expanded ? "Collapse action queue" : "Expand action queue"}
+          onClick={() => setExpanded((value) => !value)}>
+          {expanded ? "−" : "+"}
+        </button>
+      </div>
+      <div className="autonomy-switch" aria-label="Autonomy mode">
+        {modes.map((mode) => {
+          const view = autonomyView(mode);
+          return (
+            <button key={mode} type="button" className={mode === autonomy.mode ? "is-active" : ""}
+              onClick={() => app.player.setAutonomy(mode)} title={view.description}>
+              {view.label}
+            </button>
+          );
+        })}
+      </div>
+      <p className="action-queue__hint">{autonomy.description}</p>
+      {expanded && (
+        <div className="action-queue__items">
+          {items.length === 0 ? (
+            <p className="empty-state">Nothing queued right now.</p>
+          ) : items.map((item) => (
+            <div className={`queue-item queue-item--${item.status}`} key={item.id}>
+              <span><i aria-hidden="true" />{item.label}</span>
+              {(item.status === "pending" || item.status === "walking" || item.status === "active") && (
+                <button type="button" onClick={() => app.player.cancel(item.id)}
+                  aria-label={`Cancel ${item.label}`}>Cancel</button>
+              )}
+            </div>
+          ))}
+          {items.length > 0 && (
+            <button type="button" className="text-button" onClick={() => app.player.cancelAll()}>
+              Clear queue
+            </button>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
