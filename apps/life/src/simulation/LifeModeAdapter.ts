@@ -1,12 +1,9 @@
 /**
- * LIFE-MODE ADAPTER (Sprint 36)
+ * LIFE-MODE ADAPTER (Sprint 36 + UI presentation phase)
  *
- * The ONLY bridge between EchoSim core and the 3D presentation. Engine-free:
- * imports @echosim/* exclusively, so Babylon never reaches past this file and
- * the adapter itself stays testable in Node.
- *
- * Reads flow through SimulationInspector snapshots; mutations go through
- * explicit command methods that enter simulation systems directly.
+ * The only bridge between EchoSim core and the 3D/presentation layer. It stays
+ * engine-free: simulation state is read through inspector/read models and all
+ * mutations are explicit commands into simulation systems.
  */
 import { createAuthoredTown } from "@echosim/content";
 import { PersonalityProfile } from "@echosim/cognition";
@@ -16,11 +13,25 @@ import type {
 } from "@echosim/inspector";
 import { PlanningDirector, Town, LodController } from "@echosim/simulation";
 
+export interface LifeLocationSummary {
+  id: string;
+  name: string;
+  isOpen: boolean;
+}
+
+export interface LifeTownStorySummary {
+  id: number;
+  day: number;
+  text: string;
+  participants: readonly string[];
+}
+
 export interface LifeSnapshot {
   time: TimeInfo;
   stats: TownStats;
   agents: AgentSummary[];
   events: SimEventEntry[];
+  locations: LifeLocationSummary[];
 }
 
 export type AutonomyMode = "full-manual" | "assisted" | "autonomous";
@@ -58,12 +69,9 @@ export class LifeModeAdapter {
     this.inspector = new SimulationInspector(this.town, this.director);
     this.beatMs = options.beatMs ?? 400;
     this.stepMinutes = options.stepMinutes ?? 10;
-    // Player manual-priority + future LOD management route through here.
     this.lod = new LodController();
     this.director.attachLod(this.lod);
 
-    // Player enters through the normal spawn pipeline — same downstream
-    // systems as every NPC (needs, memory, relationships, planning).
     if (!this.town.residents.tryMind(this.playerId)) {
       this.town.spawnResident({
         id: this.playerId,
@@ -71,7 +79,6 @@ export class LifeModeAdapter {
         homeLocationId: "apt_b",
         personality: PersonalityProfile.balanced(),
       });
-      // Join the household matching the home lot (Sprint 49 switching).
       if (this.town.groups.definitionOf("fam_birch"))
         this.town.groups.addMember("fam_birch", this.playerId);
     }
@@ -79,7 +86,6 @@ export class LifeModeAdapter {
 
   // ---------------- player commands ----------------
 
-  /** Registers a brand-new resident through the normal spawn pipeline. */
   createResident(spec: {
     id: string; name: string; pronouns?: string;
     personality: import("@echosim/cognition").PersonalityProfile;
@@ -95,7 +101,6 @@ export class LifeModeAdapter {
     });
     const mind = this.town.residents.mind(spec.id);
     if (spec.lifeGoal) {
-      // Life goals bias social/exploratory utility via the preference channel.
       const base = mind.preferences;
       mind.setPreferences({
         get(key) {
@@ -106,62 +111,65 @@ export class LifeModeAdapter {
         },
       });
     }
-    if (spec.pronouns) {
-      (mind as unknown as { pronouns?: string }).pronouns = spec.pronouns;
-    }
+    if (spec.pronouns) (mind as unknown as { pronouns?: string }).pronouns = spec.pronouns;
     this.lastCommandFeedback = `${spec.name} moved into the neighbourhood.`;
     this.emit();
   }
 
   /**
-   * Player travel command: enters via the simulation's own navigation
-   * service, exactly like any semantic move. Feedback string for the HUD.
+   * Semantic travel command for any controllable resident. The old adapter
+   * accepted agentId but ignored it, causing switched household members to
+   * queue travel for the original player resident instead.
    */
-  commandMoveTo(locationId: string, agentId?: string): boolean {
+  commandMoveTo(locationId: string, agentId = this.playerId): boolean {
     const rt = this.town.locations.tryGet(locationId as never);
     if (!rt) {
       this.lastCommandFeedback = `Unknown place: ${locationId}`;
       this.emit();
       return false;
     }
+    if (!this.town.residents.tryMind(agentId)) {
+      this.lastCommandFeedback = "That resident is no longer available.";
+      this.emit();
+      return false;
+    }
     if (!rt.isOpen) {
-      this.lastCommandFeedback =
-        `${rt.definition.displayName} is closed.`;
+      this.lastCommandFeedback = `${rt.definition.displayName} is closed.`;
       this.emit();
       return false;
     }
     const accepted = this.town.navigation.beginMove(
-      this.playerId as never, locationId as never, () => {});
-    this.lastCommandFeedback = accepted
-      ? `Walking to ${rt.definition.displayName}…`
-      : "Already travelling.";
+      agentId as never, locationId as never, () => {});
+    this.lastCommandFeedback = accepted.accepted === false
+      ? "Already travelling."
+      : `Walking to ${rt.definition.displayName}…`;
     this.emit();
     return accepted.accepted ?? true;
   }
 
-  /** Current semantic location of the player (for camera + HUD). */
-  playerLocationId(): string | undefined {
-    const s = this.town.agentsById.get(this.playerId);
-    return s?.hasLocation ? s.currentLocationId : undefined;
+  /** Current semantic location of a resident. Defaults to the authored player. */
+  playerLocationId(agentId = this.playerId): string | undefined {
+    const state = this.town.agentsById.get(agentId);
+    return state?.hasLocation ? state.currentLocationId : undefined;
   }
 
-  /**
-   * Presentation hint: seated avatars park at these anchors (visual only —
-   * simulation truth remains the semantic location). Keyed by agent so
-   * household control switching works naturally (Sprint 49).
-   */
+  /** Presentation-only seated transforms, keyed by resident. */
   readonly seatedAt = new Map<string, { x: number; z: number; rotY: number }>();
 
-  /** Manual notification hook for presentation-side controllers. */
+  /** Back-compat bridge for the existing player-only interaction controller. */
+  get playerSeatedAt(): { x: number; z: number; rotY: number } | undefined {
+    return this.seatedAt.get(this.playerId);
+  }
+  set playerSeatedAt(value: { x: number; z: number; rotY: number } | undefined) {
+    if (value) this.seatedAt.set(this.playerId, value);
+    else this.seatedAt.delete(this.playerId);
+  }
+
   touch(): void { this.emit(); }
 
-  /** Presentation hook used by the player controller to abandon seat poses. */
   interactionsStandUp(agentId?: string): void {
-    if (agentId !== undefined) {
-      this.seatedAt.delete(agentId);
-    } else {
-      this.seatedAt.clear();
-    }
+    if (agentId !== undefined) this.seatedAt.delete(agentId);
+    else this.seatedAt.clear();
     this.lastCommandFeedback = "Action cancelled.";
   }
 
@@ -194,7 +202,6 @@ export class LifeModeAdapter {
     this.listeners.clear();
   }
 
-  /** One deterministic simulation beat. */
   private beat(): void {
     const mult = this.speed;
     if (mult === 0) return;
@@ -207,7 +214,6 @@ export class LifeModeAdapter {
     this.emit();
   }
 
-  /** Manual single-step for paused inspection. */
   stepOnce(): void {
     this.town.cognition.advanceNeeds({ totalMinutes: this.stepMinutes });
     this.town.clock.advance({ totalMinutes: this.stepMinutes });
@@ -223,7 +229,25 @@ export class LifeModeAdapter {
       stats: this.inspector.getTownStats(),
       agents: this.inspector.getAgents(),
       events: this.inspector.getEvents({ limit: eventLimit }),
+      locations: this.town.locations.orderedIds.map((id) => {
+        const runtime = this.town.locations.get(id);
+        return {
+          id: String(id),
+          name: runtime.definition.displayName,
+          isOpen: runtime.isOpen,
+        };
+      }),
     };
+  }
+
+  /** Knowledge-filtered stories; presentation cannot accidentally use all(). */
+  townStoriesFor(viewerId = this.playerId): LifeTownStorySummary[] {
+    return this.town.stories.visibleTo(viewerId).map((story) => ({
+      id: story.id,
+      day: story.day,
+      text: story.text,
+      participants: [...story.participants],
+    }));
   }
 
   subscribe(listener: () => void): () => void {
@@ -231,6 +255,6 @@ export class LifeModeAdapter {
     return () => { this.listeners.delete(listener); };
   }
   private emit(): void {
-    for (const l of [...this.listeners]) l();
+    for (const listener of [...this.listeners]) listener();
   }
 }

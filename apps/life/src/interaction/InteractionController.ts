@@ -1,6 +1,7 @@
 /**
- * InteractionController (Sprint 38): turns object affordances into validated
- * simulation commands plus presentation-only seat poses. Engine-free.
+ * InteractionController: validates object affordances against simulation state.
+ * It accepts a controlled-resident provider so household switching does not
+ * silently route interactions back to the original player resident.
  */
 import type { LifeModeAdapter } from "../simulation/LifeModeAdapter.js";
 import { performVenueActivity } from "@echosim/simulation";
@@ -21,73 +22,71 @@ export class InteractionController {
     return lot ? { x: lot.x, z: lot.z } : undefined;
   });
 
-  private pendingSeatForPlayer: string | null = null;
+  private pendingSeat: { agentId: string; objectId: string } | null = null;
   private readonly unsubscribe: () => void;
 
-  constructor(private readonly adapter: LifeModeAdapter) {
+  constructor(
+    private readonly adapter: LifeModeAdapter,
+    private readonly controlledId: () => string = () => adapter.playerId,
+  ) {
     this.unsubscribe = this.adapter.subscribe(() => this.onTick());
   }
 
   affordancesOf(objectId: string) {
-    return PLACED_OBJECTS.find((o) => o.objectId === objectId)?.affordances ?? [];
+    return PLACED_OBJECTS.find((object) => object.objectId === objectId)?.affordances ?? [];
   }
 
   objectDef(objectId: string) {
-    return PLACED_OBJECTS.find((o) => o.objectId === objectId);
+    return PLACED_OBJECTS.find((object) => object.objectId === objectId);
   }
 
-  /**
-   * Player uses an object: routes its command through the simulation and,
-   * for seating, claims the visual seat once arrival is observed.
-   */
   use(objectId: string, affordanceId: string): UseResult {
     const def = this.objectDef(objectId);
-    const aff = def?.affordances.find((a) => a.id === affordanceId);
-    if (!def || !aff) return { ok: false, feedback: "Nothing happens." };
-    if (aff.command.type === "activity") {
-      // Activities act where you stand; travel first if needed.
-      const defLot = def.lotId;
-      if (this.adapter.playerLocationId() !== defLot) {
-        const moved = this.adapter.commandMoveTo(defLot);
+    const affordance = def?.affordances.find((item) => item.id === affordanceId);
+    if (!def || !affordance) return { ok: false, feedback: "Nothing happens." };
+    const actor = this.controlledId();
+
+    if (affordance.command.type === "activity") {
+      if (this.adapter.playerLocationId(actor) !== def.lotId) {
+        const moved = this.adapter.commandMoveTo(def.lotId, actor);
         if (!moved) return { ok: false, feedback: this.adapter.lastCommandFeedback };
-        return { ok: true, feedback: `Heading to ${defLot.replace("loc_", "")}…` };
+        return { ok: true, feedback: `Heading to ${def.lotId.replace("loc_", "")}…` };
       }
       return performVenueActivity(
-        this.adapter.town, this.adapter.playerId,
-        aff.command.activity as never);
+        this.adapter.town, actor, affordance.command.activity as never);
     }
 
-    if (aff.command.type !== "move")
-      return { ok: false, feedback: `${aff.label}: not available yet.` };
+    if (affordance.command.type !== "move")
+      return { ok: false, feedback: `${affordance.label}: not available yet.` };
 
     if (SEAT_KINDS.has(def.kind)) {
-      this.standUp(this.adapter.playerId);
-      this.pendingSeatForPlayer = def.objectId;
+      this.standUp(actor);
+      this.pendingSeat = { agentId: actor, objectId: def.objectId };
     }
 
-    const ok = this.adapter.commandMoveTo(aff.command.locationId);
-    if (!ok && this.pendingSeatForPlayer === def.objectId)
-      this.pendingSeatForPlayer = null;
+    const ok = this.adapter.commandMoveTo(affordance.command.locationId, actor);
+    if (!ok && this.pendingSeat?.objectId === def.objectId) this.pendingSeat = null;
     return { ok, feedback: this.adapter.lastCommandFeedback };
   }
 
   standUp(agentId: string): void {
     this.seats.release(agentId);
-    if (agentId === this.adapter.playerId) this.adapter.playerSeatedAt = undefined;
+    this.adapter.seatedAt.delete(agentId);
   }
 
   private onTick(): void {
-    const seatId = this.pendingSeatForPlayer;
-    if (!seatId) return;
-    const def = this.objectDef(seatId)!;
-    if (this.adapter.playerLocationId() !== def.lotId) return; // player-only seats for now
+    const pending = this.pendingSeat;
+    if (!pending) return;
+    const def = this.objectDef(pending.objectId);
+    if (!def) { this.pendingSeat = null; return; }
+    if (this.adapter.playerLocationId(pending.agentId) !== def.lotId) return;
 
-    const anchor = this.anchors.get(seatId);
-    this.pendingSeatForPlayer = null; // resolve exactly once
+    const anchor = this.anchors.get(pending.objectId);
+    this.pendingSeat = null;
     if (!anchor) return;
 
-    if (this.seats.claim(seatId, this.adapter.playerId)) {
-      this.adapter.playerSeatedAt = { x: anchor.x, z: anchor.z, rotY: anchor.rotationY };
+    if (this.seats.claim(pending.objectId, pending.agentId)) {
+      this.adapter.seatedAt.set(pending.agentId, { x: anchor.x, z: anchor.z, rotY: anchor.rotationY });
       this.adapter.lastCommandFeedback = "Seated.";
     } else {
       this.adapter.lastCommandFeedback = "Seat taken.";

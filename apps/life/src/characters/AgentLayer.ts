@@ -16,9 +16,12 @@ interface AgentVisual {
 const PALETTE = [0x7dd3fc, 0x34d399, 0xf472b6, 0xa78bfa, 0xfb923c, 0x4ade80, 0xfde68a];
 export const PLAYER_COLOR = 0xfbbf24;
 
-function hash(s: string): number {
+function hash(value: string): number {
   let h = 2166136261;
-  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  for (let i = 0; i < value.length; i++) {
+    h ^= value.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
   return h >>> 0;
 }
 function colorOf(agentId: string): number {
@@ -32,13 +35,16 @@ function makeLabel(scene: Scene, text: string): Mesh {
   ctx.font = "bold 34px 'Segoe UI', system-ui, sans-serif";
   ctx.fillStyle = "#e6edf6";
   ctx.textAlign = "center";
-  ctx.shadowColor = "#000"; ctx.shadowBlur = 5;
+  ctx.shadowColor = "#000";
+  ctx.shadowBlur = 5;
   ctx.fillText(text, 128, 34);
   dt.update();
   const mat = new StandardMaterial(`al-mat-${text}`, scene);
-  mat.diffuseTexture = dt; mat.opacityTexture = dt;
+  mat.diffuseTexture = dt;
+  mat.opacityTexture = dt;
   mat.emissiveColor = new Color3(1, 1, 1);
-  mat.disableLighting = true; mat.backFaceCulling = false;
+  mat.disableLighting = true;
+  mat.backFaceCulling = false;
   const plane = MeshBuilder.CreatePlane(`al-${text}`, { width: 2.4, height: 0.6 }, scene);
   plane.billboardMode = 7;
   plane.material = mat;
@@ -51,46 +57,42 @@ export class AgentLayer {
 
   constructor(private readonly scene: Scene, private readonly adapter: LifeModeAdapter) {}
 
-  /** Sync visual set to snapshot; interpolate toward semantic positions. */
+  /** Sync semantic snapshots only when the adapter emits, never at render FPS. */
   update(): void {
-    const seen = new Set<string>();
-    for (const summary of this.adapter.snapshot().agents) seen.add(summary.id);
-    void seen;
+    const summaries = this.adapter.inspector.getAgents();
+    const seen = new Set(summaries.map((summary) => summary.id));
 
-    for (const summary of this.adapter.inspector.getAgents()) {
-      let vis = this.visuals.get(summary.id);
-      if (!vis) {
-        vis = this.create(summary.id, summary.name);
-        this.visuals.set(summary.id, vis);
+    for (const summary of summaries) {
+      let visual = this.visuals.get(summary.id);
+      if (!visual) {
+        visual = this.create(summary.id, summary.name, summary.locationId);
+        this.visuals.set(summary.id, visual);
       }
       const lot = summary.locationId ? lotOf(summary.locationId) : undefined;
       if (lot) {
-        const off = agentOffset(summary.id);
-        vis.targetX = lot.x + off.dx;
-        vis.targetZ = lot.z + off.dz + lot.depth / 4;
+        const offset = agentOffset(summary.id);
+        visual.targetX = lot.x + offset.dx;
+        visual.targetZ = lot.z + offset.dz + lot.depth / 4;
       }
     }
-    // Remove departed agents (should not happen in current content, but safe).
-    for (const [id, vis] of [...this.visuals]) {
-      if (!this.adapter.town.residents.tryMind(id)) {
-        vis.root.dispose(); vis.label.dispose();
-        this.visuals.delete(id);
-      }
+
+    for (const [id, visual] of [...this.visuals]) {
+      if (seen.has(id)) continue;
+      visual.root.dispose();
+      visual.label.dispose();
+      this.visuals.delete(id);
     }
   }
 
-  private create(agentId: string, name: string): AgentVisual {
-    const homeMind = this.adapter.town.residents.mind(agentId as never);
-    const startLot = (homeMind.homeLocationId && lotOf(homeMind.homeLocationId)) || lotOf("park")!;
-    const off = agentOffset(agentId);
-
+  private create(agentId: string, name: string, locationId?: string): AgentVisual {
+    const startLot = (locationId && lotOf(locationId)) || lotOf("park")!;
+    const offset = agentOffset(agentId);
     const root = MeshBuilder.CreateCapsule(`agent-${agentId}`, {
       radius: 0.38, height: 1.75, tessellation: 10,
     }, this.scene);
-    root.position.set(startLot.x + off.dx, 0.875, startLot.z + off.dz);
+    root.position.set(startLot.x + offset.dx, 0.875, startLot.z + offset.dz);
     const mat = new StandardMaterial(`amat-${agentId}`, this.scene);
-    mat.diffuseColor = Color3.FromHexString(
-      `#${colorOf(agentId).toString(16).padStart(6, "0")}`);
+    mat.diffuseColor = Color3.FromHexString(`#${colorOf(agentId).toString(16).padStart(6, "0")}`);
     mat.specularColor = new Color3(0.08, 0.08, 0.08);
     root.material = mat;
     root.isPickable = true;
@@ -99,23 +101,19 @@ export class AgentLayer {
     const label = makeLabel(this.scene, name);
     label.parent = root;
     label.position.y = 2.35;
-
     return { root, label, targetX: root.position.x, targetZ: root.position.z };
   }
 
-  /** Frame update: lerp positions (presentation-only interpolation). */
   renderFrame(): void {
-    for (const [id, vis] of this.visuals) {
-      // Seated override (visual only; sim truth is the semantic location).
-      const seated = id === this.adapter.playerId
-        ? this.adapter.playerSeatedAt : undefined;
+    for (const [id, visual] of this.visuals) {
+      const seated = this.adapter.seatedAt.get(id);
       if (seated) {
-        vis.root.position.set(seated.x, 0.55, seated.z);
-        vis.root.rotation.y = seated.rotY;
+        visual.root.position.set(seated.x, 0.55, seated.z);
+        visual.root.rotation.y = seated.rotY;
         continue;
       }
-      vis.root.position.x += (vis.targetX - vis.root.position.x) * 0.06;
-      vis.root.position.z += (vis.targetZ - vis.root.position.z) * 0.06;
+      visual.root.position.x += (visual.targetX - visual.root.position.x) * 0.06;
+      visual.root.position.z += (visual.targetZ - visual.root.position.z) * 0.06;
     }
   }
 
@@ -124,8 +122,9 @@ export class AgentLayer {
   }
 
   dispose(): void {
-    for (const vis of this.visuals.values()) {
-      vis.root.dispose(); vis.label.dispose();
+    for (const visual of this.visuals.values()) {
+      visual.root.dispose();
+      visual.label.dispose();
     }
     this.visuals.clear();
   }

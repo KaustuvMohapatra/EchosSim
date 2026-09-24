@@ -20,7 +20,6 @@ import {
   SkillSystem,
 } from "@echosim/social";
 import { evaluatePromotion } from "@echosim/world";
-import { TownStories } from "./stories.js";
 import type { SocialActorSnapshot } from "@echosim/social";
 import { PersonalityTrait } from "@echosim/cognition";
 import { wireAutonomousSocial } from "./socialWire.js";
@@ -272,7 +271,7 @@ export class Town {
         else if (e.action === "act_exercise" || e.action === "act_jog")
           this.skills.award(e.agent, "Fitness", 7);
       });
-    this.events.subscribe<{ initiator: string; intent: string }>(
+    this.events.subscribe<{ initiator: string; listener: string; intent: string }>(
       "sim:conversation", (c) => {
         this.skills.award(c.initiator, "Social", 5);
         this.skills.award(c.listener, "Social", 3);

@@ -1,11 +1,5 @@
 /**
- * PlayerAgentController (Sprint 39): sequential action queue + autonomy.
- *
- * Manual priority reuses the LOD gate: while the queue drives the player,
- * autonomous planning is gated to Coarse (critical needs still bypass —
- * "emergency safety" per spec §8). When the queue drains:
- *   assisted/autonomous → Full (cognition resumes)
- *   full-manual         → stays Coarse
+ * PlayerAgentController: sequential action queue + autonomy + household control.
  */
 import type { LifeModeAdapter, AutonomyMode } from "./LifeModeAdapter.js";
 import { SocialActionType } from "@echosim/social";
@@ -25,32 +19,29 @@ let NEXT_ID = 1;
 
 export class PlayerAgentController {
   autonomy: AutonomyMode = "assisted";
-  /** Which resident the human currently drives (Sprint 49). */
   controlled: string;
   private readonly queue: QueuedAction[] = [];
   private unsubscribe: () => void;
 
   constructor(private readonly adapter: LifeModeAdapter) {
     this.controlled = adapter.playerId;
-    // Start gated: nothing queued yet, but full-manual must hold from birth.
     this.applyGate();
     this.unsubscribe = this.adapter.subscribe(() => this.pump());
   }
 
-  // ---------------- control switching (Sprint 49) ----------------
+  // ---------------- control switching ----------------
 
-  /** Household (kind=Household) groups shared by the controlled resident. */
   householdIds(): string[] {
     return this.adapter.town.groups
       .groupsOf(this.controlled)
-      .filter((g) => g.kind === "Household")
-      .map((g) => g.id);
+      .filter((group) => group.kind === "Household")
+      .map((group) => group.id);
   }
 
   householdMembers(): string[] {
     const ids = new Set<string>();
     for (const gid of this.householdIds())
-      for (const m of this.adapter.town.groups.membersOf(gid)) ids.add(m);
+      for (const member of this.adapter.town.groups.membersOf(gid)) ids.add(member);
     return [...ids].sort();
   }
 
@@ -61,11 +52,10 @@ export class PlayerAgentController {
     return false;
   }
 
-  /** Switch control within the household; previous member resumes autonomy. */
   switchTo(agentId: string): boolean {
     if (!this.canSwitchTo(agentId)) return false;
-    const prev = this.controlled;
-    this.cancelAllFor(prev); // drop stale queued actions silently
+    const previous = this.controlled;
+    this.cancelAllFor(previous);
     this.controlled = agentId;
     this.applyGate();
     this.emit();
@@ -76,17 +66,18 @@ export class PlayerAgentController {
 
   enqueueMove(locationId: string, locationName: string): void {
     this.queue.push({
-      id: NEXT_ID++, label: `Go to ${locationName}`, status: "pending",
+      id: NEXT_ID++,
+      label: `Go to ${locationName}`,
+      status: "pending",
       command: { type: "move", locationId, locationName },
     });
     this.afterMutation();
   }
 
   enqueueSocial(targetId: string, targetName: string, action: SocialActionType): void {
-    const label =
-      action === SocialActionType.Greet ? `Greet ${targetName}` :
-      action === SocialActionType.Chat ? `Talk to ${targetName}` :
-      `${SocialActionType[action]} ${targetName}`;
+    const label = action === SocialActionType.Greet ? `Greet ${targetName}`
+      : action === SocialActionType.Chat ? `Talk to ${targetName}`
+      : `${SocialActionType[action]} ${targetName}`;
     this.queue.push({
       id: NEXT_ID++, label, status: "pending",
       command: { type: "social", targetId, targetName, action },
@@ -98,7 +89,6 @@ export class PlayerAgentController {
     const item = this.queue.find((q) => q.id === id);
     if (!item) return;
     if (item.status === "walking" || item.status === "active") {
-      // Abandon in-flight work: navigation supersede handles travel; seat poses release.
       this.adapter.interactionsStandUp(this.controlled);
       item.status = "cancelled";
       this.applyGate();
@@ -110,13 +100,13 @@ export class PlayerAgentController {
   }
 
   cancelAllFor(agentId: string): void {
-    void agentId; // queue is per-controller (per controlled agent)
+    void agentId;
     this.cancelAll();
   }
 
   cancelAll(): void {
-    for (const q of this.queue)
-      if (q.status !== "done" && q.status !== "failed") q.status = "cancelled";
+    for (const item of this.queue)
+      if (item.status !== "done" && item.status !== "failed") item.status = "cancelled";
     this.adapter.interactionsStandUp(this.controlled);
     this.drainToFinished();
     this.afterMutation();
@@ -128,15 +118,11 @@ export class PlayerAgentController {
       q.status === "pending" || q.status === "walking" || q.status === "active");
   }
 
-  /**
-   * Convenience: walk to the target if needed, then interact.
-   * Returns false immediately when the pair can never co-locate today.
-   */
   enqueueVisitAndSocial(targetId: string, targetName: string,
     action: SocialActionType, targetLocationId: string | undefined,
     locationName: string): boolean {
     if (!targetLocationId) return false;
-    if (this.adapter.playerLocationId() !== targetLocationId)
+    if (this.adapter.playerLocationId(this.controlled) !== targetLocationId)
       this.enqueueMove(targetLocationId, locationName);
     this.enqueueSocial(targetId, targetName, action);
     return true;
@@ -157,7 +143,6 @@ export class PlayerAgentController {
     this.emit();
   }
 
-  /** LOD gate = manual priority over utility AI (spec §10). */
   private applyGate(): void {
     if (this.busy || this.autonomy === "full-manual")
       this.adapter.lod.setLevel(this.controlled, 2 /* Coarse */);
@@ -165,24 +150,21 @@ export class PlayerAgentController {
       this.adapter.lod.setLevel(this.controlled, 0 /* Full */);
   }
 
-  private emit(): void {
-    this.adapter.touch();
-  }
+  private emit(): void { this.adapter.touch(); }
 
-  /** Drives the head queue item each simulation beat. */
   private pump(): void {
     const head = this.queue.find((q) =>
       q.status === "pending" || q.status === "walking" || q.status === "active");
     if (!head) {
-      this.applyGate(); // queue drained → autonomy decides planning
+      this.applyGate();
       return;
     }
 
     if (head.command.type === "move") {
-      const cmd = head.command;
-      const here = this.adapter.town.agentsById.get(this.controlled)?.hasLocation
-        ? this.adapter.town.agentsById.get(this.controlled)!.currentLocationId : undefined;
-      if (here === cmd.locationId) {
+      const command = head.command;
+      const state = this.adapter.town.agentsById.get(this.controlled);
+      const here = state?.hasLocation ? state.currentLocationId : undefined;
+      if (here === command.locationId) {
         head.status = "done";
         this.applyGate();
         this.emit();
@@ -190,18 +172,17 @@ export class PlayerAgentController {
       }
       if (head.status === "pending") {
         head.status = "walking";
-        const ok = this.adapter.commandMoveTo(cmd.locationId, this.controlled);
-        if (!ok) head.status = "failed";
+        const accepted = this.adapter.commandMoveTo(command.locationId, this.controlled);
+        if (!accepted) head.status = "failed";
       }
-      return; // walking: wait for arrival on a later beat
+      return;
     }
 
-    // social
     if (head.status === "pending") {
       head.status = "active";
-      const cmd = head.command;
+      const command = head.command;
       const result = this.adapter.town.social.attempt(
-        this.controlled, cmd.targetId as never, cmd.action);
+        this.controlled, command.targetId as never, command.action);
       head.label += result.accepted ? "" : " ✗";
       head.status = result.accepted ? "done" : "failed";
       this.applyGate();
@@ -211,8 +192,8 @@ export class PlayerAgentController {
 
   private drainToFinished(): void {
     for (let i = this.queue.length - 1; i >= 0; i--) {
-      const s = this.queue[i]!.status;
-      if (s === "cancelled" || s === "done" || s === "failed") continue;
+      const status = this.queue[i]!.status;
+      if (status === "cancelled" || status === "done" || status === "failed") continue;
       this.queue.splice(i, 1);
     }
   }
