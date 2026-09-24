@@ -132,7 +132,7 @@ export function liveStories(
   names: ReadonlyMap<string, string>,
   locations: ReadonlyMap<string, string>,
   limit = 12,
-  viewerId?: string,
+  viewer?: { id: string; locationId?: string },
 ): StoryView[] {
   const out: StoryView[] = [];
   const seen = new Set<string>();
@@ -140,8 +140,12 @@ export function liveStories(
     const event = events[i]!;
     const story = eventToStory(event, nowMinutes, names, locations);
     if (!story) continue;
-    if (viewerId && (event.kind === "social" || event.kind === "conversation") &&
-        !story.participants.includes(viewerId)) continue;
+    if (viewer) {
+      if ((event.kind === "social" || event.kind === "conversation") &&
+          !story.participants.includes(viewer.id)) continue;
+      if (event.kind === "movement" && event.agent !== viewer.id &&
+          event.location !== viewer.locationId) continue;
+    }
     const key = `${event.atMinutes}|${story.text}`;
     if (seen.has(key)) continue;
     seen.add(key);

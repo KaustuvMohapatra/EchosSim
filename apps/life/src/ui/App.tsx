@@ -56,8 +56,9 @@ export function App() {
   })), [snap, controlledId, household, selected, followed]);
 
   const observerLive = useMemo(() => snap
-    ? liveStories(snap.events, snap.time.totalMinutes, names, locations, 14, controlledId) : [],
-  [snap, names, locations, controlledId]);
+    ? liveStories(snap.events, snap.time.totalMinutes, names, locations, 14, controlledId
+      ? { id: controlledId, locationId: controlled?.summary.locationId } : undefined) : [],
+  [snap, names, locations, controlledId, controlled?.summary.locationId]);
   const observerTown = useMemo(() => app && snap && controlledId
     ? townStoryViews(app.adapter.townStoriesFor(controlledId), snap.time.day) : [],
   [app, snap, controlledId]);
