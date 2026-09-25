@@ -75,6 +75,8 @@ describe("Life UI presentation models", () => {
       .some((resident) => resident.id === "npc_mira")).toBe(true);
 
     adapter.town.moveAgent("npc_mira" as never, "apt_a" as never);
+    const rawMiraAfterLeaving = adapter.inspector.getAgent("npc_mira")!;
+    expect(rawMiraAfterLeaving.summary.locationId).toBe("apt_a");
     const lastKnownMira = adapter.residentPresenceFor("player")
       .find((resident) => resident.id === "npc_mira")!;
     expect(lastKnownMira).toMatchObject({
@@ -82,6 +84,9 @@ describe("Life UI presentation models", () => {
       lastKnownLocationId: "park",
       lastKnownAtMinutes: expect.any(Number),
     });
+    expect(lastKnownMira.current).toBeUndefined();
+    expect(lastKnownMira.lastKnownLocationId).not.toBe(
+      rawMiraAfterLeaving.summary.locationId);
     const now = adapter.town.clock.currentTime.totalMinutes + 90;
     const rail = residentRailItemFromPresence(lastKnownMira, {
       controlled: false, household: false, selected: false, followed: false,

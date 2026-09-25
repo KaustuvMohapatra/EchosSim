@@ -31,8 +31,11 @@ export function ContextMenu({ menu, app, snap, onClose, onFlash }: ContextMenuPr
 
   if (menu.objectId.startsWith("agent:")) {
     const targetId = menu.objectId.slice(6);
-    const summary = snap?.agents.find((s) => s.id === targetId);
     const controlled = app.player.controlled;
+    const presence = app.adapter.residentPresenceFor(controlled)
+      .find((resident) => resident.id === targetId);
+    const summary = presence?.current;
+    const targetName = presence?.name ?? targetId;
     const coLocated = summary?.locationId === app.adapter.playerLocationId(controlled);
     const relation = app.adapter.inspector.getRelationships(controlled)
       .find((r) => r.to === targetId);
@@ -42,32 +45,46 @@ export function ContextMenu({ menu, app, snap, onClose, onFlash }: ContextMenuPr
         <div className="context-menu__head">
           <span>
             <small>{relationship}</small>
-            <strong>{summary?.name ?? targetId}</strong>
+            <strong>{targetName}</strong>
           </span>
           <button type="button" className="icon-button" onClick={onClose} aria-label="Close menu">×</button>
         </div>
         {coLocated ? SOCIAL_ITEMS.map(([label, action]) => (
           <button type="button" role="menuitem" key={label} data-context-menu="1"
             onClick={() => {
-              app.player.enqueueSocial(targetId, summary?.name ?? targetId, action);
+              app.player.enqueueSocial(targetId, targetName, action);
               onClose();
             }}>
             <span>{label}</span><small>{summary?.locationName ?? "Nearby"}</small>
           </button>
-        )) : (
+        )) : presence?.visibility === "current" && summary?.locationId ? (
           <button type="button" role="menuitem" data-context-menu="1"
-            disabled={!summary?.locationId}
             onClick={() => {
-              if (summary?.locationId) {
-                app.player.enqueueVisitAndSocial(
-                  targetId, summary.name, SocialActionType.Greet,
-                  summary.locationId, summary.locationName ?? summary.locationId,
-                );
-                onFlash(`Heading over to ${summary.name}.`);
-              }
+              app.player.enqueueVisitAndSocial(
+                targetId, targetName, SocialActionType.Greet,
+                summary.locationId, summary.locationName ?? summary.locationId,
+              );
+              onFlash(`Heading over to ${targetName}.`);
               onClose();
             }}>
-            <span>Walk over &amp; Greet</span><small>{summary?.locationName ?? "Location unavailable"}</small>
+            <span>Walk over &amp; Greet</span>
+            <small>{summary.locationName ?? summary.locationId}</small>
+          </button>
+        ) : presence?.visibility === "last-known" && presence.lastKnownLocationId ? (
+          <button type="button" role="menuitem" data-context-menu="1"
+            onClick={() => {
+              const locationName = presence.lastKnownLocationName ??
+                presence.lastKnownLocationId!;
+              app.player.enqueueMove(presence.lastKnownLocationId!, locationName);
+              onFlash(`Heading to where ${targetName} was last seen.`);
+              onClose();
+            }}>
+            <span>Visit last seen place</span>
+            <small>{presence.lastKnownLocationName ?? presence.lastKnownLocationId}</small>
+          </button>
+        ) : (
+          <button type="button" role="menuitem" data-context-menu="1" disabled>
+            <span>Location unknown</span><small>Find them around town first</small>
           </button>
         )}
       </div>
