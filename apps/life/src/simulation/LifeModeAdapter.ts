@@ -83,6 +83,15 @@ export interface LifeIntentionSummary {
   strength: number;
 }
 
+export interface LifeResidentPresenceSummary {
+  id: string;
+  name: string;
+  visibility: "current" | "last-known" | "unknown";
+  current?: AgentSummary;
+  lastKnownLocationId?: string;
+  lastKnownLocationName?: string;
+}
+
 export interface LifeResidentKnowledgeSummary {
   viewerId: string;
   targetId: string;
@@ -371,6 +380,58 @@ export class LifeModeAdapter {
         };
       }),
     };
+  }
+
+  /**
+   * Viewer-scoped resident presence for roster/map presentation. Exact current
+   * state is available only for self, controllable household members, or
+   * residents presently co-located with the viewer. Otherwise the UI may show
+   * the last place the viewer genuinely observed, never the omniscient current
+   * location from the inspector.
+   */
+  residentPresenceFor(viewerId: string): LifeResidentPresenceSummary[] {
+    const viewer = this.inspector.getAgent(viewerId);
+    if (!viewer) return [];
+
+    const householdIds = this.town.groups.groupsOf(viewerId)
+      .filter((group) => group.kind === "Household")
+      .map((group) => group.id);
+    const lastKnown = new Map<string, string>();
+    for (const observation of this.town.perception.observationsOf(viewerId)) {
+      if (!observation.where) continue;
+      for (const actor of observation.actors) {
+        if (actor === viewerId || !this.town.residents.tryMind(actor)) continue;
+        lastKnown.set(actor, observation.where);
+      }
+    }
+
+    return this.inspector.getAgents().map((summary): LifeResidentPresenceSummary => {
+      const privateAccess = summary.id === viewerId || householdIds.some(
+        (groupId) => this.town.groups.isMember(groupId, summary.id));
+      const coLocated = viewer.summary.locationId !== undefined &&
+        summary.locationId === viewer.summary.locationId;
+      if (privateAccess || coLocated) {
+        return {
+          id: summary.id,
+          name: summary.name,
+          visibility: "current",
+          current: { ...summary },
+        };
+      }
+
+      const locationId = lastKnown.get(summary.id);
+      if (locationId) {
+        const runtime = this.town.locations.tryGet(locationId as never);
+        return {
+          id: summary.id,
+          name: summary.name,
+          visibility: "last-known",
+          lastKnownLocationId: locationId,
+          lastKnownLocationName: runtime?.definition.displayName ?? locationId,
+        };
+      }
+      return { id: summary.id, name: summary.name, visibility: "unknown" };
+    });
   }
 
   /**

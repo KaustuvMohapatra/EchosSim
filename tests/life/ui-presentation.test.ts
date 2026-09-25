@@ -3,7 +3,8 @@ import { PersonalityProfile } from "@echosim/cognition";
 import type { AgentSummary, SimEventEntry } from "@echosim/inspector";
 import { LifeModeAdapter } from "../../apps/life/src/simulation/LifeModeAdapter.js";
 import {
-  autonomyView, orderResidentRail, readableActivity, residentRailItem,
+  autonomyView, orderResidentRail, readableActivity,
+  residentRailItem, residentRailItemFromPresence,
 } from "../../apps/life/src/ui/models/residentView.js";
 import {
   dayPeriod, residentCountsByLocation,
@@ -50,6 +51,38 @@ describe("Life UI presentation models", () => {
       id: "mira", mood: "Good", activity: "At work",
       controlled: true, household: true, selected: false,
     });
+  });
+
+  it("keeps remote resident presence knowledge-scoped", () => {
+    const adapter = new LifeModeAdapter({ seed: 7001n });
+
+    const initialMira = adapter.residentPresenceFor("player")
+      .find((resident) => resident.id === "npc_mira");
+    expect(initialMira?.visibility).toBe("unknown");
+    expect(adapter.residentPresenceFor("player")
+      .find((resident) => resident.id === "npc_anika")?.visibility).toBe("current");
+
+    adapter.town.moveAgent("player" as never, "park" as never);
+    adapter.town.moveAgent("npc_mira" as never, "park" as never);
+    expect(adapter.residentPresenceFor("player")
+      .find((resident) => resident.id === "npc_mira")).toMatchObject({
+        visibility: "current",
+        current: expect.objectContaining({ locationId: "park" }),
+      });
+
+    adapter.town.moveAgent("npc_mira" as never, "apt_a" as never);
+    const lastKnownMira = adapter.residentPresenceFor("player")
+      .find((resident) => resident.id === "npc_mira")!;
+    expect(lastKnownMira).toMatchObject({
+      visibility: "last-known",
+      lastKnownLocationId: "park",
+    });
+    const rail = residentRailItemFromPresence(lastKnownMira, {
+      controlled: false, household: false, selected: false, followed: false,
+    });
+    expect(rail.mood).toBeUndefined();
+    expect(rail.activity).toContain("Last seen");
+    adapter.dispose();
   });
 
   it("keeps the controlled resident and household at the front of a large rail", () => {

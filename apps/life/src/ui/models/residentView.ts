@@ -3,7 +3,9 @@ import type {
   AgentSummary,
   RelationshipSnapshot,
 } from "@echosim/inspector";
-import type { AutonomyMode } from "../../simulation/LifeModeAdapter.js";
+import type {
+  AutonomyMode, LifeResidentPresenceSummary,
+} from "../../simulation/LifeModeAdapter.js";
 
 export interface NeedView {
   key: string;
@@ -24,9 +26,10 @@ export interface ResidentRailItem {
   id: string;
   name: string;
   initials: string;
-  mood: string;
+  mood?: string;
   activity: string;
   location?: string;
+  visibility: LifeResidentPresenceSummary["visibility"];
   controlled: boolean;
   household: boolean;
   selected: boolean;
@@ -172,6 +175,24 @@ export function residentRailItem(
     mood: moodOfSummary(agent),
     activity: readableActivity(agent),
     ...(agent.locationName ? { location: agent.locationName } : {}),
+    visibility: "current",
+    ...flags,
+  };
+}
+
+export function residentRailItemFromPresence(
+  presence: LifeResidentPresenceSummary,
+  flags: { controlled: boolean; household: boolean; selected: boolean; followed: boolean },
+): ResidentRailItem {
+  if (presence.current) return residentRailItem(presence.current, flags);
+  return {
+    id: presence.id,
+    name: presence.name,
+    initials: residentInitials(presence.name),
+    activity: presence.visibility === "last-known"
+      ? `Last seen · ${presence.lastKnownLocationName ?? presence.lastKnownLocationId ?? "somewhere in town"}`
+      : "Elsewhere in town",
+    visibility: presence.visibility,
     ...flags,
   };
 }
