@@ -160,6 +160,7 @@ export class InvitationBoard {
         lastAccessMinutes: now,
       }));
     }
+    this.town.events.publish("sim:invitation-resolved", { ...inv });
     return true;
   }
 
@@ -171,6 +172,7 @@ export class InvitationBoard {
     const rel = this.town.relationships.getOrCreate(inv.to, inv.from);
     rel.affinity = Math.max(-1, rel.affinity - 0.04);
     rel.grievance = Math.min(1, rel.grievance + 0.03);
+    this.town.events.publish("sim:invitation-resolved", { ...inv });
     return true;
   }
 }

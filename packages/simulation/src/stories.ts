@@ -41,6 +41,17 @@ export class TownStories {
         `${nameOf(town, e.from)} invited ${nameOf(town, e.to)} out for ${e.activityLabel}.`,
         "social",
         "participants"));
+
+    town.events.subscribe<{
+      from: string; to: string; activityLabel: string;
+      status: "accepted" | "declined";
+    }>("sim:invitation-resolved", (e) => this.add(
+      [e.from, e.to],
+      e.status === "accepted"
+        ? `${nameOf(town, e.to)} accepted ${nameOf(town, e.from)}'s invitation to ${e.activityLabel}.`
+        : `${nameOf(town, e.to)} declined ${nameOf(town, e.from)}'s invitation to ${e.activityLabel}.`,
+      "social",
+      "participants"));
   }
 
   /** Social wire calls this after each relationship update. */

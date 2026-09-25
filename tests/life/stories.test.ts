@@ -84,6 +84,15 @@ describe("S55: town stories", () => {
     // Rohan shares Mira's household, but the invitation itself is private.
     expect(stories.visibleTo("npc_rohan")
       .some((story) => story.id === miraStory?.id)).toBe(false);
+
+    expect(town.invitations.accept(invitation!.id)).toBe(true);
+    const resolution = stories.visibleTo("npc_anika")
+      .find((story) => story.text.includes("accepted"));
+    expect(resolution).toMatchObject({
+      category: "social", visibility: "participants",
+    });
+    expect(stories.visibleTo("npc_rohan")
+      .some((story) => story.id === resolution?.id)).toBe(false);
   });
 
   it("knowledge filter hides stories about strangers", () => {

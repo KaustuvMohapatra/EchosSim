@@ -65,7 +65,12 @@ describe("S53: invitations", () => {
     expect(inv).not.toBeNull();
     expect(board.pending()).toHaveLength(1);
 
+    const resolved: Array<{ status: string }> = [];
+    town.events.subscribe("sim:invitation-resolved",
+      (event) => resolved.push(event as { status: string }));
+
     expect(board.accept(inv!.id)).toBe(true);
+    expect(resolved).toEqual([expect.objectContaining({ status: "accepted" })]);
     expect(board.forAgent("npc_mira")).toEqual([
       expect.objectContaining({ id: inv!.id, status: "accepted" }),
     ]);
@@ -84,8 +89,12 @@ describe("S53: invitations", () => {
       attraction: 0, fear: 0, grievance: 0, obligation: 0,
     });
     const inv = board.maybeInvite("npc_mira", "npc_rohan", "a walk", "park", 1000)!;
+    const resolved: Array<{ status: string }> = [];
+    town.events.subscribe("sim:invitation-resolved",
+      (event) => resolved.push(event as { status: string }));
     const before = town.relationships.getOrCreate("npc_rohan", "npc_mira").affinity;
     expect(board.decline(inv.id)).toBe(true);
+    expect(resolved).toEqual([expect.objectContaining({ status: "declined" })]);
     expect(town.relationships.getOrCreate("npc_rohan", "npc_mira").affinity)
       .toBeLessThan(before);
   });
