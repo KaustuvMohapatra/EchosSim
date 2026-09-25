@@ -7,8 +7,10 @@ export function ActionQueue({ app }: { app: LifeApp | null }) {
   const [expanded, setExpanded] = useState(false);
   if (!app) return null;
   const items = app.player.items();
-  const current = items.find((item) =>
+  const activeItems = items.filter((item) =>
     item.status === "pending" || item.status === "walking" || item.status === "active");
+  const current = activeItems[0];
+  const next = activeItems[1];
   const autonomy = autonomyView(app.player.autonomy);
   const modes: AutonomyMode[] = ["full-manual", "assisted", "autonomous"];
 
@@ -19,6 +21,7 @@ export function ActionQueue({ app }: { app: LifeApp | null }) {
         <span>
           <small>Current action</small>
           <strong>{current?.label ?? "No queued action"}</strong>
+          {current && <em className="action-queue__state">{statusLabel(current.status)}</em>}
         </span>
         <button type="button" className="icon-button" aria-expanded={expanded}
           aria-label={expanded ? "Collapse action queue" : "Expand action queue"}
@@ -26,6 +29,12 @@ export function ActionQueue({ app }: { app: LifeApp | null }) {
           {expanded ? "−" : "+"}
         </button>
       </div>
+      {next && (
+        <div className="action-queue__next">
+          <small>Next</small>
+          <span>{next.label}</span>
+        </div>
+      )}
       <div className="autonomy-switch" aria-label="Autonomy mode">
         {modes.map((mode) => {
           const view = autonomyView(mode);
@@ -44,7 +53,10 @@ export function ActionQueue({ app }: { app: LifeApp | null }) {
             <p className="empty-state">Nothing queued right now.</p>
           ) : items.map((item) => (
             <div className={`queue-item queue-item--${item.status}`} key={item.id}>
-              <span><i aria-hidden="true" />{item.label}</span>
+              <span className="queue-item__copy">
+                <span><i aria-hidden="true" />{item.label}</span>
+                <small>{item.detail ?? statusLabel(item.status)}</small>
+              </span>
               {(item.status === "pending" || item.status === "walking" || item.status === "active") && (
                 <button type="button" onClick={() => app.player.cancel(item.id)}
                   aria-label={`Cancel ${item.label}`}>Cancel</button>
@@ -60,4 +72,16 @@ export function ActionQueue({ app }: { app: LifeApp | null }) {
       )}
     </section>
   );
+}
+
+
+function statusLabel(status: "pending" | "walking" | "active" | "done" | "failed" | "cancelled"): string {
+  switch (status) {
+    case "pending": return "Waiting";
+    case "walking": return "Travelling";
+    case "active": return "In progress";
+    case "done": return "Completed";
+    case "failed": return "Failed";
+    case "cancelled": return "Cancelled";
+  }
 }

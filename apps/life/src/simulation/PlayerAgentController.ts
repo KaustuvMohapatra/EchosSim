@@ -8,6 +8,8 @@ export interface QueuedAction {
   id: number;
   label: string;
   status: "pending" | "walking" | "active" | "done" | "failed" | "cancelled";
+  /** Human-readable outcome detail from the real command path. */
+  detail?: string;
   readonly command: Command;
 }
 
@@ -87,29 +89,25 @@ export class PlayerAgentController {
 
   cancel(id: number): void {
     const item = this.queue.find((q) => q.id === id);
-    if (!item) return;
-    if (item.status === "walking" || item.status === "active") {
+    if (!item || item.status === "done" || item.status === "failed" ||
+        item.status === "cancelled") return;
+
+    if (item.status === "walking")
+      this.adapter.town.navigation.cancel(this.controlled);
+    if (item.status === "walking" || item.status === "active")
       this.adapter.interactionsStandUp(this.controlled);
-      item.status = "cancelled";
-      this.applyGate();
-      this.emit();
-      return;
-    }
+
     item.status = "cancelled";
+    item.detail = "Cancelled by player.";
     this.afterMutation();
   }
 
   cancelAllFor(agentId: string): void {
-    void agentId;
-    this.cancelAll();
+    this.cancelAllForAgent(agentId);
   }
 
   cancelAll(): void {
-    for (const item of this.queue)
-      if (item.status !== "done" && item.status !== "failed") item.status = "cancelled";
-    this.adapter.interactionsStandUp(this.controlled);
-    this.drainToFinished();
-    this.afterMutation();
+    this.cancelAllForAgent(this.controlled);
   }
 
   items(): readonly QueuedAction[] { return [...this.queue]; }
@@ -173,7 +171,10 @@ export class PlayerAgentController {
       if (head.status === "pending") {
         head.status = "walking";
         const accepted = this.adapter.commandMoveTo(command.locationId, this.controlled);
-        if (!accepted) head.status = "failed";
+        if (!accepted) {
+          head.status = "failed";
+          head.detail = this.adapter.lastCommandFeedback || "Travel could not be started.";
+        }
       }
       return;
     }
@@ -183,11 +184,25 @@ export class PlayerAgentController {
       const command = head.command;
       const result = this.adapter.town.social.attempt(
         this.controlled, command.targetId as never, command.action);
-      head.label += result.accepted ? "" : " ✗";
       head.status = result.accepted ? "done" : "failed";
+      head.detail = result.accepted ? undefined : result.reason;
       this.applyGate();
       this.emit();
     }
+  }
+
+  private cancelAllForAgent(agentId: string): void {
+    if (this.queue.some((item) => item.status === "walking"))
+      this.adapter.town.navigation.cancel(agentId);
+    this.adapter.interactionsStandUp(agentId);
+    for (const item of this.queue) {
+      if (item.status === "done" || item.status === "failed" || item.status === "cancelled")
+        continue;
+      item.status = "cancelled";
+      item.detail = "Cancelled by player.";
+    }
+    this.drainToFinished();
+    this.afterMutation();
   }
 
   private drainToFinished(): void {

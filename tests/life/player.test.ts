@@ -49,9 +49,29 @@ describe("S39: action queue", () => {
     p.cancel(walking.id);
     drain(a, p);
 
-    expect(p.items()[0]!.status).toBe("cancelled");
+    expect(p.items()[0]!).toMatchObject({
+      status: "cancelled", detail: "Cancelled by player.",
+    });
     expect(p.items()[1]!.status).toBe("done");
     expect(a.playerLocationId()).toBe("park");
+    p.dispose(); a.dispose();
+  });
+
+  it("cancelling a lone walking item cancels timed navigation too", () => {
+    const a = new LifeModeAdapter({ seed: 7001 });
+    const p = new PlayerAgentController(a);
+    steps(a, 40);
+    const origin = a.playerLocationId();
+
+    p.enqueueMove("park", "Park");
+    expect(p.items()[0]!.status).toBe("walking");
+    p.cancel(p.items()[0]!.id);
+    steps(a, 4); // well past the default 15-minute travel time
+
+    expect(p.items()[0]).toMatchObject({
+      status: "cancelled", detail: "Cancelled by player.",
+    });
+    expect(a.playerLocationId()).toBe(origin);
     p.dispose(); a.dispose();
   });
 
@@ -73,6 +93,19 @@ describe("S39: action queue", () => {
     p.enqueueMove("cafe", "Corner Cafe");
     drain(a, p, 20);
     expect(p.items()[0]!.status).toBe("failed");
+    expect(p.items()[0]!.detail?.toLowerCase()).toContain("closed");
+    p.dispose(); a.dispose();
+  });
+
+  it("keeps the simulation's social failure reason on the queued action", () => {
+    const a = new LifeModeAdapter({ seed: 7001 });
+    const p = new PlayerAgentController(a);
+
+    p.enqueueSocial("npc_mira", "Mira", 0 /* Greet */);
+
+    expect(p.items()[0]).toMatchObject({
+      status: "failed", detail: "not co-located",
+    });
     p.dispose(); a.dispose();
   });
 
