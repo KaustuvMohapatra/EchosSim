@@ -9,7 +9,8 @@ import { createAuthoredTown } from "@echosim/content";
 import { PersonalityProfile } from "@echosim/cognition";
 import { SimulationInspector } from "@echosim/inspector";
 import type {
-  AgentSummary, SimEventEntry, TimeInfo, TownStats,
+  AgentSummary, MemoryInspectorEntry, RelationshipSnapshot,
+  SimEventEntry, TimeInfo, TownStats,
 } from "@echosim/inspector";
 import {
   PlanningDirector, Town, LodController, deliverMessage, workShifts,
@@ -80,6 +81,14 @@ export interface LifeIntentionSummary {
   kind: "befriend" | "repair" | "avoid";
   subjectKey: string;
   strength: number;
+}
+
+export interface LifeResidentKnowledgeSummary {
+  viewerId: string;
+  targetId: string;
+  privateAccess: boolean;
+  relationships: RelationshipSnapshot[];
+  memories: MemoryInspectorEntry[];
 }
 
 export interface LifePersonalSnapshot {
@@ -361,6 +370,39 @@ export class LifeModeAdapter {
           isOpen: runtime.isOpen,
         };
       }),
+    };
+  }
+
+  /**
+   * Viewer-scoped resident knowledge. Household members can expose their own
+   * private profile data because they are controllable; other residents only
+   * expose the controlled resident's relationship and memories about them.
+   */
+  residentKnowledgeFor(
+    viewerId: string,
+    targetId: string,
+  ): LifeResidentKnowledgeSummary | undefined {
+    if (!this.town.residents.tryMind(viewerId) || !this.town.residents.tryMind(targetId))
+      return undefined;
+
+    const privateAccess = viewerId === targetId || this.town.groups.groupsOf(viewerId)
+      .filter((group) => group.kind === "Household")
+      .some((group) => this.town.groups.isMember(group.id, targetId));
+
+    return {
+      viewerId,
+      targetId,
+      privateAccess,
+      relationships: privateAccess
+        ? this.inspector.getRelationships(targetId).map((relationship) => ({ ...relationship }))
+        : this.inspector.getRelationships(viewerId)
+            .filter((relationship) => relationship.to === targetId)
+            .map((relationship) => ({ ...relationship })),
+      memories: privateAccess
+        ? this.inspector.getMemories(targetId, { sort: "recency", limit: 7 })
+        : this.inspector.getMemories(viewerId, {
+            sort: "recency", aboutAgent: targetId, limit: 7,
+          }),
     };
   }
 

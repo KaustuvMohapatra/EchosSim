@@ -44,6 +44,10 @@ export function App() {
     ? app.adapter.inspector.getAgent(controlledId) : undefined;
   const selectedAgent = selected && app
     ? app.adapter.inspector.getAgent(selected) : undefined;
+  const selectedKnowledge = useMemo(() =>
+    app && snap && selected && controlledId
+      ? app.adapter.residentKnowledgeFor(controlledId, selected) : undefined,
+  [app, snap, selected, controlledId]);
   const controlledLife = useMemo(() =>
     app && snap && controlledId ? app.adapter.personalLifeFor(controlledId) : undefined,
   [app, snap, controlledId]);
@@ -162,12 +166,13 @@ export function App() {
               onClose={() => setPanel(null)} />
           )}
 
-          {panel === "resident" && selectedAgent && selected && (
+          {panel === "resident" && selectedAgent && selected && selectedKnowledge && (
             <ResidentDetails
               key={selected}
               agent={selectedAgent}
               names={names}
               locations={locations}
+              knowledge={selectedKnowledge}
               life={selectedLife}
               nowMinutes={snap?.time.totalMinutes ?? 0}
               controlled={selected === controlledId}

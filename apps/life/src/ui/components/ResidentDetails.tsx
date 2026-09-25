@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import type { AgentInspectorSnapshot } from "@echosim/inspector";
-import type { LifePersonalSnapshot } from "../../simulation/LifeModeAdapter.js";
+import type {
+  LifePersonalSnapshot, LifeResidentKnowledgeSummary,
+} from "../../simulation/LifeModeAdapter.js";
 import {
   formatClockMinute, formatSimMoment, habitText,
   intentionStrengthLabel, intentionText, skillProgress,
@@ -18,6 +20,7 @@ interface ResidentDetailsProps {
   agent: AgentInspectorSnapshot;
   names: ReadonlyMap<string, string>;
   locations: ReadonlyMap<string, string>;
+  knowledge: LifeResidentKnowledgeSummary;
   life?: LifePersonalSnapshot;
   nowMinutes: number;
   controlled: boolean;
@@ -33,12 +36,13 @@ type ProfileTab = "overview" | "relationships" | "memories" | "life";
 export function ResidentDetails(props: ResidentDetailsProps) {
   const { agent, names, locations } = props;
   const [tab, setTab] = useState<ProfileTab>("overview");
-  const needs = relevantNeeds(agent, 3);
+  const needs = props.knowledge.privateAccess ? relevantNeeds(agent, 3) : [];
   const relationships = useMemo(() =>
-    [...agent.relationships]
-      .filter((r) => r.to !== agent.summary.id)
-      .slice(0, 10), [agent]);
-  const memories = agent.memories.slice(0, 7);
+    [...props.knowledge.relationships]
+      .filter((relationship) => relationship.to !== agent.summary.id ||
+        relationship.from !== agent.summary.id)
+      .slice(0, 10), [props.knowledge]);
+  const memories = props.knowledge.memories.slice(0, 7);
   const tabs: ProfileTab[] = props.life
     ? ["overview", "relationships", "memories", "life"]
     : ["overview", "relationships", "memories"];
@@ -82,41 +86,53 @@ export function ResidentDetails(props: ResidentDetailsProps) {
       <div className="side-panel__scroll">
         {tab === "overview" && (
           <div className="profile-overview">
+            {!props.knowledge.privateAccess && (
+              <div className="profile-knowledge-note">
+                <small>Known information</small>
+                <span>Private needs, goals, relationships and memories stay hidden.</span>
+              </div>
+            )}
             <section className="profile-hero">
               <small>Right now</small>
               <strong>{readableActivity(agent.summary)}</strong>
               <span>{agent.summary.locationName ?? "Location unavailable"}</span>
             </section>
             <dl className="profile-facts">
-              <div><dt>Goal</dt><dd>{readableGoal(agent.committedGoalId ?? agent.summary.currentGoal)}</dd></div>
+              {props.knowledge.privateAccess && (
+                <div><dt>Goal</dt><dd>{readableGoal(agent.committedGoalId ?? agent.summary.currentGoal)}</dd></div>
+              )}
               <div><dt>Home</dt><dd>{agent.homeLocationId
                 ? locations.get(agent.homeLocationId) ?? agent.homeLocationId : "No home listed"}</dd></div>
               <div><dt>Work</dt><dd>{agent.job
                 ? `${agent.job.title} · ${locations.get(agent.job.workplace) ?? agent.job.workplace}`
                 : "Not currently employed"}</dd></div>
             </dl>
-            <section className="profile-section">
-              <div className="profile-section__title"><strong>Needs to watch</strong><small>Most pressing</small></div>
-              <div className="need-list need-list--large">
-                {needs.map((need) => (
-                  <div className="need-row" key={need.key}>
-                    <span>{need.key}</span>
-                    <span className="need-track" aria-label={`${need.key}: ${need.level}`}>
-                      <i className={`need-fill need-fill--${need.level}`}
-                        style={{ width: `${need.fill * 100}%` }} />
-                    </span>
-                    <small>{need.level === "critical" ? "Needs attention" : need.level === "warn" ? "Rising" : "Okay"}</small>
-                  </div>
-                ))}
-              </div>
-            </section>
+            {props.knowledge.privateAccess && (
+              <section className="profile-section">
+                <div className="profile-section__title"><strong>Needs to watch</strong><small>Most pressing</small></div>
+                <div className="need-list need-list--large">
+                  {needs.map((need) => (
+                    <div className="need-row" key={need.key}>
+                      <span>{need.key}</span>
+                      <span className="need-track" aria-label={`${need.key}: ${need.level}`}>
+                        <i className={`need-fill need-fill--${need.level}`}
+                          style={{ width: `${need.fill * 100}%` }} />
+                      </span>
+                      <small>{need.level === "critical" ? "Needs attention" : need.level === "warn" ? "Rising" : "Okay"}</small>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
         )}
 
         {tab === "relationships" && (
           <section className="profile-list">
             {relationships.length === 0 ? (
-              <p className="empty-state">No known connections to show yet.</p>
+              <p className="empty-state">{props.knowledge.privateAccess
+                ? "No known connections to show yet."
+                : "You have not formed a clear connection with this resident yet."}</p>
             ) : relationships.map((relationship) => (
               <div className="profile-list__row" key={relationship.to}>
                 <span className="resident-avatar resident-avatar--small" aria-hidden="true">
@@ -132,11 +148,13 @@ export function ResidentDetails(props: ResidentDetailsProps) {
         {tab === "memories" && (
           <section className="profile-list profile-list--memories">
             {memories.length === 0 ? (
-              <p className="empty-state">No recent memories are available to show.</p>
+              <p className="empty-state">{props.knowledge.privateAccess
+                ? "No recent memories are available to show."
+                : "The controlled resident has no remembered interactions with them yet."}</p>
             ) : memories.map((memory) => (
               <div className="memory-row" key={memory.id}>
                 <span className={`memory-row__mark${memory.valence < -0.2 ? " is-negative" : memory.valence > 0.2 ? " is-positive" : ""}`} />
-                <span><strong>{memory.summary}</strong>
+                <span><strong>{readableMemory(memory.summary, names)}</strong>
                   <small>{memory.where ? `At ${locations.get(memory.where) ?? memory.where}` : memory.type}</small></span>
               </div>
             ))}
@@ -243,4 +261,11 @@ export function ResidentDetails(props: ResidentDetailsProps) {
       </div>
     </aside>
   );
+}
+
+
+function readableMemory(summary: string, names: ReadonlyMap<string, string>): string {
+  let text = summary;
+  for (const [id, name] of names) text = text.replaceAll(id, name);
+  return text;
 }

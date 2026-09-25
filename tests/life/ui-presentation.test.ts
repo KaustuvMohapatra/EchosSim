@@ -196,6 +196,39 @@ describe("Life UI presentation models", () => {
       .toMatchObject({ tone: "warm", category: "careers" });
   });
 
+  it("scopes unrelated resident profiles to the controlled resident's knowledge", () => {
+    const adapter = new LifeModeAdapter({ seed: 7001n });
+    const now = adapter.town.clock.currentTime.totalMinutes;
+    adapter.town.memory.storeFor("npc_mira").add(now, (id) => ({
+      id,
+      timestampMinutes: now,
+      eventType: "private_thought",
+      subject: "npc_rohan",
+      summary: "PRIVATE MIRA MEMORY",
+      importance: 0.9,
+      valence: 0,
+      confidence: 1,
+      source: 0 as never,
+      sourceEventId: 999,
+      accessCount: 0,
+      lastAccessMinutes: now,
+    }));
+    adapter.sendMessage("npc_mira", "player", "Want coffee?");
+
+    const stranger = adapter.residentKnowledgeFor("player", "npc_mira")!;
+    expect(stranger.privateAccess).toBe(false);
+    expect(stranger.memories.some((memory) => memory.summary === "PRIVATE MIRA MEMORY"))
+      .toBe(false);
+    expect(stranger.memories.some((memory) => memory.subject === "npc_mira"))
+      .toBe(true);
+    expect(stranger.relationships.every((relationship) =>
+      relationship.from === "player" && relationship.to === "npc_mira")).toBe(true);
+
+    // The player belongs to Birch household, so its authored members are controllable.
+    expect(adapter.residentKnowledgeFor("player", "npc_anika")?.privateAccess).toBe(true);
+    adapter.dispose();
+  });
+
   it("keeps TownStories knowledge filtering intact at the adapter boundary", () => {
     const adapter = new LifeModeAdapter({ seed: 7001n });
     adapter.createResident({
