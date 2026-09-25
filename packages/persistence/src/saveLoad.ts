@@ -68,6 +68,11 @@ export interface SaveObservation {
   actors: string[]; where?: string; timestampMinutes: number;
   confidence: number; source: number;
 }
+export interface SaveTownStory {
+  id: number; day: number; text: string; participants: string[];
+  category: "relationships" | "careers" | "social" | "town";
+  visibility: "participants" | "shared-groups";
+}
 
 export interface SaveDocument {
   version: number;
@@ -103,6 +108,11 @@ export interface SaveDocument {
   }>>;
   /** v3+: recent resident perception history used by knowledge-scoped Life UI. */
   observationsByOwner?: Record<string, SaveObservation[]>;
+  /** v3+: knowledge-filtered neighborhood story history. */
+  townStories?: {
+    stories: SaveTownStory[];
+    seenFriendPairs: string[];
+  };
   /** v3+: group content snapshot so restores stay self-contained (Sprint 25). */
   groups?: {
     defs: Array<{ id: string; kind: string; name: string; meetingLocationId?: string }>;
@@ -260,6 +270,13 @@ export function serializeTown(town: Town, director: PlanningDirector): SaveDocum
     ...(Object.keys(habitsByOwner).length > 0 ? { habitsByOwner } : {}),
     ...(Object.keys(skillsByOwner).length > 0 ? { skillsByOwner } : {}),
     ...(Object.keys(observationsByOwner).length > 0 ? { observationsByOwner } : {}),
+    townStories: {
+      stories: town.stories.snapshot().stories.map((story) => ({
+        ...story,
+        participants: [...story.participants],
+      })),
+      seenFriendPairs: [...town.stories.snapshot().seenFriendPairs],
+    },
     messages: town.messages.all().map((message) => ({ ...message })),
     invitations: town.invitations.all().map((invitation) => ({ ...invitation })),
     groups: {
@@ -423,6 +440,16 @@ export function deserializeAndRestore(doc: SaveDocument): RestoredWorld {
         try { town.groups.addMember(groupId, memberId); } catch { /* already a member */ }
       }
     }
+  }
+
+  if (doc.townStories !== undefined) {
+    town.stories.restore({
+      stories: doc.townStories.stories.map((story) => ({
+        ...story,
+        participants: [...story.participants],
+      })),
+      seenFriendPairs: [...doc.townStories.seenFriendPairs],
+    });
   }
 
   // Fast-forward clock BEFORE restoring in-flight runs so due times line up.

@@ -49,6 +49,11 @@ function fingerprint(town: Town, director: PlanningDirector): string {
     `${m.id}:${m.from}>${m.to}:${m.atMinutes}:${m.text}`).join(";"));
   parts.push(town.invitations.all().map((i) =>
     `${i.id}:${i.from}>${i.to}:${i.activityLabel}:${i.lotId}:${i.atMinutes}:${i.status}`).join(";"));
+  const storyState = town.stories.snapshot();
+  parts.push(storyState.stories.map((story) =>
+    `${story.id}:${story.day}:${story.category}:${story.visibility}:${story.participants.join(",")}:${story.text}`
+  ).join(";"));
+  parts.push(storyState.seenFriendPairs.join(";"));
   parts.push(director.totalPlansCreated, director.totalPlansSucceeded,
     director.totalPlansFailed);
   return JSON.stringify(parts);
@@ -81,6 +86,26 @@ describe("persistence: mid-flight round trip", () => {
     const b1 = restoreFromJson(json);
     const b2 = restoreFromJson(json);
     expect(fingerprint(b1.town, b1.director)).toBe(fingerprint(b2.town, b2.director));
+  });
+
+  it("round-trips town stories and friendship announcement guards", () => {
+    const a = createDemoTown(7001);
+    a.town.stories.noteFriendship(a.miraId, a.rohanId, "Friend");
+    a.town.events.publish("sim:promoted", {
+      agent: a.miraId,
+      fromTitle: "Junior",
+      toTitle: "Senior",
+      income: 20,
+    });
+    const before = a.town.stories.snapshot();
+    expect(before.stories.length).toBeGreaterThanOrEqual(2);
+
+    const restored = restoreFromJson(saveToJson(a.town, a.director));
+    expect(restored.town.stories.snapshot()).toEqual(before);
+
+    const countBefore = restored.town.stories.all().length;
+    restored.town.stories.noteFriendship(a.miraId, a.rohanId, "Friend");
+    expect(restored.town.stories.all()).toHaveLength(countBefore);
   });
 
   it("round-trips recent resident perception without replaying side effects", () => {
@@ -150,17 +175,19 @@ describe("persistence: mid-flight round trip", () => {
     const a = createDemoTown(7001);
     const doc = JSON.parse(saveToJson(a.town, a.director)) as {
       messages?: unknown; invitations?: unknown; skillsByOwner?: unknown;
-      observationsByOwner?: unknown;
+      observationsByOwner?: unknown; townStories?: unknown;
     };
     delete doc.messages;
     delete doc.invitations;
     delete doc.skillsByOwner;
     delete doc.observationsByOwner;
+    delete doc.townStories;
     const restored = restoreFromJson(JSON.stringify(doc));
     expect(restored.town.messages.all()).toEqual([]);
     expect(restored.town.invitations.all()).toEqual([]);
     expect(restored.town.skills.allOf(a.miraId)).toEqual([]);
     expect(restored.town.perception.observationsOf(a.miraId)).toEqual([]);
+    expect(restored.town.stories.all()).toEqual([]);
   });
 
   it("rejects saves from a newer schema version gracefully", () => {

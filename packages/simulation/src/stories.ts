@@ -17,6 +17,11 @@ export interface Story {
   visibility: StoryVisibility;
 }
 
+export interface TownStoriesState {
+  stories: Story[];
+  seenFriendPairs: string[];
+}
+
 export class TownStories {
   private readonly stories: Story[] = [];
   private nextId = 1;
@@ -99,7 +104,39 @@ export class TownStories {
     });
   }
 
-  all(): readonly Story[] { return [...this.stories]; }
+  all(): readonly Story[] {
+    return this.stories.map((story) => ({
+      ...story,
+      participants: [...story.participants],
+    }));
+  }
+
+  snapshot(): TownStoriesState {
+    return {
+      stories: this.all().map((story) => ({
+        ...story,
+        participants: [...story.participants],
+      })),
+      seenFriendPairs: [...this.seenFriendPairs].sort(),
+    };
+  }
+
+  /** Persistence-only restore: no story-producing events are replayed. */
+  restore(state: TownStoriesState): void {
+    this.stories.length = 0;
+    this.seenFriendPairs.clear();
+    this.nextId = 1;
+
+    for (const story of state.stories.slice(-200)) {
+      this.stories.push({
+        ...story,
+        participants: [...story.participants],
+      });
+      this.nextId = Math.max(this.nextId, story.id + 1);
+    }
+    for (const key of state.seenFriendPairs)
+      this.seenFriendPairs.add(key);
+  }
 }
 
 function nameOf(town: Town, agentId: string): string {
