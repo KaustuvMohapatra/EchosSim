@@ -24,9 +24,11 @@ interface ResidentDetailsProps {
   life?: LifePersonalSnapshot;
   nowMinutes: number;
   controlled: boolean;
+  controlledId?: string;
   canControl: boolean;
   followed: boolean;
   onControl(): void;
+  onControlMember(id: string): void;
   onFollow(): void;
   onClose(): void;
 }
@@ -175,10 +177,22 @@ export function ResidentDetails(props: ResidentDetailsProps) {
                   <small>{household.homeLocationId
                     ? locations.get(household.homeLocationId) ?? household.homeLocationId
                     : "Home location unavailable"}</small>
-                  <div className="household-members">
-                    {household.members.map((member) => (
-                      <span key={member.id}>{member.name}</span>
-                    ))}
+                  <div className="household-members" aria-label="Household members">
+                    {household.members.map((member) => {
+                      const playing = member.id === props.controlledId;
+                      return (
+                        <button type="button" key={member.id}
+                          className={playing ? "is-playing" : ""}
+                          onClick={() => !playing && props.onControlMember(member.id)}
+                          disabled={playing}
+                          aria-label={playing
+                            ? `Currently playing as ${member.name}`
+                            : `Switch control to ${member.name}`}>
+                          <span>{member.name}</span>
+                          <small>{playing ? "Playing" : "Switch"}</small>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               ))}

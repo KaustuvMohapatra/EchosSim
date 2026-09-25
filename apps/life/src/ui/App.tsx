@@ -185,9 +185,11 @@ export function App() {
               life={selectedLife}
               nowMinutes={snap?.time.totalMinutes ?? 0}
               controlled={selected === controlledId}
+              controlledId={controlledId}
               canControl={app?.player.canSwitchTo(selected) ?? false}
               followed={followed.has(selected)}
               onControl={() => controlResident(selected)}
+              onControlMember={controlResident}
               onFollow={() => toggleFollow(selected)}
               onClose={() => setPanel(null)} />
           )}
