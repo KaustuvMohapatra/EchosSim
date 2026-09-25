@@ -6,7 +6,7 @@
  * IS the same world (verified by tests/persistence/roundtrip.test.ts).
  */
 import { PersonalityProfile } from "@echosim/cognition";
-import { Belief } from "@echosim/social";
+import { Belief, type SkillName } from "@echosim/social";
 import { Town, PlanningDirector } from "@echosim/simulation";
 import { UnsupportedSaveVersionException } from "./migrations.js";
 
@@ -92,6 +92,10 @@ export interface SaveDocument {
   /** v3+: simulation-owned Life phone state. Optional for older v3 saves. */
   messages?: SaveMessage[];
   invitations?: SaveInvitation[];
+  /** v3+: durable skill progression. Optional for older v3 saves. */
+  skillsByOwner?: Record<string, Array<{
+    skill: SkillName; xp: number; level: number;
+  }>>;
   /** v3+: group content snapshot so restores stay self-contained (Sprint 25). */
   groups?: {
     defs: Array<{ id: string; kind: string; name: string; meetingLocationId?: string }>;
@@ -202,6 +206,7 @@ export function serializeTown(town: Town, director: PlanningDirector): SaveDocum
 
   const semanticMemoriesByOwner: SaveDocument["semanticMemoriesByOwner"] = {};
   const habitsByOwner: SaveDocument["habitsByOwner"] = {};
+  const skillsByOwner: NonNullable<SaveDocument["skillsByOwner"]> = {};
   for (const owner of town.residents.orderedIds()) {
     const list = town.reflections.exportFor(owner);
     if (list.length > 0)
@@ -209,6 +214,9 @@ export function serializeTown(town: Town, director: PlanningDirector): SaveDocum
     const habits = town.habits.habitsOf(owner);
     if (habits.length > 0)
       habitsByOwner[owner] = habits.map((h) => ({ ...h }));
+    const skills = town.skills.allOf(owner);
+    if (skills.length > 0)
+      skillsByOwner[owner] = skills.map((skill) => ({ ...skill }));
   }
 
   return {
@@ -229,6 +237,7 @@ export function serializeTown(town: Town, director: PlanningDirector): SaveDocum
       ? { semanticMemoriesByOwner }
       : {}),
     ...(Object.keys(habitsByOwner).length > 0 ? { habitsByOwner } : {}),
+    ...(Object.keys(skillsByOwner).length > 0 ? { skillsByOwner } : {}),
     messages: town.messages.all().map((message) => ({ ...message })),
     invitations: town.invitations.all().map((invitation) => ({ ...invitation })),
     groups: {
@@ -358,6 +367,12 @@ export function deserializeAndRestore(doc: SaveDocument): RestoredWorld {
   if (doc.habitsByOwner !== undefined) {
     for (const [owner, list] of Object.entries(doc.habitsByOwner)) {
       for (const h of list) town.habits.import(owner, { ...h });
+    }
+  }
+  if (doc.skillsByOwner !== undefined) {
+    for (const [owner, list] of Object.entries(doc.skillsByOwner)) {
+      for (const skill of list)
+        town.skills.import(owner, skill.skill, { xp: skill.xp, level: skill.level });
     }
   }
   if (doc.groups !== undefined) {

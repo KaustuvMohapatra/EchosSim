@@ -30,6 +30,8 @@ function fingerprint(town: Town, director: PlanningDirector): string {
     const store = town.memory.storeFor(id);
     parts.push(store.all.map((x) =>
       `${x.id}:${x.importance.toFixed(9)}:${x.accessCount}:${x.lastAccessMinutes}`).join(";"));
+    parts.push(town.skills.allOf(id).map((skill) =>
+      `${skill.skill}:${skill.xp}:${skill.level}`).join(";"));
   }
   parts.push([...town.relationships.all()].map((l) =>
     `${l.from}>${l.to}:` +
@@ -78,6 +80,19 @@ describe("persistence: mid-flight round trip", () => {
     expect(fingerprint(b1.town, b1.director)).toBe(fingerprint(b2.town, b2.director));
   });
 
+  it("round-trips skill progression exactly", () => {
+    const a = createDemoTown(7001);
+    a.town.skills.award(a.miraId, "Cooking", 42);
+    a.town.skills.award(a.miraId, "Professional", 95);
+    a.town.skills.award(a.rohanId, "Social", 17);
+
+    const restored = restoreFromJson(saveToJson(a.town, a.director));
+    expect(restored.town.skills.allOf(a.miraId)).toEqual(
+      a.town.skills.allOf(a.miraId));
+    expect(restored.town.skills.allOf(a.rohanId)).toEqual(
+      a.town.skills.allOf(a.rohanId));
+  });
+
   it("round-trips messages and invitations without replaying side effects", () => {
     const a = createDemoTown(7001);
     const now = a.town.clock.currentTime.totalMinutes;
@@ -106,13 +121,15 @@ describe("persistence: mid-flight round trip", () => {
   it("accepts older v3 saves without phone fields", () => {
     const a = createDemoTown(7001);
     const doc = JSON.parse(saveToJson(a.town, a.director)) as {
-      messages?: unknown; invitations?: unknown;
+      messages?: unknown; invitations?: unknown; skillsByOwner?: unknown;
     };
     delete doc.messages;
     delete doc.invitations;
+    delete doc.skillsByOwner;
     const restored = restoreFromJson(JSON.stringify(doc));
     expect(restored.town.messages.all()).toEqual([]);
     expect(restored.town.invitations.all()).toEqual([]);
+    expect(restored.town.skills.allOf(a.miraId)).toEqual([]);
   });
 
   it("rejects saves from a newer schema version gracefully", () => {
