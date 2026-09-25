@@ -97,7 +97,7 @@ export function ResidentDetails(props: ResidentDetailsProps) {
             {!props.knowledge.privateAccess && (
               <div className="profile-knowledge-note">
                 <small>Known information</small>
-                <span>Private needs, goals, relationships and memories stay hidden.</span>
+                <span>Their private needs, goals, home, work, relationships and memories stay hidden.</span>
               </div>
             )}
             <section className="profile-hero">
@@ -105,16 +105,16 @@ export function ResidentDetails(props: ResidentDetailsProps) {
               <strong>{presenceView.activity}</strong>
               <span>{presenceView.location}</span>
             </section>
-            <dl className="profile-facts">
-              {props.knowledge.privateAccess && (
+            {props.knowledge.privateAccess && (
+              <dl className="profile-facts">
                 <div><dt>Goal</dt><dd>{readableGoal(agent.committedGoalId ?? agent.summary.currentGoal)}</dd></div>
-              )}
-              <div><dt>Home</dt><dd>{agent.homeLocationId
-                ? locations.get(agent.homeLocationId) ?? agent.homeLocationId : "No home listed"}</dd></div>
-              <div><dt>Work</dt><dd>{agent.job
-                ? `${agent.job.title} · ${locations.get(agent.job.workplace) ?? agent.job.workplace}`
-                : "Not currently employed"}</dd></div>
-            </dl>
+                <div><dt>Home</dt><dd>{agent.homeLocationId
+                  ? locations.get(agent.homeLocationId) ?? agent.homeLocationId : "No home listed"}</dd></div>
+                <div><dt>Work</dt><dd>{agent.job
+                  ? `${agent.job.title} · ${locations.get(agent.job.workplace) ?? agent.job.workplace}`
+                  : "Not currently employed"}</dd></div>
+              </dl>
+            )}
             {props.knowledge.privateAccess && (
               <section className="profile-section">
                 <div className="profile-section__title"><strong>Needs to watch</strong><small>Most pressing</small></div>
