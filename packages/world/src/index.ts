@@ -346,6 +346,29 @@ export interface PromotionResult {
   newIncome?: number;
 }
 
+export interface PromotionRequirement {
+  nextTitle: string;
+  requiredLevel: number;
+  requiredDays: number;
+  newIncome: number;
+}
+
+/** Read-only next-tier requirement used by both simulation and presentation. */
+export function promotionRequirementFor(
+  job: { title: string; workplace: string; incomePerHour: number },
+): PromotionRequirement | undefined {
+  const tiers = careerTiersFor(job.workplace);
+  const idx = Math.max(0, tiers.findIndex((tier) => tier.title === job.title));
+  if (idx === tiers.length - 1) return undefined;
+  const next = tiers[idx + 1]!;
+  return {
+    nextTitle: next.title,
+    requiredLevel: next.requiredLevel,
+    requiredDays: 5,
+    newIncome: next.incomePerHour,
+  };
+}
+
 /**
  * Evaluates a working resident for promotion. Promotion requires the next
  * tier's Professional skill level plus five recorded shift-days at (or above)
@@ -356,12 +379,11 @@ export function evaluatePromotion(
   professionalLevel: number,
   daysWorkedAtTier: number,
 ): PromotionResult {
-  const tiers = careerTiersFor(job.workplace);
-  const idx = Math.max(0, tiers.findIndex((t) => t.title === job.title));
-  if (idx < 0 || idx === tiers.length - 1) return { promoted: false };
-  const next = tiers[idx + 1]!;
-  if (professionalLevel >= next.requiredLevel && daysWorkedAtTier >= 5)
-    return { promoted: true, fromTitle: job.title, toTitle: next.title,
-             newIncome: next.incomePerHour };
+  const requirement = promotionRequirementFor(job);
+  if (!requirement) return { promoted: false };
+  if (professionalLevel >= requirement.requiredLevel &&
+      daysWorkedAtTier >= requirement.requiredDays)
+    return { promoted: true, fromTitle: job.title, toTitle: requirement.nextTitle,
+             newIncome: requirement.newIncome };
   return { promoted: false };
 }

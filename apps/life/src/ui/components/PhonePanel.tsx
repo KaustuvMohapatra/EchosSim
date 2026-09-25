@@ -12,6 +12,7 @@ interface PhonePanelProps {
   nowMinutes: number;
   onSend(toId: string, text: string): boolean;
   onRespond(invitationId: number, response: "accept" | "decline"): void;
+  onTravel(locationId: string, locationName: string): void;
   onClose(): void;
 }
 
@@ -108,16 +109,29 @@ export function PhonePanel(props: PhonePanelProps) {
         {tab === "calendar" && (
           <section className="phone-list">
             {props.life.calendar.length === 0 ? (
-              <p className="empty-state">No upcoming work shifts are scheduled.</p>
-            ) : props.life.calendar.map((entry) => (
-              <article className="phone-list__row" key={`${entry.atMinutes}-${entry.label}`}>
-                <span className="phone-list__mark" aria-hidden="true" />
-                <span>
-                  <strong>{entry.label}</strong>
-                  <small>{formatSimMoment(entry.atMinutes, props.nowMinutes)}</small>
-                </span>
-              </article>
-            ))}
+              <p className="empty-state">No upcoming shifts or social commitments.</p>
+            ) : props.life.calendar.map((entry) => {
+              const locationName = entry.locationId
+                ? props.locations.get(entry.locationId) ?? entry.locationId
+                : undefined;
+              return (
+                <article className={`phone-list__row phone-list__row--${entry.kind}`}
+                  key={`${entry.atMinutes}-${entry.label}`}>
+                  <span className="phone-list__mark" aria-hidden="true" />
+                  <span>
+                    <strong>{entry.label}</strong>
+                    <small>{formatSimMoment(entry.atMinutes, props.nowMinutes)}
+                      {locationName ? ` · ${locationName}` : ""}</small>
+                  </span>
+                  {entry.kind === "meeting" && entry.locationId && locationName && (
+                    <button type="button" className="text-button"
+                      onClick={() => props.onTravel(entry.locationId!, locationName)}>
+                      Go
+                    </button>
+                  )}
+                </article>
+              );
+            })}
           </section>
         )}
 

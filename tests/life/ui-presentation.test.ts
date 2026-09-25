@@ -13,7 +13,7 @@ import {
   eventToStory, groupTownStories, liveStories, townStoryViews,
 } from "../../apps/life/src/ui/models/storyView.js";
 import {
-  formatClockMinute, formatSimMoment, habitText,
+  careerRequirementProgress, formatClockMinute, formatSimMoment, habitText,
   intentionStrengthLabel, intentionText, skillProgress,
 } from "../../apps/life/src/ui/models/personalLifeView.js";
 
@@ -150,6 +150,8 @@ describe("Life UI presentation models", () => {
     expect(skillProgress({
       name: "Cooking", xp: 25, level: 1, levelFloorXp: 10, nextLevelXp: 40,
     })).toBeCloseTo(0.5);
+    expect(careerRequirementProgress(2, 4)).toBe(0.5);
+    expect(careerRequirementProgress(7, 5)).toBe(1);
     expect(intentionText("repair", "Mira")).toBe("Repair things with Mira");
     expect(intentionStrengthLabel(0.7)).toBe("Strong intention");
     expect(habitText("visit", "Maple & Bean", 4)).toBe("Often visits Maple & Bean");
@@ -188,6 +190,11 @@ describe("Life UI presentation models", () => {
     ]);
     expect(adapter.respondToInvitation("player", invitation!.id, "accept")).toBe(true);
     expect(adapter.town.invitations.get(invitation!.id)?.status).toBe("accepted");
+    expect(adapter.personalLifeFor("player")!.calendar).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        kind: "meeting", locationId: "cafe", relatedResidentId: "npc_mira",
+      }),
+    ]));
 
     const socialRel = adapter.town.relationships.getOrCreate("player", "npc_mira");
     socialRel.familiarity = 0.5;
@@ -196,7 +203,22 @@ describe("Life UI presentation models", () => {
     adapter.town.habits.record("player", "visit", "cafe", 0);
     adapter.town.habits.record("player", "visit", "cafe", 1440);
     adapter.town.habits.record("player", "visit", "cafe", 2880);
+    const mind = adapter.town.residents.mind("player");
+    mind.job = {
+      id: "job_player", title: "Junior Architect", workplace: "studio",
+      shiftStartMinuteOfDay: 540, shiftEndMinuteOfDay: 1020, incomePerHour: 16,
+    };
+    mind.plannerMemory.set("career_days", 3);
+    adapter.town.skills.award("player", "Professional", 90);
     const developedLife = adapter.personalLifeFor("player")!;
+    expect(developedLife.career).toMatchObject({
+      currentTitle: "Junior Architect",
+      professionalLevel: 3,
+      daysAtTier: 3,
+      nextTitle: "Designer",
+      requiredProfessionalLevel: 3,
+      requiredDays: 5,
+    });
     expect(developedLife.intentions).toEqual(expect.arrayContaining([
       expect.objectContaining({ kind: "befriend", subjectKey: "npc_mira" }),
     ]));

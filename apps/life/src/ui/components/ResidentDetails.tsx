@@ -4,7 +4,7 @@ import type {
   LifePersonalSnapshot, LifeResidentKnowledgeSummary,
 } from "../../simulation/LifeModeAdapter.js";
 import {
-  formatClockMinute, formatSimMoment, habitText,
+  careerRequirementProgress, formatClockMinute, formatSimMoment, habitText,
   intentionStrengthLabel, intentionText, skillProgress,
 } from "../models/personalLifeView.js";
 import {
@@ -195,6 +195,31 @@ export function ResidentDetails(props: ResidentDetailsProps) {
                   <span>{formatClockMinute(agent.job.shiftStartMinuteOfDay)}–{formatClockMinute(agent.job.shiftEndMinuteOfDay)}</span>
                   {props.life.calendar[0] && (
                     <em>Next: {formatSimMoment(props.life.calendar[0].atMinutes, props.nowMinutes)}</em>
+                  )}
+                  {props.life.career?.nextTitle && (
+                    <div className="career-progress">
+                      <span>
+                        <strong>Next: {props.life.career.nextTitle}</strong>
+                        <small>
+                          Professional {props.life.career.professionalLevel}/{props.life.career.requiredProfessionalLevel}
+                          {" · "}
+                          Shifts {props.life.career.daysAtTier}/{props.life.career.requiredDays}
+                        </small>
+                      </span>
+                      <span className="career-progress__tracks" aria-label="Promotion progress">
+                        <i><b style={{ width: `${careerRequirementProgress(
+                          props.life.career.professionalLevel,
+                          props.life.career.requiredProfessionalLevel,
+                        ) * 100}%` }} /></i>
+                        <i><b style={{ width: `${careerRequirementProgress(
+                          props.life.career.daysAtTier,
+                          props.life.career.requiredDays,
+                        ) * 100}%` }} /></i>
+                      </span>
+                    </div>
+                  )}
+                  {props.life.career && !props.life.career.nextTitle && (
+                    <em>Top of the current career track.</em>
                   )}
                 </div>
               ) : (

@@ -16,6 +16,7 @@ import {
   PlanningDirector, Town, LodController, deliverMessage, workShifts,
 } from "@echosim/simulation";
 import { xpForLevel, type SkillName } from "@echosim/social";
+import { promotionRequirementFor } from "@echosim/world";
 
 export interface LifeLocationSummary {
   id: string;
@@ -43,6 +44,8 @@ export interface LifeCalendarEntrySummary {
   atMinutes: number;
   label: string;
   kind: "shift" | "meeting" | "custom";
+  locationId?: string;
+  relatedResidentId?: string;
 }
 
 export interface LifeInvitationSummary {
@@ -68,6 +71,18 @@ export interface LifeHouseholdSummary {
   name: string;
   homeLocationId?: string;
   members: Array<{ id: string; name: string }>;
+}
+
+export interface LifeCareerSummary {
+  currentTitle: string;
+  workplaceId: string;
+  incomePerHour: number;
+  professionalLevel: number;
+  daysAtTier: number;
+  nextTitle?: string;
+  requiredProfessionalLevel?: number;
+  requiredDays?: number;
+  nextIncomePerHour?: number;
 }
 
 export interface LifeHabitSummary {
@@ -107,6 +122,7 @@ export interface LifePersonalSnapshot {
   invitations: LifeInvitationSummary[];
   skills: LifeSkillSummary[];
   households: LifeHouseholdSummary[];
+  career?: LifeCareerSummary;
   habits: LifeHabitSummary[];
   intentions: LifeIntentionSummary[];
 }
@@ -507,13 +523,48 @@ export class LifeModeAdapter {
         })),
       }));
 
+    const invitations = this.town.invitations.forAgent(agentId);
+    const now = this.town.clock.currentTime.totalMinutes;
+    const calendar: LifeCalendarEntrySummary[] = workShifts(this.town, agentId, 7)
+      .map((entry) => ({ ...entry }));
+    for (const invitation of invitations) {
+      if (invitation.status !== "accepted" || invitation.atMinutes < now) continue;
+      const otherId = invitation.from === agentId ? invitation.to : invitation.from;
+      const otherName = this.town.residents.tryMind(otherId)?.displayName ?? otherId;
+      calendar.push({
+        atMinutes: invitation.atMinutes,
+        label: `${invitation.activityLabel} with ${otherName}`,
+        kind: "meeting",
+        locationId: invitation.lotId,
+        relatedResidentId: otherId,
+      });
+    }
+    calendar.sort((a, b) => a.atMinutes - b.atMinutes || a.label.localeCompare(b.label));
+
+    const professional = this.town.skills.stateOf(agentId, "Professional");
+    const requirement = mind.job ? promotionRequirementFor(mind.job) : undefined;
+    const career: LifeCareerSummary | undefined = mind.job ? {
+      currentTitle: mind.job.title,
+      workplaceId: mind.job.workplace,
+      incomePerHour: mind.job.incomePerHour,
+      professionalLevel: professional.level,
+      daysAtTier: mind.plannerMemory.get("career_days") ?? 0,
+      ...(requirement ? {
+        nextTitle: requirement.nextTitle,
+        requiredProfessionalLevel: requirement.requiredLevel,
+        requiredDays: requirement.requiredDays,
+        nextIncomePerHour: requirement.newIncome,
+      } : {}),
+    } : undefined;
+
     return {
       agentId,
       messages,
-      calendar: workShifts(this.town, agentId, 7).map((entry) => ({ ...entry })),
-      invitations: this.town.invitations.forAgent(agentId),
+      calendar,
+      invitations,
       skills,
       households,
+      ...(career ? { career } : {}),
       habits: this.inspector.getHabits(agentId).slice(0, 5).map((habit) => ({
         behavior: habit.behavior,
         targetKey: habit.targetKey,

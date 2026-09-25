@@ -16,6 +16,14 @@ export function formatSimMoment(atMinutes: number, nowMinutes: number): string {
   return `Day ${day + 1} · ${clock}`;
 }
 
+export function careerRequirementProgress(
+  current: number,
+  required: number | undefined,
+): number {
+  if (required === undefined || required <= 0) return 1;
+  return Math.max(0, Math.min(1, current / required));
+}
+
 export function skillProgress(skill: LifeSkillSummary): number {
   if (skill.nextLevelXp === undefined) return 1;
   const span = skill.nextLevelXp - skill.levelFloorXp;

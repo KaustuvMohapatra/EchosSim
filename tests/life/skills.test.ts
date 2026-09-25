@@ -4,7 +4,7 @@ import { createAuthoredTown, createDemoTown } from "@echosim/content";
 import {
   SkillSystem, levelForXp, xpForLevel,
 } from "@echosim/social";
-import { evaluatePromotion } from "@echosim/world";
+import { evaluatePromotion, promotionRequirementFor } from "@echosim/world";
 import type { Town } from "@echosim/simulation";
 import type { PlanningDirector } from "@echosim/simulation";
 
@@ -63,6 +63,17 @@ const { town, director, miraId } = createDemoTown(4242);
 });
 
 describe("S48: promotions", () => {
+  it("exposes the same next-tier requirement used by promotion evaluation", () => {
+    expect(promotionRequirementFor({
+      title: "Junior Architect", workplace: "studio", incomePerHour: 16,
+    })).toEqual({
+      nextTitle: "Designer", requiredLevel: 3, requiredDays: 5, newIncome: 22,
+    });
+    expect(promotionRequirementFor({
+      title: "Project Architect", workplace: "studio", incomePerHour: 38,
+    })).toBeUndefined();
+  });
+
   it("require skill level plus five shift-days; then change title and pay", () => {
     const tiers = [
       { title: "Junior Architect", requiredLevel: 0, incomePerHour: 16 },

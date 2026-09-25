@@ -153,6 +153,10 @@ export function App() {
                 app?.adapter.respondToInvitation(controlledId, invitationId, response);
                 if (app) setFlash(app.adapter.lastCommandFeedback);
               }}
+              onTravel={(locationId, locationName) => {
+                app?.player.enqueueMove(locationId, locationName);
+                setFlash(`Travel queued: ${locationName}.`);
+              }}
               onClose={() => setPanel(null)} />
           )}
 
