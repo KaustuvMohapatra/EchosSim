@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLife } from "./useLife.js";
-import { orderResidentRail, residentRailItem } from "./models/residentView.js";
+import {
+  orderResidentRail, residentRailItemFromPresence,
+} from "./models/residentView.js";
 import { followedStories, liveStories, townStoryViews } from "./models/storyView.js";
 import { TopBar } from "./components/TopBar.js";
 import { ResidentRail } from "./components/ResidentRail.js";
@@ -57,17 +59,20 @@ export function App() {
   [app, snap, selected, controlledId]);
 
   const household = useMemo(() => new Set(app?.player.householdMembers() ?? []), [app, snap, controlledId]);
+  const residentPresence = useMemo(() =>
+    app && snap && controlledId ? app.adapter.residentPresenceFor(controlledId) : [],
+  [app, snap, controlledId]);
   const names = useMemo(() => new Map((snap?.agents ?? []).map((agent) => [agent.id, agent.name])), [snap]);
   const locations = useMemo(() => new Map((snap?.locations ?? []).map((location) => [location.id, location.name])), [snap]);
 
   const residents = useMemo(() => orderResidentRail(
-    (snap?.agents ?? []).map((agent) => residentRailItem(agent, {
-      controlled: agent.id === controlledId,
-      household: household.has(agent.id),
-      selected: agent.id === selected,
-      followed: followed.has(agent.id),
+    residentPresence.map((presence) => residentRailItemFromPresence(presence, {
+      controlled: presence.id === controlledId,
+      household: household.has(presence.id),
+      selected: presence.id === selected,
+      followed: followed.has(presence.id),
     })),
-  ), [snap, controlledId, household, selected, followed]);
+  ), [residentPresence, controlledId, household, selected, followed]);
 
   const observerLive = useMemo(() => snap
     ? liveStories(snap.events, snap.time.totalMinutes, names, locations, 14, controlledId

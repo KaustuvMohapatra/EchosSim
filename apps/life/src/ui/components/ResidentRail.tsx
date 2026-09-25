@@ -27,7 +27,13 @@ export function ResidentRail({ residents, onSelect, onControl }: ResidentRailPro
               <span className="resident-avatar" aria-hidden="true">{resident.initials}</span>
               <span className="resident-chip__copy">
                 <strong>{resident.name}</strong>
-                <span><i className={`mood-dot mood-dot--${resident.mood.toLowerCase()}`} />{resident.mood}</span>
+                {resident.mood ? (
+                  <span><i className={`mood-dot mood-dot--${resident.mood.toLowerCase()}`} />{resident.mood}</span>
+                ) : (
+                  <span className="resident-chip__presence">
+                    {resident.visibility === "last-known" ? "Last known" : "Away"}
+                  </span>
+                )}
                 <small title={resident.activity}>{resident.activity}</small>
               </span>
             </button>
