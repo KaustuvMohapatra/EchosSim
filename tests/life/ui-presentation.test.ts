@@ -321,6 +321,20 @@ describe("Life UI presentation models", () => {
       .toMatchObject({ tone: "warm", category: "careers" });
   });
 
+  it("keeps private inspector detail behind the household boundary", () => {
+    const adapter = new LifeModeAdapter({ seed: 7001n });
+    expect(adapter.privateResidentDetailsFor("player", "player")).toBeDefined();
+    expect(adapter.privateResidentDetailsFor("player", "npc_anika")).toBeDefined();
+    expect(adapter.privateResidentDetailsFor("player", "npc_mira")).toBeUndefined();
+
+    adapter.town.moveAgent("player" as never, "park" as never);
+    adapter.town.moveAgent("npc_mira" as never, "park" as never);
+    expect(adapter.residentPresenceFor("player")
+      .find((resident) => resident.id === "npc_mira")?.visibility).toBe("current");
+    expect(adapter.privateResidentDetailsFor("player", "npc_mira")).toBeUndefined();
+    adapter.dispose();
+  });
+
   it("scopes unrelated resident profiles to the controlled resident's knowledge", () => {
     const adapter = new LifeModeAdapter({ seed: 7001n });
     const now = adapter.town.clock.currentTime.totalMinutes;

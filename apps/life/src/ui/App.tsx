@@ -51,9 +51,9 @@ export function App() {
 
   const controlledId = app?.player.controlled;
   const controlled = controlledId && app
-    ? app.adapter.inspector.getAgent(controlledId) : undefined;
-  const selectedAgent = selected && app
-    ? app.adapter.inspector.getAgent(selected) : undefined;
+    ? app.adapter.privateResidentDetailsFor(controlledId, controlledId) : undefined;
+  const selectedPrivateAgent = selected && controlledId && app
+    ? app.adapter.privateResidentDetailsFor(controlledId, selected) : undefined;
   const selectedKnowledge = useMemo(() =>
     app && snap && selected && controlledId
       ? app.adapter.residentKnowledgeFor(controlledId, selected) : undefined,
@@ -75,17 +75,19 @@ export function App() {
   const selectedPresence = useMemo(() =>
     selected ? residentPresence.find((presence) => presence.id === selected) : undefined,
   [residentPresence, selected]);
-  const names = useMemo(() => new Map((snap?.agents ?? []).map((agent) => [agent.id, agent.name])), [snap]);
+  const names = useMemo(() =>
+    new Map(residentPresence.map((resident) => [resident.id, resident.name])),
+  [residentPresence]);
   const locations = useMemo(() => new Map((snap?.locations ?? []).map((location) => [location.id, location.name])), [snap]);
 
   useEffect(() => {
     if (!snap) return;
-    const residentIds = new Set(snap.agents.map((agent) => agent.id));
+    const residentIds = new Set(residentPresence.map((resident) => resident.id));
     setFollowed((current) => {
       const next = new Set([...current].filter((id) => residentIds.has(id)));
       return next.size === current.size ? current : next;
     });
-  }, [snap]);
+  }, [snap, residentPresence]);
 
   const residents = useMemo(() => orderResidentRail(
     residentPresence.map((presence) => residentRailItemFromPresence(presence, {
@@ -227,10 +229,10 @@ export function App() {
               onClose={() => setPanel(null)} />
           )}
 
-          {panel === "resident" && selectedAgent && selected && selectedKnowledge && selectedPresence && (
+          {panel === "resident" && selected && selectedKnowledge && selectedPresence && (
             <ResidentDetails
               key={selected}
-              agent={selectedAgent}
+              agent={selectedPrivateAgent}
               names={names}
               locations={locations}
               knowledge={selectedKnowledge}

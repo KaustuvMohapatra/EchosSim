@@ -9,7 +9,7 @@ import { createAuthoredTown } from "@echosim/content";
 import { PersonalityProfile } from "@echosim/cognition";
 import { SimulationInspector } from "@echosim/inspector";
 import type {
-  AgentSummary, MemoryInspectorEntry, RelationshipSnapshot,
+  AgentInspectorSnapshot, AgentSummary, MemoryInspectorEntry, RelationshipSnapshot,
   SimEventEntry, TimeInfo, TownStats,
 } from "@echosim/inspector";
 import {
@@ -526,6 +526,23 @@ export class LifeModeAdapter {
       }
       return { id: summary.id, name: summary.name, visibility: "unknown" };
     });
+  }
+
+  /**
+   * Full inspector detail is private resident state. Only self or a member of
+   * the viewer's controllable household may cross this adapter boundary.
+   */
+  privateResidentDetailsFor(
+    viewerId: string,
+    targetId: string,
+  ): AgentInspectorSnapshot | undefined {
+    if (!this.town.residents.tryMind(viewerId) || !this.town.residents.tryMind(targetId))
+      return undefined;
+    const privateAccess = viewerId === targetId || this.town.groups.groupsOf(viewerId)
+      .filter((group) => group.kind === "Household")
+      .some((group) => this.town.groups.isMember(group.id, targetId));
+    if (!privateAccess) return undefined;
+    return this.inspector.getAgent(targetId);
   }
 
   /**

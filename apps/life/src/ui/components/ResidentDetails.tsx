@@ -16,7 +16,7 @@ import {
 } from "../models/residentView.js";
 
 interface ResidentDetailsProps {
-  agent: AgentInspectorSnapshot;
+  agent?: AgentInspectorSnapshot;
   names: ReadonlyMap<string, string>;
   locations: ReadonlyMap<string, string>;
   knowledge: LifeResidentKnowledgeSummary;
@@ -37,12 +37,14 @@ type ProfileTab = "overview" | "relationships" | "memories" | "life";
 
 export function ResidentDetails(props: ResidentDetailsProps) {
   const { agent, names, locations } = props;
+  const residentId = props.presence.id;
+  const residentName = props.presence.name;
   const [tab, setTab] = useState<ProfileTab>("overview");
-  const needs = props.knowledge.privateAccess ? relevantNeeds(agent, 3) : [];
+  const needs = props.knowledge.privateAccess && agent ? relevantNeeds(agent, 3) : [];
   const relationships = useMemo(() =>
     [...props.knowledge.relationships]
-      .filter((relationship) => relationship.to !== agent.summary.id ||
-        relationship.from !== agent.summary.id)
+      .filter((relationship) => relationship.to !== residentId ||
+        relationship.from !== residentId)
       .slice(0, 10), [props.knowledge]);
   const memories = props.knowledge.memories.slice(0, 7);
   const presenceView = residentProfilePresenceView(props.presence, props.nowMinutes);
@@ -51,15 +53,15 @@ export function ResidentDetails(props: ResidentDetailsProps) {
     : ["overview", "relationships", "memories"];
 
   return (
-    <aside className="side-panel resident-details" aria-label={`${agent.summary.name} profile`}>
+    <aside className="side-panel resident-details" aria-label={`${residentName} profile`}>
       <div className="side-panel__top">
         <div className="resident-details__identity">
           <span className="resident-avatar resident-avatar--large" aria-hidden="true">
-            {residentInitials(agent.summary.name)}
+            {residentInitials(residentName)}
           </span>
           <span>
             <small>{props.controlled ? "Currently controlled" : "Resident"}</small>
-            <strong>{agent.summary.name}</strong>
+            <strong>{residentName}</strong>
             <span>
               {presenceView.mood && (
                 <i className={`mood-dot mood-dot--${presenceView.mood.toLowerCase()}`} />
@@ -105,7 +107,7 @@ export function ResidentDetails(props: ResidentDetailsProps) {
               <strong>{presenceView.activity}</strong>
               <span>{presenceView.location}</span>
             </section>
-            {props.knowledge.privateAccess && (
+            {props.knowledge.privateAccess && agent && (
               <dl className="profile-facts">
                 <div><dt>Goal</dt><dd>{readableGoal(agent.committedGoalId ?? agent.summary.currentGoal)}</dd></div>
                 <div><dt>Home</dt><dd>{agent.homeLocationId
@@ -208,7 +210,7 @@ export function ResidentDetails(props: ResidentDetailsProps) {
               <div className="profile-section__title">
                 <strong>Career</strong><small>Current work</small>
               </div>
-              {agent.job ? (
+              {agent?.job ? (
                 <div className="life-card">
                   <strong>{agent.job.title}</strong>
                   <small>{locations.get(agent.job.workplace) ?? agent.job.workplace}</small>
