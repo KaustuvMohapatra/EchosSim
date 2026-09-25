@@ -21,6 +21,15 @@ describe("S53: messaging", () => {
     expect(mem.some((x) => x.eventType === "message")).toBe(true);
   });
 
+  it("restores message ids without replaying delivery effects", () => {
+    const log = new MessageLog();
+    log.import({ id: 7, from: "a", to: "b", text: "saved", atMinutes: 90 });
+    expect(log.all()).toEqual([
+      { id: 7, from: "a", to: "b", text: "saved", atMinutes: 90 },
+    ]);
+    expect(log.send("b", "a", "next", 100).id).toBe(8);
+  });
+
   it("message log supports per-pair and inbox views", () => {
     const log = new MessageLog();
     log.send("a", "b", "hi", 10);
@@ -50,6 +59,29 @@ describe("S53: calendar", () => {
 });
 
 describe("S53: invitations", () => {
+  it("restores invitation ids and status without emitting a new invite", () => {
+    const { town } = createAuthoredTown(7001);
+    const board = new InvitationBoard(town);
+    let emitted = 0;
+    town.events.subscribe("sim:invitation", () => { emitted++; });
+    board.import({
+      id: 9, from: "npc_mira", to: "npc_anika",
+      activityLabel: "coffee", lotId: "cafe", atMinutes: 900,
+      status: "accepted",
+    });
+    expect(emitted).toBe(0);
+    expect(board.all()).toEqual([
+      expect.objectContaining({ id: 9, status: "accepted" }),
+    ]);
+
+    town.relationships.import("npc_anika", "npc_mira", {
+      familiarity: 0.5, affinity: 0.6, trust: 0.4, respect: 0,
+      attraction: 0, fear: 0, grievance: 0, obligation: 0,
+    });
+    const next = board.maybeInvite("npc_mira", "npc_anika", "walk", "park", 1000)!;
+    expect(next.id).toBe(10);
+  });
+
   it("rejects invalid, past and duplicate pending commitments", () => {
     const { town } = createAuthoredTown(7001);
     const board = new InvitationBoard(town);

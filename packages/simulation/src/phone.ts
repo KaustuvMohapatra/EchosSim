@@ -42,6 +42,17 @@ export class MessageLog {
       .map((m) => ({ ...m }))
       .sort((a, b) => a.atMinutes - b.atMinutes || a.id - b.id);
   }
+
+  all(): Message[] {
+    return this.messages.map((message) => ({ ...message }));
+  }
+
+  /** Persistence-only import: no social side effects are replayed. */
+  import(message: Message): void {
+    this.messages.push({ ...message });
+    if (this.messages.length > this.capacity) this.messages.shift();
+    this.nextId = Math.max(this.nextId, message.id + 1);
+  }
 }
 
 /**
@@ -168,6 +179,18 @@ export class InvitationBoard {
       .filter((i) => i.from === agentId || i.to === agentId)
       .map((i) => ({ ...i }))
       .sort((a, b) => b.atMinutes - a.atMinutes || b.id - a.id);
+  }
+
+  all(): Invitation[] {
+    return [...this.items.values()]
+      .map((invitation) => ({ ...invitation }))
+      .sort((a, b) => a.id - b.id);
+  }
+
+  /** Persistence-only import: restores state without re-emitting invitation events. */
+  import(invitation: Invitation): void {
+    this.items.set(invitation.id, { ...invitation });
+    this.nextId = Math.max(this.nextId, invitation.id + 1);
   }
 
   /** Accepting creates a soft commitment memory for both parties. */

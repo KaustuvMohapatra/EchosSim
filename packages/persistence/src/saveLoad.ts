@@ -55,6 +55,14 @@ export interface SaveActiveRun {
   agentId: string; goalId: string; stepActionIds: string[];
   nextStepIndex: number; remainingMinutes: number;
 }
+export interface SaveMessage {
+  id: number; from: string; to: string; text: string; atMinutes: number;
+}
+export interface SaveInvitation {
+  id: number; from: string; to: string; activityLabel: string;
+  lotId: string; atMinutes: number;
+  status: "pending" | "accepted" | "declined" | "expired";
+}
 
 export interface SaveDocument {
   version: number;
@@ -81,6 +89,9 @@ export interface SaveDocument {
     id: number; behavior: string; targetKey: string; strength: number;
     repetitionCount: number; firstPerformedMinutes: number; lastPerformedMinutes: number;
   }>>;
+  /** v3+: simulation-owned Life phone state. Optional for older v3 saves. */
+  messages?: SaveMessage[];
+  invitations?: SaveInvitation[];
   /** v3+: group content snapshot so restores stay self-contained (Sprint 25). */
   groups?: {
     defs: Array<{ id: string; kind: string; name: string; meetingLocationId?: string }>;
@@ -218,6 +229,8 @@ export function serializeTown(town: Town, director: PlanningDirector): SaveDocum
       ? { semanticMemoriesByOwner }
       : {}),
     ...(Object.keys(habitsByOwner).length > 0 ? { habitsByOwner } : {}),
+    messages: town.messages.all().map((message) => ({ ...message })),
+    invitations: town.invitations.all().map((invitation) => ({ ...invitation })),
     groups: {
       defs: town.groups.allGroups().map((g) => ({
         id: g.id, kind: g.kind, name: g.name,
@@ -329,6 +342,12 @@ export function deserializeAndRestore(doc: SaveDocument): RestoredWorld {
       stored.sourceEvent = b.sourceEvent;
     }
   }
+
+  // Simulation-owned Life phone state. Missing fields are valid older v3 saves.
+  for (const message of doc.messages ?? [])
+    town.messages.import({ ...message });
+  for (const invitation of doc.invitations ?? [])
+    town.invitations.import({ ...invitation });
 
   // Durable semantic knowledge (Sprint 23) + habits (Sprint 24).
   if (doc.semanticMemoriesByOwner !== undefined) {

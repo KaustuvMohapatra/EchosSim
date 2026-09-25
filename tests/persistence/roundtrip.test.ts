@@ -40,6 +40,10 @@ function fingerprint(town: Town, director: PlanningDirector): string {
     `${owner}:` + store.all.map((b) =>
       `${b.subjectKey}|${b.predicate}|${b.stance.toFixed(9)}|${b.confidence.toFixed(9)}|${b.hopCount}|${b.sourceAgent ?? "-"}`
     ).sort().join(";")).sort());
+  parts.push(town.messages.all().map((m) =>
+    `${m.id}:${m.from}>${m.to}:${m.atMinutes}:${m.text}`).join(";"));
+  parts.push(town.invitations.all().map((i) =>
+    `${i.id}:${i.from}>${i.to}:${i.activityLabel}:${i.lotId}:${i.atMinutes}:${i.status}`).join(";"));
   parts.push(director.totalPlansCreated, director.totalPlansSucceeded,
     director.totalPlansFailed);
   return JSON.stringify(parts);
@@ -72,6 +76,43 @@ describe("persistence: mid-flight round trip", () => {
     const b1 = restoreFromJson(json);
     const b2 = restoreFromJson(json);
     expect(fingerprint(b1.town, b1.director)).toBe(fingerprint(b2.town, b2.director));
+  });
+
+  it("round-trips messages and invitations without replaying side effects", () => {
+    const a = createDemoTown(7001);
+    const now = a.town.clock.currentTime.totalMinutes;
+    a.town.messages.send(a.miraId, a.rohanId, "coffee later?", now);
+    a.town.relationships.import(a.rohanId, a.miraId, {
+      familiarity: 0.7, affinity: 0.7, trust: 0.5, respect: 0,
+      attraction: 0, fear: 0, grievance: 0, obligation: 0,
+    });
+    const lotId = a.town.locations.orderedIds[0]!;
+    const invitation = a.town.invitations.maybeInvite(
+      a.miraId, a.rohanId, "hanging out", lotId, now + 120)!;
+
+    const restored = restoreFromJson(saveToJson(a.town, a.director));
+    expect(restored.town.messages.all()).toEqual(a.town.messages.all());
+    expect(restored.town.invitations.all()).toEqual(a.town.invitations.all());
+
+    const nextMessage = restored.town.messages.send(
+      a.miraId, a.rohanId, "still on?", now + 10);
+    expect(nextMessage.id).toBeGreaterThan(1);
+    restored.town.invitations.decline(invitation.id);
+    const nextInvitation = restored.town.invitations.maybeInvite(
+      a.miraId, a.rohanId, "a walk", lotId, now + 180)!;
+    expect(nextInvitation.id).toBeGreaterThan(invitation.id);
+  });
+
+  it("accepts older v3 saves without phone fields", () => {
+    const a = createDemoTown(7001);
+    const doc = JSON.parse(saveToJson(a.town, a.director)) as {
+      messages?: unknown; invitations?: unknown;
+    };
+    delete doc.messages;
+    delete doc.invitations;
+    const restored = restoreFromJson(JSON.stringify(doc));
+    expect(restored.town.messages.all()).toEqual([]);
+    expect(restored.town.invitations.all()).toEqual([]);
   });
 
   it("rejects saves from a newer schema version gracefully", () => {
