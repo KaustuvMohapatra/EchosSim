@@ -173,12 +173,24 @@ describe("Life UI presentation models", () => {
     expect(habitText("visit", "Maple & Bean", 4)).toBe("Often visits Maple & Bean");
   });
 
-  it("keeps phone messages resident-scoped and skill state simulation-backed", () => {
+  it("keeps phone contacts and messages resident-scoped and skill state simulation-backed", () => {
     const adapter = new LifeModeAdapter({ seed: 7001n });
+    adapter.createResident({
+      id: "ui_unknown_contact", name: "Unknown Contact",
+      personality: PersonalityProfile.balanced(),
+    });
+    expect(adapter.personalLifeFor("player")!.contacts.some((contact) =>
+      contact.id === "ui_unknown_contact")).toBe(false);
+    expect(adapter.sendMessage("player", "ui_unknown_contact", "Hello?")).toBe(false);
+    expect(adapter.lastCommandFeedback).toContain("contacts");
+
+    adapter.town.relationships.getOrCreate("player", "npc_mira");
     expect(adapter.sendMessage("player", "npc_mira", "Coffee later?")).toBe(true);
     expect(adapter.town.messages.between("player", "npc_mira")).toHaveLength(1);
 
     const playerLife = adapter.personalLifeFor("player")!;
+    expect(playerLife.contacts.some((contact) => contact.id === "npc_mira")).toBe(true);
+    expect(playerLife.contacts.some((contact) => contact.id === "ui_unknown_contact")).toBe(false);
     const miraLife = adapter.personalLifeFor("npc_mira")!;
     const rohanLife = adapter.personalLifeFor("npc_rohan")!;
     expect(playerLife.messages).toHaveLength(1);
@@ -284,6 +296,7 @@ describe("Life UI presentation models", () => {
       accessCount: 0,
       lastAccessMinutes: now,
     }));
+    adapter.town.relationships.getOrCreate("npc_mira", "player");
     adapter.sendMessage("npc_mira", "player", "Want coffee?");
 
     const stranger = adapter.residentKnowledgeFor("player", "npc_mira")!;

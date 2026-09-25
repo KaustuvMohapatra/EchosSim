@@ -40,6 +40,11 @@ export interface LifeMessageSummary {
   atMinutes: number;
 }
 
+export interface LifeContactSummary {
+  id: string;
+  name: string;
+}
+
 export interface LifeCalendarEntrySummary {
   atMinutes: number;
   label: string;
@@ -117,6 +122,7 @@ export interface LifeResidentKnowledgeSummary {
 
 export interface LifePersonalSnapshot {
   agentId: string;
+  contacts: LifeContactSummary[];
   messages: LifeMessageSummary[];
   calendar: LifeCalendarEntrySummary[];
   invitations: LifeInvitationSummary[];
@@ -289,6 +295,11 @@ export class LifeModeAdapter {
     }
     if (fromId === toId) {
       this.lastCommandFeedback = "Choose someone else to message.";
+      this.emit();
+      return false;
+    }
+    if (!this.phoneContactIdsFor(fromId).has(toId)) {
+      this.lastCommandFeedback = "You do not have that resident in your contacts yet.";
       this.emit();
       return false;
     }
@@ -483,6 +494,28 @@ export class LifeModeAdapter {
     };
   }
 
+  private phoneContactIdsFor(agentId: string): Set<string> {
+    const ids = new Set<string>();
+
+    for (const group of this.town.groups.groupsOf(agentId)) {
+      if (group.kind !== "Household") continue;
+      for (const member of this.town.groups.membersOf(group.id))
+        if (member !== agentId) ids.add(member);
+    }
+
+    for (const relationship of this.inspector.getRelationships(agentId))
+      if (relationship.to !== agentId) ids.add(relationship.to);
+
+    for (const message of this.town.messages.forAgent(agentId))
+      ids.add(message.from === agentId ? message.to : message.from);
+
+    for (const invitation of this.town.invitations.forAgent(agentId))
+      ids.add(invitation.from === agentId ? invitation.to : invitation.from);
+
+    ids.delete(agentId);
+    return ids;
+  }
+
   /**
    * Private, resident-scoped personal-life read model. React receives copies
    * and never owns message, invitation, calendar or skill simulation state.
@@ -491,14 +524,16 @@ export class LifeModeAdapter {
     const mind = this.town.residents.tryMind(agentId);
     if (!mind) return undefined;
 
-    const messageById = new Map<number, LifeMessageSummary>();
-    for (const otherId of this.town.residents.orderedIds()) {
-      if (otherId === agentId) continue;
-      for (const message of this.town.messages.between(agentId, otherId))
-        messageById.set(message.id, { ...message });
-    }
-    const messages = [...messageById.values()]
-      .sort((a, b) => a.atMinutes - b.atMinutes || a.id - b.id);
+    const messages = this.town.messages.forAgent(agentId)
+      .map((message): LifeMessageSummary => ({ ...message }));
+
+    const contacts = [...this.phoneContactIdsFor(agentId)]
+      .map((id): LifeContactSummary | undefined => {
+        const resident = this.town.residents.tryMind(id);
+        return resident ? { id, name: resident.displayName } : undefined;
+      })
+      .filter((contact): contact is LifeContactSummary => contact !== undefined)
+      .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
 
     const skills = SKILL_NAMES.map((name): LifeSkillSummary => {
       const state = this.town.skills.stateOf(agentId, name);
@@ -559,6 +594,7 @@ export class LifeModeAdapter {
 
     return {
       agentId,
+      contacts,
       messages,
       calendar,
       invitations,

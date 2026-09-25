@@ -34,6 +34,14 @@ export class MessageLog {
   inboxFor(agentId: string): Message[] {
     return this.messages.filter((m) => m.to === agentId);
   }
+
+  /** Read-only chronological thread surface for one resident. */
+  forAgent(agentId: string): Message[] {
+    return this.messages
+      .filter((m) => m.from === agentId || m.to === agentId)
+      .map((m) => ({ ...m }))
+      .sort((a, b) => a.atMinutes - b.atMinutes || a.id - b.id);
+  }
 }
 
 /**

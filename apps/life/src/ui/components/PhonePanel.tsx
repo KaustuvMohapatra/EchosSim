@@ -1,13 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import type { AgentSummary } from "@echosim/inspector";
 import type { LifePersonalSnapshot } from "../../simulation/LifeModeAdapter.js";
 import { formatSimMoment } from "../models/personalLifeView.js";
 import { residentInitials } from "../models/residentView.js";
 
 interface PhonePanelProps {
   life: LifePersonalSnapshot;
-  residents: readonly AgentSummary[];
-  names: ReadonlyMap<string, string>;
   locations: ReadonlyMap<string, string>;
   nowMinutes: number;
   onSend(toId: string, text: string): boolean;
@@ -19,9 +16,10 @@ interface PhonePanelProps {
 type PhoneTab = "messages" | "calendar" | "invitations";
 
 export function PhonePanel(props: PhonePanelProps) {
-  const contacts = useMemo(
-    () => props.residents.filter((resident) => resident.id !== props.life.agentId),
-    [props.residents, props.life.agentId],
+  const contacts = props.life.contacts;
+  const contactNames = useMemo(
+    () => new Map(contacts.map((contact) => [contact.id, contact.name])),
+    [contacts],
   );
   const [tab, setTab] = useState<PhoneTab>("messages");
   const [contactId, setContactId] = useState(contacts[0]?.id ?? "");
@@ -81,7 +79,7 @@ export function PhonePanel(props: PhonePanelProps) {
                 return (
                   <article className={`message-bubble${outgoing ? " is-outgoing" : ""}`}
                     key={message.id}>
-                    <small>{outgoing ? "You" : props.names.get(message.from) ?? message.from}</small>
+                    <small>{outgoing ? "You" : contactNames.get(message.from) ?? "Known resident"}</small>
                     <p>{message.text}</p>
                     <time>{formatSimMoment(message.atMinutes, props.nowMinutes)}</time>
                   </article>
@@ -98,7 +96,7 @@ export function PhonePanel(props: PhonePanelProps) {
                     submit();
                   }
                 }}
-                placeholder={contactId ? `Message ${props.names.get(contactId) ?? "resident"}` : "No contact"}
+                placeholder={contactId ? `Message ${contactNames.get(contactId) ?? "resident"}` : "No contacts yet"}
                 aria-label="Message text" disabled={!contactId} />
               <button type="button" className="primary-button" onClick={submit}
                 disabled={!contactId || draft.trim().length === 0}>Send</button>
@@ -146,12 +144,12 @@ export function PhonePanel(props: PhonePanelProps) {
                 <article className="invitation-row" key={invitation.id}>
                   <div>
                     <span className="resident-avatar resident-avatar--small" aria-hidden="true">
-                      {residentInitials(props.names.get(otherId) ?? otherId)}
+                      {residentInitials(contactNames.get(otherId) ?? "Resident")}
                     </span>
                     <span>
                       <strong>{incoming
-                        ? `${props.names.get(otherId) ?? otherId} invited you`
-                        : `You invited ${props.names.get(otherId) ?? otherId}`}</strong>
+                        ? `${contactNames.get(otherId) ?? "A resident"} invited you`
+                        : `You invited ${contactNames.get(otherId) ?? "a resident"}`}</strong>
                       <small>
                         {invitation.activityLabel} · {props.locations.get(invitation.lotId) ?? invitation.lotId}
                       </small>

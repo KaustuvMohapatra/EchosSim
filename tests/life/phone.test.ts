@@ -28,6 +28,8 @@ describe("S53: messaging", () => {
     log.send("a", "c", "yo", 14);
     expect(log.between("a", "b")).toHaveLength(2);
     expect(log.inboxFor("c")).toHaveLength(1);
+    expect(log.forAgent("a").map((message) => message.id)).toEqual([1, 2, 3]);
+    expect(log.forAgent("b").map((message) => message.id)).toEqual([1, 2]);
   });
 });
 

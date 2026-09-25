@@ -151,8 +151,6 @@ export function App() {
             <PhonePanel
               key={controlledId}
               life={controlledLife}
-              residents={snap.agents}
-              names={names}
               locations={locations}
               nowMinutes={snap.time.totalMinutes}
               onSend={(toId, text) => {
