@@ -103,7 +103,7 @@ export function App() {
   const buildMode = app?.buildMode ?? false;
 
   return (
-    <main className={`life-root${buildMode ? " is-build-mode" : ""}`}
+    <main className={`life-root${buildMode ? " is-build-mode" : ""}${panel ? " has-side-panel" : ""}`}
       onPointerDown={(event) => {
         const target = event.target as HTMLElement;
         if (!target.closest("[data-context-menu='1']")) closeMenu();
