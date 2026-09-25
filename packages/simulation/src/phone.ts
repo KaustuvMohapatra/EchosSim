@@ -3,7 +3,7 @@
  * NPC-initiated invitations. All effects flow through existing systems and
  * stay deliberately low-strength compared to face-to-face interaction.
  */
-import type { Town } from "@echosim/simulation";
+import type { Town } from "./town.js";
 import type { SkillName } from "@echosim/social";
 
 export interface Message {

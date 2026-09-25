@@ -92,6 +92,7 @@ describe("Life UI presentation models", () => {
   it("keeps phone messages resident-scoped and skill state simulation-backed", () => {
     const adapter = new LifeModeAdapter({ seed: 7001n });
     expect(adapter.sendMessage("player", "npc_mira", "Coffee later?")).toBe(true);
+    expect(adapter.town.messages.between("player", "npc_mira")).toHaveLength(1);
 
     const playerLife = adapter.personalLifeFor("player")!;
     const miraLife = adapter.personalLifeFor("npc_mira")!;
@@ -108,6 +109,19 @@ describe("Life UI presentation models", () => {
     });
     expect(playerLife.households.some((household) =>
       household.members.some((member) => member.id === "player"))).toBe(true);
+
+    const rel = adapter.town.relationships.getOrCreate("player", "npc_mira");
+    rel.affinity = 0.7;
+    const invitation = adapter.town.invitations.maybeInvite(
+      "npc_mira", "player", "coffee", "cafe",
+      adapter.town.clock.currentTime.totalMinutes + 60,
+    );
+    expect(invitation).not.toBeNull();
+    expect(adapter.personalLifeFor("player")!.invitations).toEqual([
+      expect.objectContaining({ id: invitation!.id, status: "pending" }),
+    ]);
+    expect(adapter.respondToInvitation("player", invitation!.id, "accept")).toBe(true);
+    expect(adapter.town.invitations.get(invitation!.id)?.status).toBe("accepted");
     adapter.dispose();
   });
 

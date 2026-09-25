@@ -12,8 +12,7 @@ import type {
   AgentSummary, SimEventEntry, TimeInfo, TownStats,
 } from "@echosim/inspector";
 import {
-  InvitationBoard, MessageLog, PlanningDirector, Town, LodController,
-  deliverMessage, workShifts,
+  PlanningDirector, Town, LodController, deliverMessage, workShifts,
 } from "@echosim/simulation";
 import { xpForLevel, type SkillName } from "@echosim/social";
 
@@ -112,8 +111,6 @@ export class LifeModeAdapter {
   /** Last command feedback for the UI (presentation info only). */
   lastCommandFeedback = "";
 
-  private readonly phoneMessages: MessageLog;
-  private readonly phoneInvitations: InvitationBoard;
   private timer: ReturnType<typeof setInterval> | null = null;
   private listeners = new Set<() => void>();
   private readonly beatMs: number;
@@ -125,8 +122,6 @@ export class LifeModeAdapter {
     this.town = demo.town;
     this.director = demo.director;
     this.inspector = new SimulationInspector(this.town, this.director);
-    this.phoneMessages = new MessageLog();
-    this.phoneInvitations = new InvitationBoard(this.town);
     this.beatMs = options.beatMs ?? 400;
     this.stepMinutes = options.stepMinutes ?? 10;
     this.lod = new LodController();
@@ -257,7 +252,7 @@ export class LifeModeAdapter {
       this.emit();
       return false;
     }
-    const delivered = deliverMessage(this.town, this.phoneMessages, fromId, toId, body);
+    const delivered = deliverMessage(this.town, this.town.messages, fromId, toId, body);
     this.lastCommandFeedback = delivered
       ? `Message sent to ${to.displayName}.`
       : "Message could not be delivered.";
@@ -270,15 +265,15 @@ export class LifeModeAdapter {
     invitationId: number,
     response: "accept" | "decline",
   ): boolean {
-    const invitation = this.phoneInvitations.get(invitationId);
+    const invitation = this.town.invitations.get(invitationId);
     if (!invitation || invitation.to !== agentId || invitation.status !== "pending") {
       this.lastCommandFeedback = "That invitation is no longer available.";
       this.emit();
       return false;
     }
     const changed = response === "accept"
-      ? this.phoneInvitations.accept(invitationId)
-      : this.phoneInvitations.decline(invitationId);
+      ? this.town.invitations.accept(invitationId)
+      : this.town.invitations.decline(invitationId);
     this.lastCommandFeedback = changed
       ? response === "accept" ? "Invitation accepted." : "Invitation declined."
       : "That invitation is no longer available.";
@@ -364,7 +359,7 @@ export class LifeModeAdapter {
     const messageById = new Map<number, LifeMessageSummary>();
     for (const otherId of this.town.residents.orderedIds()) {
       if (otherId === agentId) continue;
-      for (const message of this.phoneMessages.between(agentId, otherId))
+      for (const message of this.town.messages.between(agentId, otherId))
         messageById.set(message.id, { ...message });
     }
     const messages = [...messageById.values()]
@@ -397,7 +392,7 @@ export class LifeModeAdapter {
       agentId,
       messages,
       calendar: workShifts(this.town, agentId, 7).map((entry) => ({ ...entry })),
-      invitations: this.phoneInvitations.forAgent(agentId),
+      invitations: this.town.invitations.forAgent(agentId),
       skills,
       households,
     };

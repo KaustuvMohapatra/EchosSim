@@ -13,6 +13,7 @@ import {
   WeatherSystem, computeJobPressure,
 } from "@echosim/world";
 import { TownStories } from "./stories.js";
+import { InvitationBoard, MessageLog } from "./phone.js";
 import {
   PerceptionSystem, MemorySystem, MemoryRetriever, EmotionSystem, RelationshipSystem,
   BeliefSystem, SocialSystem, ConversationSystem,
@@ -67,6 +68,9 @@ export class Town {
   readonly habits = new HabitSystem();
   readonly groups = new GroupSystem();
   readonly skills = new SkillSystem();
+  /** Simulation-owned personal-life state; presentation adapters only expose it. */
+  readonly messages = new MessageLog();
+  readonly invitations = new InvitationBoard(this);
   readonly stories = new TownStories(this);
 
   /**
