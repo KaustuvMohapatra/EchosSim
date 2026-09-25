@@ -358,8 +358,8 @@ export function promotionRequirementFor(
   job: { title: string; workplace: string; incomePerHour: number },
 ): PromotionRequirement | undefined {
   const tiers = careerTiersFor(job.workplace);
-  const idx = Math.max(0, tiers.findIndex((tier) => tier.title === job.title));
-  if (idx === tiers.length - 1) return undefined;
+  const idx = tiers.findIndex((tier) => tier.title === job.title);
+  if (idx < 0 || idx === tiers.length - 1) return undefined;
   const next = tiers[idx + 1]!;
   return {
     nextTitle: next.title,

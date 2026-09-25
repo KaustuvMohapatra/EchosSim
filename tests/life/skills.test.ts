@@ -72,6 +72,9 @@ describe("S48: promotions", () => {
     expect(promotionRequirementFor({
       title: "Project Architect", workplace: "studio", incomePerHour: 38,
     })).toBeUndefined();
+    expect(promotionRequirementFor({
+      title: "Freelance Architect", workplace: "studio", incomePerHour: 24,
+    })).toBeUndefined();
   });
 
   it("require skill level plus five shift-days; then change title and pay", () => {
