@@ -70,6 +70,16 @@ export class PerceptionSystem {
   }
 
   observationsOf(agent: string): readonly Observation[] { return this.logs.get(agent) ?? []; }
+
+  /** Persistence-only import: restores knowledge without replaying observation effects. */
+  import(observation: Observation): void {
+    let log = this.logs.get(observation.observer);
+    if (!log) { log = []; this.logs.set(observation.observer, log); }
+    log.push({ ...observation, actors: [...observation.actors] });
+    if (log.length > this.logCapacity) log.shift();
+    this.nextEventNumber = Math.max(this.nextEventNumber, observation.eventId + 1);
+    this.totalDelivered++;
+  }
 }
 
 function mkObs(observer: string, eventId: number, eventType: string, actors: string[],

@@ -63,6 +63,11 @@ export interface SaveInvitation {
   lotId: string; atMinutes: number;
   status: "pending" | "accepted" | "declined" | "expired";
 }
+export interface SaveObservation {
+  observer: string; eventId: number; eventType: string;
+  actors: string[]; where?: string; timestampMinutes: number;
+  confidence: number; source: number;
+}
 
 export interface SaveDocument {
   version: number;
@@ -96,6 +101,8 @@ export interface SaveDocument {
   skillsByOwner?: Record<string, Array<{
     skill: SkillName; xp: number; level: number;
   }>>;
+  /** v3+: recent resident perception history used by knowledge-scoped Life UI. */
+  observationsByOwner?: Record<string, SaveObservation[]>;
   /** v3+: group content snapshot so restores stay self-contained (Sprint 25). */
   groups?: {
     defs: Array<{ id: string; kind: string; name: string; meetingLocationId?: string }>;
@@ -207,6 +214,7 @@ export function serializeTown(town: Town, director: PlanningDirector): SaveDocum
   const semanticMemoriesByOwner: SaveDocument["semanticMemoriesByOwner"] = {};
   const habitsByOwner: SaveDocument["habitsByOwner"] = {};
   const skillsByOwner: NonNullable<SaveDocument["skillsByOwner"]> = {};
+  const observationsByOwner: NonNullable<SaveDocument["observationsByOwner"]> = {};
   for (const owner of town.residents.orderedIds()) {
     const list = town.reflections.exportFor(owner);
     if (list.length > 0)
@@ -217,6 +225,19 @@ export function serializeTown(town: Town, director: PlanningDirector): SaveDocum
     const skills = town.skills.allOf(owner);
     if (skills.length > 0)
       skillsByOwner[owner] = skills.map((skill) => ({ ...skill }));
+    const observations = town.perception.observationsOf(owner);
+    if (observations.length > 0) {
+      observationsByOwner[owner] = observations.map((observation) => ({
+        observer: observation.observer,
+        eventId: observation.eventId,
+        eventType: observation.eventType,
+        actors: [...observation.actors],
+        ...(observation.where !== undefined ? { where: observation.where } : {}),
+        timestampMinutes: observation.timestampMinutes,
+        confidence: observation.confidence,
+        source: observation.source as number,
+      }));
+    }
   }
 
   return {
@@ -238,6 +259,7 @@ export function serializeTown(town: Town, director: PlanningDirector): SaveDocum
       : {}),
     ...(Object.keys(habitsByOwner).length > 0 ? { habitsByOwner } : {}),
     ...(Object.keys(skillsByOwner).length > 0 ? { skillsByOwner } : {}),
+    ...(Object.keys(observationsByOwner).length > 0 ? { observationsByOwner } : {}),
     messages: town.messages.all().map((message) => ({ ...message })),
     invitations: town.invitations.all().map((invitation) => ({ ...invitation })),
     groups: {
@@ -350,6 +372,16 @@ export function deserializeAndRestore(doc: SaveDocument): RestoredWorld {
       stored.sourceAgent = b.sourceAgent;
       stored.sourceEvent = b.sourceEvent;
     }
+  }
+
+  // Recent perception history. Import is side-effect free and preserves event ids.
+  for (const list of Object.values(doc.observationsByOwner ?? {})) {
+    for (const observation of list)
+      town.perception.import({
+        ...observation,
+        actors: [...observation.actors],
+        source: observation.source as never,
+      });
   }
 
   // Simulation-owned Life phone state. Missing fields are valid older v3 saves.

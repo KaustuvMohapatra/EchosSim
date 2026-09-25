@@ -32,6 +32,9 @@ function fingerprint(town: Town, director: PlanningDirector): string {
       `${x.id}:${x.importance.toFixed(9)}:${x.accessCount}:${x.lastAccessMinutes}`).join(";"));
     parts.push(town.skills.allOf(id).map((skill) =>
       `${skill.skill}:${skill.xp}:${skill.level}`).join(";"));
+    parts.push(town.perception.observationsOf(id).map((observation) =>
+      `${observation.eventId}:${observation.eventType}:${observation.actors.join(",")}:${observation.where ?? "-"}:${observation.timestampMinutes}`
+    ).join(";"));
   }
   parts.push([...town.relationships.all()].map((l) =>
     `${l.from}>${l.to}:` +
@@ -80,6 +83,31 @@ describe("persistence: mid-flight round trip", () => {
     expect(fingerprint(b1.town, b1.director)).toBe(fingerprint(b2.town, b2.director));
   });
 
+  it("round-trips recent resident perception without replaying side effects", () => {
+    const a = createDemoTown(7001);
+    const viewer = a.miraId;
+    const target = a.rohanId;
+    const location = a.town.agentsById.get(viewer)?.currentLocationId ??
+      a.town.locations.orderedIds[0]!;
+    a.town.moveAgent(viewer as never, location as never);
+    a.town.moveAgent(target as never, location as never);
+
+    const before = a.town.perception.observationsOf(viewer)
+      .map((observation) => ({
+        ...observation,
+        actors: [...observation.actors],
+      }));
+    expect(before.length).toBeGreaterThan(0);
+
+    const restored = restoreFromJson(saveToJson(a.town, a.director));
+    expect(restored.town.perception.observationsOf(viewer)).toEqual(before);
+
+    const maxBefore = Math.max(...before.map((observation) => observation.eventId));
+    const nextId = restored.town.perception.publish(
+      "test_after_restore", [viewer], location, 0 as never);
+    expect(nextId).toBeGreaterThan(maxBefore);
+  });
+
   it("round-trips skill progression exactly", () => {
     const a = createDemoTown(7001);
     a.town.skills.award(a.miraId, "Cooking", 42);
@@ -122,14 +150,17 @@ describe("persistence: mid-flight round trip", () => {
     const a = createDemoTown(7001);
     const doc = JSON.parse(saveToJson(a.town, a.director)) as {
       messages?: unknown; invitations?: unknown; skillsByOwner?: unknown;
+      observationsByOwner?: unknown;
     };
     delete doc.messages;
     delete doc.invitations;
     delete doc.skillsByOwner;
+    delete doc.observationsByOwner;
     const restored = restoreFromJson(JSON.stringify(doc));
     expect(restored.town.messages.all()).toEqual([]);
     expect(restored.town.invitations.all()).toEqual([]);
     expect(restored.town.skills.allOf(a.miraId)).toEqual([]);
+    expect(restored.town.perception.observationsOf(a.miraId)).toEqual([]);
   });
 
   it("rejects saves from a newer schema version gracefully", () => {
