@@ -164,7 +164,7 @@ export function App() {
               names={names}
               followedCount={followed.size}
               locations={snap?.locations ?? []}
-              agents={snap?.agents ?? []}
+              residents={residentPresence}
               currentLocationId={controlled?.summary.locationId}
               selectedLocationId={selectedAgent?.summary.locationId}
               onOpenMap={() => setShowMap(true)}
@@ -195,7 +195,7 @@ export function App() {
       {showMap && snap && (
         <WorldMap
           locations={snap.locations}
-          agents={snap.agents}
+          residents={residentPresence}
           controlledId={controlledId}
           selectedId={selected ?? undefined}
           destinationId={destinationId}

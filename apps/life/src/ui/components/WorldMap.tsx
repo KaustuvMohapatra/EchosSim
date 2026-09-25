@@ -1,13 +1,14 @@
 import type { CSSProperties } from "react";
-import type { AgentSummary } from "@echosim/inspector";
-import type { LifeLocationSummary } from "../../simulation/LifeModeAdapter.js";
+import type {
+  LifeLocationSummary, LifeResidentPresenceSummary,
+} from "../../simulation/LifeModeAdapter.js";
 import { DISTRICTS, mapLots } from "../../world/map.js";
 import { residentInitials } from "../models/residentView.js";
 import { residentCountsByLocation } from "../models/townView.js";
 
 interface WorldMapProps {
   locations: readonly LifeLocationSummary[];
-  agents: readonly AgentSummary[];
+  residents: readonly LifeResidentPresenceSummary[];
   controlledId?: string;
   selectedId?: string;
   destinationId?: string;
@@ -17,9 +18,11 @@ interface WorldMapProps {
 
 export function WorldMap(props: WorldMapProps) {
   const locations = new Map(props.locations.map((l) => [l.id, l]));
-  const controlled = props.agents.find((a) => a.id === props.controlledId);
-  const selected = props.agents.find((a) => a.id === props.selectedId);
-  const residentCounts = residentCountsByLocation(props.agents);
+  const controlled = props.residents.find((resident) => resident.id === props.controlledId);
+  const selected = props.residents.find((resident) => resident.id === props.selectedId);
+  const currentResidents = props.residents.flatMap((resident) =>
+    resident.current ? [resident.current] : []);
+  const residentCounts = residentCountsByLocation(currentResidents);
   return (
     <div className="map-overlay" role="dialog" aria-modal="true" aria-label="Town map"
       onPointerDown={(event) => { if (event.target === event.currentTarget) props.onClose(); }}>
@@ -33,8 +36,10 @@ export function WorldMap(props: WorldMapProps) {
           <div className="world-map__river" aria-hidden="true" />
           {mapLots().map((lot) => {
             const location = locations.get(lot.locationId);
-            const current = controlled?.locationId === lot.locationId;
-            const hasSelected = selected?.locationId === lot.locationId && selected?.id !== controlled?.id;
+            const current = controlled?.current?.locationId === lot.locationId;
+            const selectedLocationId = selected?.current?.locationId ?? selected?.lastKnownLocationId;
+            const hasSelected = selectedLocationId === lot.locationId && selected?.id !== controlled?.id;
+            const selectedLastKnown = hasSelected && selected?.visibility === "last-known";
             const destination = props.destinationId === lot.locationId;
             const residentCount = residentCounts.get(lot.locationId) ?? 0;
             const style = {
@@ -57,13 +62,19 @@ export function WorldMap(props: WorldMapProps) {
                 <span className="map-lot__name">{location?.name ?? lot.locationId}</span>
                 <small>
                   {location?.isOpen === false ? "Closed" : lot.district?.name ?? "Town"}
-                  {residentCount > 0 ? ` · ${residentCount} here` : ""}
+                  {residentCount > 0 ? ` · ${residentCount} known here` : ""}
                 </small>
                 <span className="map-lot__markers">
                   {current && controlled && <i className="is-controlled" title={`${controlled.name} is here`}>
                     {residentInitials(controlled.name)}</i>}
-                  {hasSelected && selected && <i title={`${selected.name} is here`}>
-                    {residentInitials(selected.name)}</i>}
+                  {hasSelected && selected && (
+                    <i className={selectedLastKnown ? "is-last-known" : ""}
+                      title={selectedLastKnown
+                        ? `${selected.name} was last seen here`
+                        : `${selected.name} is here`}>
+                      {selectedLastKnown ? "?" : residentInitials(selected.name)}
+                    </i>
+                  )}
                   {destination && <i className="is-destination" title="Current destination">→</i>}
                 </span>
               </button>

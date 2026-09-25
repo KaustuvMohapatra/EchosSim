@@ -1,22 +1,25 @@
 import type { CSSProperties } from "react";
-import type { AgentSummary } from "@echosim/inspector";
-import type { LifeLocationSummary } from "../../simulation/LifeModeAdapter.js";
+import type {
+  LifeLocationSummary, LifeResidentPresenceSummary,
+} from "../../simulation/LifeModeAdapter.js";
 import { mapLots } from "../../world/map.js";
 import { residentCountsByLocation } from "../models/townView.js";
 
 interface TownMiniMapProps {
   locations: readonly LifeLocationSummary[];
-  agents: readonly AgentSummary[];
+  residents: readonly LifeResidentPresenceSummary[];
   currentLocationId?: string;
   selectedLocationId?: string;
 }
 
 /** Compact preview of the same authored lots used by the expanded map. */
 export function TownMiniMap({
-  locations, agents, currentLocationId, selectedLocationId,
+  locations, residents, currentLocationId, selectedLocationId,
 }: TownMiniMapProps) {
   const locationsById = new Map(locations.map((location) => [location.id, location]));
-  const residentCounts = residentCountsByLocation(agents);
+  const currentResidents = residents.flatMap((resident) =>
+    resident.current ? [resident.current] : []);
+  const residentCounts = residentCountsByLocation(currentResidents);
   return (
     <div className="town-mini-map" aria-label="Compact town preview">
       <span className="town-mini-map__river" aria-hidden="true" />
@@ -43,7 +46,7 @@ export function TownMiniMap({
               location?.name ?? lot.locationId,
               location?.isOpen === false ? "Closed" : "Open",
               residentCount > 0
-                ? `${residentCount} resident${residentCount === 1 ? "" : "s"} here`
+                ? `${residentCount} known resident${residentCount === 1 ? "" : "s"} here`
                 : "No residents here",
             ].join(" · ")}>
             {residentCount > 0 && <b>{residentCount}</b>}

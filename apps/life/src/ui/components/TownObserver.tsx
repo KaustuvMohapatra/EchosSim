@@ -1,6 +1,7 @@
 import { useState } from "react";
-import type { AgentSummary } from "@echosim/inspector";
-import type { LifeLocationSummary } from "../../simulation/LifeModeAdapter.js";
+import type {
+  LifeLocationSummary, LifeResidentPresenceSummary,
+} from "../../simulation/LifeModeAdapter.js";
 import { groupTownStories, type StoryView } from "../models/storyView.js";
 import { residentInitials } from "../models/residentView.js";
 import { TownMiniMap } from "./TownMiniMap.js";
@@ -12,7 +13,7 @@ interface TownObserverProps {
   names: ReadonlyMap<string, string>;
   followedCount: number;
   locations: readonly LifeLocationSummary[];
-  agents: readonly AgentSummary[];
+  residents: readonly LifeResidentPresenceSummary[];
   currentLocationId?: string;
   selectedLocationId?: string;
   onOpenMap(): void;
@@ -45,7 +46,7 @@ export function TownObserver(props: TownObserverProps) {
           <div className="observer-map-callout">
             <TownMiniMap
               locations={props.locations}
-              agents={props.agents}
+              residents={props.residents}
               currentLocationId={props.currentLocationId}
               selectedLocationId={props.selectedLocationId} />
             <strong>See where life is unfolding</strong>
