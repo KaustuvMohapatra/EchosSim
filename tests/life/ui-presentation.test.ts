@@ -4,7 +4,7 @@ import type { AgentSummary, SimEventEntry } from "@echosim/inspector";
 import { LifeModeAdapter } from "../../apps/life/src/simulation/LifeModeAdapter.js";
 import {
   autonomyView, orderResidentRail, readableActivity,
-  residentRailItem, residentRailItemFromPresence,
+  residentProfilePresenceView, residentRailItem, residentRailItemFromPresence,
 } from "../../apps/life/src/ui/models/residentView.js";
 import {
   dayPeriod, residentCountsByLocation,
@@ -82,6 +82,18 @@ describe("Life UI presentation models", () => {
     });
     expect(rail.mood).toBeUndefined();
     expect(rail.activity).toContain("Last seen");
+    expect(residentProfilePresenceView(lastKnownMira)).toEqual({
+      status: "Last known",
+      activity: "Current activity unknown",
+      location: "Last seen at Park",
+    });
+    const unknown = adapter.residentPresenceFor("player")
+      .find((resident) => resident.id === "npc_rohan")!;
+    expect(residentProfilePresenceView(unknown)).toEqual({
+      status: "Out of sight",
+      activity: "Current activity unknown",
+      location: "Location unknown",
+    });
     adapter.dispose();
   });
 

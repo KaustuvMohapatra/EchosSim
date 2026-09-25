@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import type { AgentInspectorSnapshot } from "@echosim/inspector";
 import type {
-  LifePersonalSnapshot, LifeResidentKnowledgeSummary,
+  LifePersonalSnapshot, LifeResidentKnowledgeSummary, LifeResidentPresenceSummary,
 } from "../../simulation/LifeModeAdapter.js";
 import {
   careerRequirementProgress, formatClockMinute, formatSimMoment, habitText,
@@ -9,8 +9,7 @@ import {
 } from "../models/personalLifeView.js";
 import {
   cleanRelationshipLabel,
-  moodOf,
-  readableActivity,
+  residentProfilePresenceView,
   readableGoal,
   relevantNeeds,
   residentInitials,
@@ -21,6 +20,7 @@ interface ResidentDetailsProps {
   names: ReadonlyMap<string, string>;
   locations: ReadonlyMap<string, string>;
   knowledge: LifeResidentKnowledgeSummary;
+  presence: LifeResidentPresenceSummary;
   life?: LifePersonalSnapshot;
   nowMinutes: number;
   controlled: boolean;
@@ -45,6 +45,7 @@ export function ResidentDetails(props: ResidentDetailsProps) {
         relationship.from !== agent.summary.id)
       .slice(0, 10), [props.knowledge]);
   const memories = props.knowledge.memories.slice(0, 7);
+  const presenceView = residentProfilePresenceView(props.presence);
   const tabs: ProfileTab[] = props.life
     ? ["overview", "relationships", "memories", "life"]
     : ["overview", "relationships", "memories"];
@@ -59,7 +60,12 @@ export function ResidentDetails(props: ResidentDetailsProps) {
           <span>
             <small>{props.controlled ? "Currently controlled" : "Resident"}</small>
             <strong>{agent.summary.name}</strong>
-            <span><i className={`mood-dot mood-dot--${moodOf(agent).toLowerCase()}`} />{moodOf(agent)}</span>
+            <span>
+              {presenceView.mood && (
+                <i className={`mood-dot mood-dot--${presenceView.mood.toLowerCase()}`} />
+              )}
+              {presenceView.mood ?? presenceView.status}
+            </span>
           </span>
         </div>
         <button type="button" className="icon-button" onClick={props.onClose}
@@ -95,9 +101,9 @@ export function ResidentDetails(props: ResidentDetailsProps) {
               </div>
             )}
             <section className="profile-hero">
-              <small>Right now</small>
-              <strong>{readableActivity(agent.summary)}</strong>
-              <span>{agent.summary.locationName ?? "Location unavailable"}</span>
+              <small>{presenceView.status}</small>
+              <strong>{presenceView.activity}</strong>
+              <span>{presenceView.location}</span>
             </section>
             <dl className="profile-facts">
               {props.knowledge.privateAccess && (

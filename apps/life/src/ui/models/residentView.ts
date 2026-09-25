@@ -22,6 +22,13 @@ export interface CharacterCardModel {
   locationName?: string;
 }
 
+export interface ResidentProfilePresenceView {
+  status: "Right now" | "Last known" | "Out of sight";
+  activity: string;
+  location: string;
+  mood?: string;
+}
+
 export interface ResidentRailItem {
   id: string;
   name: string;
@@ -194,6 +201,32 @@ export function residentRailItemFromPresence(
       : "Elsewhere in town",
     visibility: presence.visibility,
     ...flags,
+  };
+}
+
+export function residentProfilePresenceView(
+  presence: LifeResidentPresenceSummary,
+): ResidentProfilePresenceView {
+  if (presence.current) {
+    return {
+      status: "Right now",
+      activity: readableActivity(presence.current),
+      location: presence.current.locationName ?? "Location unavailable",
+      mood: moodOfSummary(presence.current),
+    };
+  }
+  if (presence.visibility === "last-known") {
+    return {
+      status: "Last known",
+      activity: "Current activity unknown",
+      location: `Last seen at ${presence.lastKnownLocationName ??
+        presence.lastKnownLocationId ?? "somewhere in town"}`,
+    };
+  }
+  return {
+    status: "Out of sight",
+    activity: "Current activity unknown",
+    location: "Location unknown",
   };
 }
 

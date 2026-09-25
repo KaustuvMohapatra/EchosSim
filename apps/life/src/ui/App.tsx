@@ -62,6 +62,9 @@ export function App() {
   const residentPresence = useMemo(() =>
     app && snap && controlledId ? app.adapter.residentPresenceFor(controlledId) : [],
   [app, snap, controlledId]);
+  const selectedPresence = useMemo(() =>
+    selected ? residentPresence.find((presence) => presence.id === selected) : undefined,
+  [residentPresence, selected]);
   const names = useMemo(() => new Map((snap?.agents ?? []).map((agent) => [agent.id, agent.name])), [snap]);
   const locations = useMemo(() => new Map((snap?.locations ?? []).map((location) => [location.id, location.name])), [snap]);
 
@@ -170,18 +173,20 @@ export function App() {
               locations={snap?.locations ?? []}
               residents={residentPresence}
               currentLocationId={controlled?.summary.locationId}
-              selectedLocationId={selectedAgent?.summary.locationId}
+              selectedLocationId={selectedPresence?.current?.locationId ??
+                selectedPresence?.lastKnownLocationId}
               onOpenMap={() => setShowMap(true)}
               onClose={() => setPanel(null)} />
           )}
 
-          {panel === "resident" && selectedAgent && selected && selectedKnowledge && (
+          {panel === "resident" && selectedAgent && selected && selectedKnowledge && selectedPresence && (
             <ResidentDetails
               key={selected}
               agent={selectedAgent}
               names={names}
               locations={locations}
               knowledge={selectedKnowledge}
+              presence={selectedPresence}
               life={selectedLife}
               nowMinutes={snap?.time.totalMinutes ?? 0}
               controlled={selected === controlledId}
