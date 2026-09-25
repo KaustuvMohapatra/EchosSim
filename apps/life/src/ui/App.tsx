@@ -26,7 +26,7 @@ export function App() {
   const { hostRef, snap, app, selected, menu, closeMenu } = life;
   const [panel, setPanel] = useState<SidePanel>(null);
   const [showMap, setShowMap] = useState(false);
-  const [followed, setFollowed] = useState<Set<string>>(() => new Set());
+  const [followed, setFollowed] = useState<Set<string>>(loadFollowedResidents);
   const [flash, setFlash] = useState<string | null>(null);
 
   useEffect(() => {
@@ -40,6 +40,12 @@ export function App() {
     const timer = window.setTimeout(() => setFlash(null), 2600);
     return () => window.clearTimeout(timer);
   }, [flash]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("echosim-life-followed", JSON.stringify([...followed]));
+    } catch { /* private mode / unavailable storage */ }
+  }, [followed]);
 
   const controlledId = app?.player.controlled;
   const controlled = controlledId && app
@@ -57,6 +63,8 @@ export function App() {
     app && snap && selected && app.player.canSwitchTo(selected)
       ? app.adapter.personalLifeFor(selected) : undefined,
   [app, snap, selected, controlledId]);
+  const pendingInvitationCount = controlledLife?.invitations.filter((invitation) =>
+    invitation.to === controlledId && invitation.status === "pending").length ?? 0;
 
   const household = useMemo(() => new Set(app?.player.householdMembers() ?? []), [app, snap, controlledId]);
   const residentPresence = useMemo(() =>
@@ -124,7 +132,7 @@ export function App() {
       }}>
       <canvas ref={hostRef} className="life-canvas" aria-label="EchoSim town view" />
 
-      <TopBar app={app} time={snap?.time}
+      <TopBar app={app} time={snap?.time} phoneBadge={pendingInvitationCount}
         onPhone={() => setPanel((value) => value === "phone" ? null : "phone")}
         onTown={() => setPanel((value) => value === "town" ? null : "town")}
         onMap={() => setShowMap(true)} />
@@ -226,4 +234,16 @@ export function App() {
       {!buildMode && <ToastLayer message={flash} />}
     </main>
   );
+}
+
+
+function loadFollowedResidents(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem("echosim-life-followed") ?? "[]");
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(parsed.filter((value): value is string => typeof value === "string"));
+  } catch {
+    return new Set();
+  }
 }

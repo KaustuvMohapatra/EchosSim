@@ -6,12 +6,13 @@ import { DayCycle } from "./DayCycle.js";
 interface TopBarProps {
   app: LifeApp | null;
   time?: TimeInfo;
+  phoneBadge?: number;
   onPhone(): void;
   onTown(): void;
   onMap(): void;
 }
 
-export function TopBar({ app, time, onPhone, onTown, onMap }: TopBarProps) {
+export function TopBar({ app, time, phoneBadge = 0, onPhone, onTown, onMap }: TopBarProps) {
   const speed = app?.adapter.speed ?? 1;
   const running = app?.adapter.running ?? false;
   const buildMode = app?.buildMode ?? false;
@@ -59,7 +60,15 @@ export function TopBar({ app, time, onPhone, onTown, onMap }: TopBarProps) {
                 onClick={() => app?.camera.cycleMode()}
                 title="Cycle camera (C)" aria-label="Cycle camera mode">Camera</button>
               <button type="button" className="hud-tool hud-tool--phone"
-                onClick={onPhone} aria-label="Open phone">Phone</button>
+                onClick={onPhone}
+                aria-label={phoneBadge > 0 ? `Open phone, ${phoneBadge} pending invitations` : "Open phone"}>
+                Phone
+                {phoneBadge > 0 && (
+                  <span className="hud-attention-badge" aria-hidden="true">
+                    {phoneBadge > 9 ? "9+" : phoneBadge}
+                  </span>
+                )}
+              </button>
               <button type="button" className="hud-tool hud-tool--town"
                 onClick={onTown} aria-label="Open Town Observer">Town</button>
               <button type="button" className="hud-tool hud-tool--map"
