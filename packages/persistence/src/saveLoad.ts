@@ -324,7 +324,9 @@ export function deserializeAndRestore(doc: SaveDocument): RestoredWorld {
     town.spawnResident({
       id: a.id, displayName: a.name,
       homeLocationId: a.home,
-      startLocationId: undefined,
+      // Restore directly into the saved semantic location. Using moveAgent
+      // here would publish synthetic arrival/perception events during load.
+      startLocationId: a.locationId,
       personality: PersonalityProfile.fromArray(a.personality),
       initialNeeds: needs,
     });
@@ -340,12 +342,8 @@ export function deserializeAndRestore(doc: SaveDocument): RestoredWorld {
     }
   }
 
-  // Placement (after all spawns so occupancy counts are correct).
-  for (const a of doc.agents) {
-    if (a.locationId !== undefined) {
-      town.moveAgent(a.id as never, a.locationId as never);
-    }
-  }
+  // spawnResident updated each saved lot's occupancy directly, without
+  // emitting gameplay movement events during restoration.
 
   // Cognition state (commitments, cooldowns, suppressions).
   for (const a of doc.agents) {
