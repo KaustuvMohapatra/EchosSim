@@ -108,6 +108,25 @@ describe("persistence: mid-flight round trip", () => {
     expect(restored.town.stories.all()).toHaveLength(countBefore);
   });
 
+  it("preserves a resident who is intentionally unplaced", () => {
+    const a = createDemoTown(7001);
+    const id = "unplaced_restore_fixture";
+    a.town.spawnResident({
+      id,
+      displayName: "Unplaced",
+      homeLocationId: "loc_home_a",
+      startLocationId: undefined,
+      personality: a.town.residents.mind(a.miraId).personality,
+    });
+    expect(a.town.agentsById.get(id)?.hasLocation).toBe(false);
+
+    const restored = restoreFromJson(saveToJson(a.town, a.director));
+    const restoredState = restored.town.agentsById.get(id);
+    expect(restoredState?.hasLocation).toBe(false);
+    expect(restoredState?.currentLocationId).toBeUndefined();
+    expect(restored.town.residents.mind(id).homeLocationId).toBe("loc_home_a");
+  });
+
   it("round-trips recent resident perception without replaying side effects", () => {
     const a = createDemoTown(7001);
     const viewer = a.miraId;

@@ -39,7 +39,6 @@ export function createScaledTown(seed: bigint | number, population: number,
         .set(11 /* Ambition */, 0.2 + ((i * 13) % 100) / 100 * 0.6)
         .build(),
       initialNeeds: { [1]: 55 },
-      startLocationId: undefined,
     });
     if (options.withJobs !== false && i % 2 === 0) {
       const w = workplaces[i % workplaces.length]!;

@@ -372,7 +372,10 @@ export class Town {
 
     const state: AgentLocationState = { hasLocation: false };
     this.agentsById.set(mind.agent, state);
-    const start = spec.startLocationId ?? spec.homeLocationId;
+    // Omitted startLocationId means "begin at home"; an explicitly supplied
+    // undefined means "intentionally unplaced" (needed for exact save restore).
+    const hasExplicitStart = Object.prototype.hasOwnProperty.call(spec, "startLocationId");
+    const start = hasExplicitStart ? spec.startLocationId : spec.homeLocationId;
     if (start) {
       const target = this.locations.get(start as unknown as LocationId);
       target.onAgentEntered();
