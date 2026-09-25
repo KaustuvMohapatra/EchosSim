@@ -32,6 +32,16 @@ export interface LifeTownStorySummary {
   category: "relationships" | "careers" | "social" | "town";
 }
 
+export interface LifeObserverMomentSummary {
+  id: string;
+  atMinutes: number;
+  kind: "movement" | "social" | "weather";
+  eventType: string;
+  participants: readonly string[];
+  locationId?: string;
+  detail?: string;
+}
+
 export interface LifeMessageSummary {
   id: number;
   from: string;
@@ -407,6 +417,55 @@ export class LifeModeAdapter {
         };
       }),
     };
+  }
+
+  /**
+   * Live observer moments come from what this resident actually perceived,
+   * not from filtering the omniscient journal against their current location.
+   * Weather remains town-wide public information.
+   */
+  observerMomentsFor(viewerId: string, limit = 80): LifeObserverMomentSummary[] {
+    if (!this.town.residents.tryMind(viewerId)) return [];
+
+    const moments: LifeObserverMomentSummary[] = [];
+    for (const observation of this.town.perception.observationsOf(viewerId)) {
+      if (observation.eventType === "arrival") {
+        moments.push({
+          id: `observation-${observation.eventId}`,
+          atMinutes: observation.timestampMinutes,
+          kind: "movement",
+          eventType: observation.eventType,
+          participants: [...observation.actors],
+          ...(observation.where ? { locationId: observation.where } : {}),
+        });
+        continue;
+      }
+      if (observation.actors.length === 0) continue;
+      moments.push({
+        id: `observation-${observation.eventId}`,
+        atMinutes: observation.timestampMinutes,
+        kind: "social",
+        eventType: observation.eventType,
+        participants: [...observation.actors],
+        ...(observation.where ? { locationId: observation.where } : {}),
+      });
+    }
+
+    for (const event of this.inspector.getEvents({ limit })) {
+      if (event.kind !== "weather") continue;
+      moments.push({
+        id: `journal-${event.seq}`,
+        atMinutes: event.atMinutes,
+        kind: "weather",
+        eventType: event.type,
+        participants: [],
+        detail: event.text,
+      });
+    }
+
+    return moments
+      .sort((a, b) => a.atMinutes - b.atMinutes || a.id.localeCompare(b.id))
+      .slice(-limit);
   }
 
   /**

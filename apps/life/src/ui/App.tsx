@@ -3,7 +3,9 @@ import { useLife } from "./useLife.js";
 import {
   orderResidentRail, residentRailItemFromPresence,
 } from "./models/residentView.js";
-import { followedStories, liveStories, townStoryViews } from "./models/storyView.js";
+import {
+  followedStories, observerMomentStories, townStoryViews,
+} from "./models/storyView.js";
 import { TopBar } from "./components/TopBar.js";
 import { ResidentRail } from "./components/ResidentRail.js";
 import { ControlledResidentCard } from "./components/ControlledResidentCard.js";
@@ -85,10 +87,17 @@ export function App() {
     })),
   ), [residentPresence, controlledId, household, selected, followed]);
 
-  const observerLive = useMemo(() => snap
-    ? liveStories(snap.events, snap.time.totalMinutes, names, locations, 14, controlledId
-      ? { id: controlledId, locationId: controlled?.summary.locationId } : undefined) : [],
-  [snap, names, locations, controlledId, controlled?.summary.locationId]);
+  const observerLive = useMemo(() =>
+    app && snap && controlledId
+      ? observerMomentStories(
+          app.adapter.observerMomentsFor(controlledId),
+          snap.time.totalMinutes,
+          names,
+          locations,
+          14,
+        )
+      : [],
+  [app, snap, names, locations, controlledId]);
   const observerTown = useMemo(() => app && snap && controlledId
     ? townStoryViews(app.adapter.townStoriesFor(controlledId), snap.time.day) : [],
   [app, snap, controlledId]);

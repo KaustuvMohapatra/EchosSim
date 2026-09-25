@@ -1,5 +1,7 @@
 import type { SimEventEntry } from "@echosim/inspector";
-import type { LifeTownStorySummary } from "../../simulation/LifeModeAdapter.js";
+import type {
+  LifeObserverMomentSummary, LifeTownStorySummary,
+} from "../../simulation/LifeModeAdapter.js";
 import { humanizeToken } from "./residentView.js";
 
 export type StoryTone = "quiet" | "social" | "warm" | "weather" | "conflict";
@@ -159,6 +161,91 @@ export function liveStories(
           event.location !== viewer.locationId) continue;
     }
     const key = `${event.atMinutes}|${story.text}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(story);
+  }
+  return out;
+}
+
+export function observerMomentToStory(
+  moment: LifeObserverMomentSummary,
+  nowMinutes: number,
+  names: ReadonlyMap<string, string>,
+  locations: ReadonlyMap<string, string>,
+): StoryView {
+  const participants = [...moment.participants];
+  if (moment.kind === "movement") {
+    const actor = participants[0];
+    return {
+      id: moment.id,
+      text: `${lookup(actor, names)} arrived at ${lookup(moment.locationId, locations)}.`,
+      when: relativeSimulationTime(nowMinutes, moment.atMinutes),
+      participants,
+      tone: "quiet",
+      category: "town",
+      kind: "live",
+    };
+  }
+
+  if (moment.kind === "weather") {
+    const transition = (moment.detail ?? humanizeToken(moment.eventType))
+      .replace(/^Weather:\s*/, "").replace("→", "to");
+    return {
+      id: moment.id,
+      text: `The weather changed: ${transition}.`,
+      when: relativeSimulationTime(nowMinutes, moment.atMinutes),
+      participants: [],
+      tone: "weather",
+      category: "town",
+      kind: "live",
+    };
+  }
+
+  const actorNames = participants.map((id) => lookup(id, names));
+  const action = moment.eventType.replace(/^sim:/, "").replace(/_rejected$/, "").toLowerCase();
+  let text: string;
+  if (actorNames.length >= 2) {
+    const [a, b] = actorNames;
+    switch (action) {
+      case "greeting": text = `${a} greeted ${b}.`; break;
+      case "chat": text = `${a} talked with ${b}.`; break;
+      case "compliment": text = `${a} complimented ${b}.`; break;
+      case "tease": text = `${a} teased ${b}.`; break;
+      case "help": text = `${a} helped ${b}.`; break;
+      case "apologize": text = `${a} apologized to ${b}.`; break;
+      case "insult":
+      case "insult_incident": text = `${a} insulted ${b}.`; break;
+      default: text = `${a} and ${b}: ${humanizeToken(action)}.`; break;
+    }
+  } else {
+    text = `${actorNames[0] ?? "Someone"}: ${humanizeToken(action)}.`;
+  }
+  const conflict = action.includes("insult") || action.includes("tease") ||
+    action.includes("confront") || action.includes("apolog");
+  return {
+    id: moment.id,
+    text,
+    when: relativeSimulationTime(nowMinutes, moment.atMinutes),
+    participants,
+    tone: conflict ? "conflict" : "social",
+    category: "social",
+    kind: "live",
+  };
+}
+
+export function observerMomentStories(
+  moments: readonly LifeObserverMomentSummary[],
+  nowMinutes: number,
+  names: ReadonlyMap<string, string>,
+  locations: ReadonlyMap<string, string>,
+  limit = 12,
+): StoryView[] {
+  const seen = new Set<string>();
+  const out: StoryView[] = [];
+  for (let i = moments.length - 1; i >= 0 && out.length < limit; i--) {
+    const story = observerMomentToStory(moments[i]!, nowMinutes, names, locations);
+    const key = `${moments[i]!.atMinutes}|${story.text}`;
     if (seen.has(key)) continue;
     seen.add(key);
     out.push(story);

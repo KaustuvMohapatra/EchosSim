@@ -10,7 +10,7 @@ import {
   dayPeriod, residentCountsByLocation,
 } from "../../apps/life/src/ui/models/townView.js";
 import {
-  eventToStory, groupTownStories, liveStories, townStoryViews,
+  eventToStory, groupTownStories, liveStories, observerMomentStories, townStoryViews,
 } from "../../apps/life/src/ui/models/storyView.js";
 import {
   careerRequirementProgress, formatClockMinute, formatSimMoment, habitText,
@@ -143,7 +143,40 @@ describe("Life UI presentation models", () => {
     expect(story?.participants).toEqual(["mira"]);
   });
 
-  it("does not leak omniscient movement events into the Life observer", () => {
+  it("keeps live observer history tied to actual perception time", () => {
+    const adapter = new LifeModeAdapter({ seed: 7001n });
+    adapter.town.moveAgent("player" as never, "apt_b" as never);
+    adapter.town.moveAgent("npc_rohan" as never, "cafe" as never);
+
+    // Arriving at the cafe later must not reveal Rohan's earlier arrival there.
+    adapter.town.moveAgent("player" as never, "cafe" as never);
+    const afterArrival = adapter.observerMomentsFor("player");
+    expect(afterArrival.some((moment) =>
+      moment.kind === "movement" &&
+      moment.participants.includes("npc_rohan") &&
+      moment.locationId === "cafe")).toBe(false);
+
+    // A moment genuinely observed at the park remains known after leaving it.
+    adapter.town.moveAgent("player" as never, "park" as never);
+    adapter.town.moveAgent("npc_mira" as never, "park" as never);
+    adapter.town.moveAgent("player" as never, "apt_b" as never);
+    const remembered = adapter.observerMomentsFor("player");
+    expect(remembered.some((moment) =>
+      moment.kind === "movement" &&
+      moment.participants.includes("npc_mira") &&
+      moment.locationId === "park")).toBe(true);
+
+    const stories = observerMomentStories(
+      remembered,
+      adapter.town.clock.currentTime.totalMinutes,
+      new Map([["npc_mira", "Mira"], ["player", "You"]]),
+      new Map([["park", "Park"], ["apt_b", "Birch Apartments"]]),
+    );
+    expect(stories.some((item) => item.text === "Mira arrived at Park.")).toBe(true);
+    adapter.dispose();
+  });
+
+  it("does not leak omniscient movement events into the legacy event filter", () => {
     const events: SimEventEntry[] = [
       { seq: 1, atMinutes: 500, kind: "movement", type: "sim:agent-moved",
         agent: "mira", location: "cafe", text: "mira arrived at cafe" },
