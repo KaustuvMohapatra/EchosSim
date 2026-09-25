@@ -3,13 +3,13 @@
 All notable changes to EchoSim. Format loosely follows Keep a Changelog;
 versions are pre-1.0 and breaking changes are expected between minors.
 
-## [0.1.0] — 2026-08-23
+## [0.1.0] â€” 2026-08-23
 
-First public-quality build. Sprints 0–35 of the master specification.
+First public-quality build. Sprints 0â€“35 of the master specification.
 
 ### Simulation core
 - Deterministic engine-free TypeScript monorepo (Node headless; byte-reproducible per seed).
-- Personality (14 traits) → needs with hysteresis → explainable utility AI →
+- Personality (14 traits) â†’ needs with hysteresis â†’ explainable utility AI â†’
   uniform-cost GOAP with generation-tokened plan execution.
 - Timed semantic navigation, reservations, jobs/schedules, authored hours,
   seeded daily weather, town events.
@@ -18,7 +18,7 @@ First public-quality build. Sprints 0–35 of the master specification.
 - Emotion decay, directional 8-dimension relationships, belief store with
   hop-decayed provenance gossip and loop guards, deterministic template
   conversations ("u dummy." easter egg intact).
-- Reflection → durable semantic memories (reinforce / contradict / dedupe).
+- Reflection â†’ durable semantic memories (reinforce / contradict / dedupe).
 - Habits gated on multi-day recurrence with capped utility pull; derived
   long-term intentions biasing social goals.
 - Social groups: multi-membership, meetings with attendance-only knowledge,
@@ -28,16 +28,16 @@ First public-quality build. Sprints 0–35 of the master specification.
 
 ### Persistence
 - Versioned save format v3 with atomic writes and migration guards.
-- Proven round-trip contract: mid-flight save → restore → byte-identical futures.
+- Proven round-trip contract: mid-flight save â†’ restore â†’ byte-identical futures.
 
 ### Tooling & interfaces
-- `apps/sim-cli` — headless runner (`--seed --days --authored`).
-- `apps/debug-ui` — React inspector: utility breakdowns, plan/failure viewer,
+- `apps/sim-cli` â€” headless runner (`--seed --days --authored`).
+- `apps/debug-ui` â€” React inspector: utility breakdowns, plan/failure viewer,
   memory/belief tables, event timeline, social graph (ego + rumour chains),
   demo scenarios, recorded debug controls.
-- `apps/game` — Phaser living-town view: player as plain actor, six social
+- `apps/game` â€” Phaser living-town view: player as plain actor, six social
   commands, speech bubbles, rain visuals, optional generated ambience.
-- `@echosim/research` — feature-flag ablations, metrics, flat CSV exports
+- `@echosim/research` â€” feature-flag ablations, metrics, flat CSV exports
   with git/timestamp metadata (`pnpm experiment`).
 
 ### Optional AI
@@ -46,21 +46,21 @@ First public-quality build. Sprints 0–35 of the master specification.
 
 ### Performance
 - Planner open-list deduplication + cached-sort numeric hashing:
-  **13.8× speedup** on authored towns with identical outcomes.
-- Benchmarks: 100 agents × 3 days ≈ 14 s; soak 50 × 30 days ≈ 9.5 min clean.
+  **13.8Ã— speedup** on authored towns with identical outcomes.
+- Benchmarks: 100 agents Ã— 3 days â‰ˆ 14 s; soak 50 Ã— 30 days â‰ˆ 9.5 min clean.
 
 ### Verification
 - 114 tests across 16 suites (unit/regression/determinism/architecture/
   inspector/UI/persistence/perf/scenarios/content/research).
 
-## [0.2.0] � EchoSim Life
+## [0.2.0] — EchoSim Life
 
 Phase II: the playable life-simulation client on top of the v0.1.0 brain.
 
-### Added � Life client (`apps/life`)
+### Added — Life client (`apps/life`)
 - Babylon.js 9 + React + Vite 3D client; engine-free LifeModeAdapter keeps
   Babylon strictly presentation-side.
-- Player as a FULL EchoSim resident: needs, personality, memory, money �
+- Player as a FULL EchoSim resident: needs, personality, memory, money —
   commanded through simulation services only (click-to-walk, six social
   commands, object interactions).
 - Camera system: orbit / follow / shoulder with eased transitions and a
@@ -84,6 +84,9 @@ Phase II: the playable life-simulation client on top of the v0.1.0 brain.
   witnesses, object cleanliness decay/cleaning.
 - Phone layer: messages (weak remote nudges), calendar of shifts/meetings,
   NPC invitations with accept/decline consequences.
+- Life presentation phase 2: simulation-backed Phone UI (Messages / Calendar /
+  Invitations), household-aware Life profile sections, real career shifts and
+  skill progression, plus narrow-viewport HUD/panel collision fixes.
 - Town stories feed: promotions, friendship milestones and invitations,
   knowledge-filtered to plausible information.
 - Presentation systems: time-of-day daylight model, weather-aware ambience
@@ -94,6 +97,6 @@ Phase II: the playable life-simulation client on top of the v0.1.0 brain.
   - mid-flight save/load round-trip identity (v3 saves);
   - full-day occupancy invariant under capacity pressure;
   - AI-off vs AI-on byte-identical towns;
-  - 50�30-day headless soak (0 invariant violations) and a 7-day life-mode
+  - 50×30-day headless soak (0 invariant violations) and a 7-day life-mode
     soak with player commands;
   - read-only inspector fingerprints; architecture guardrails.
