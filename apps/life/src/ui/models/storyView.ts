@@ -3,6 +3,7 @@ import type { LifeTownStorySummary } from "../../simulation/LifeModeAdapter.js";
 import { humanizeToken } from "./residentView.js";
 
 export type StoryTone = "quiet" | "social" | "warm" | "weather" | "conflict";
+export type StoryCategory = LifeTownStorySummary["category"];
 
 export interface StoryView {
   id: string;
@@ -10,7 +11,14 @@ export interface StoryView {
   when: string;
   participants: readonly string[];
   tone: StoryTone;
+  category: StoryCategory;
   kind: "live" | "town";
+}
+
+export interface StoryGroup {
+  category: StoryCategory;
+  label: string;
+  stories: StoryView[];
 }
 
 function lookup(id: string | undefined, values: ReadonlyMap<string, string>): string {
@@ -78,6 +86,7 @@ export function eventToStory(
       when: relativeSimulationTime(nowMinutes, event.atMinutes),
       participants,
       tone: "quiet",
+      category: "town",
       kind: "live",
     };
   }
@@ -94,6 +103,7 @@ export function eventToStory(
       when: relativeSimulationTime(nowMinutes, event.atMinutes),
       participants,
       tone: "social",
+      category: "social",
       kind: "live",
     };
   }
@@ -107,6 +117,7 @@ export function eventToStory(
       when: relativeSimulationTime(nowMinutes, event.atMinutes),
       participants,
       tone: conflict ? "conflict" : "social",
+      category: "social",
       kind: "live",
     };
   }
@@ -119,6 +130,7 @@ export function eventToStory(
       when: relativeSimulationTime(nowMinutes, event.atMinutes),
       participants: [],
       tone: "weather",
+      category: "town",
       kind: "live",
     };
   }
@@ -165,9 +177,26 @@ export function townStoryViews(
       : story.day === currentDay - 1 ? "Yesterday"
       : `Day ${story.day + 1}`,
     participants: [...story.participants],
-    tone: story.text.toLowerCase().includes("promoted") ? "warm" : "social",
+    tone: story.category === "careers" ? "warm"
+      : story.category === "town" ? "quiet"
+      : "social",
+    category: story.category,
     kind: "town" as const,
   }));
+}
+
+const STORY_GROUPS: ReadonlyArray<{ category: StoryCategory; label: string }> = [
+  { category: "relationships", label: "Relationships" },
+  { category: "careers", label: "Careers" },
+  { category: "social", label: "Social life" },
+  { category: "town", label: "Town life" },
+];
+
+export function groupTownStories(stories: readonly StoryView[]): StoryGroup[] {
+  return STORY_GROUPS.flatMap(({ category, label }) => {
+    const matching = stories.filter((story) => story.category === category);
+    return matching.length > 0 ? [{ category, label, stories: matching }] : [];
+  });
 }
 
 export function followedStories(

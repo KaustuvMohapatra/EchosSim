@@ -6,7 +6,9 @@ import {
   autonomyView, readableActivity, residentRailItem,
 } from "../../apps/life/src/ui/models/residentView.js";
 import { dayPeriod } from "../../apps/life/src/ui/models/townView.js";
-import { eventToStory, liveStories } from "../../apps/life/src/ui/models/storyView.js";
+import {
+  eventToStory, groupTownStories, liveStories, townStoryViews,
+} from "../../apps/life/src/ui/models/storyView.js";
 import {
   formatClockMinute, formatSimMoment, skillProgress,
 } from "../../apps/life/src/ui/models/personalLifeView.js";
@@ -123,6 +125,29 @@ describe("Life UI presentation models", () => {
     expect(adapter.respondToInvitation("player", invitation!.id, "accept")).toBe(true);
     expect(adapter.town.invitations.get(invitation!.id)?.status).toBe("accepted");
     adapter.dispose();
+  });
+
+  it("groups town stories by explicit simulation category", () => {
+    const views = townStoryViews([
+      {
+        id: 1, day: 2, text: "Mira was promoted.", participants: ["npc_mira"],
+        category: "careers",
+      },
+      {
+        id: 2, day: 2, text: "Mira and Rohan became friends.",
+        participants: ["npc_mira", "npc_rohan"], category: "relationships",
+      },
+      {
+        id: 3, day: 2, text: "Mira invited Anika out.",
+        participants: ["npc_mira", "npc_anika"], category: "social",
+      },
+    ], 2);
+    const groups = groupTownStories(views);
+    expect(groups.map((group) => group.label)).toEqual([
+      "Relationships", "Careers", "Social life",
+    ]);
+    expect(groups.find((group) => group.category === "careers")?.stories[0])
+      .toMatchObject({ tone: "warm", category: "careers" });
   });
 
   it("keeps TownStories knowledge filtering intact at the adapter boundary", () => {

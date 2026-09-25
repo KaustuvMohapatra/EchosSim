@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { StoryView } from "../models/storyView.js";
+import { groupTownStories, type StoryView } from "../models/storyView.js";
 import { residentInitials } from "../models/residentView.js";
 import { TownMiniMap } from "./TownMiniMap.js";
 
@@ -20,6 +20,7 @@ type ObserverTab = "live" | "town" | "following" | "map";
 export function TownObserver(props: TownObserverProps) {
   const [tab, setTab] = useState<ObserverTab>("live");
   const stories = tab === "town" ? props.town : tab === "following" ? props.following : props.live;
+  const townGroups = tab === "town" ? groupTownStories(stories) : [];
   return (
     <aside className="side-panel town-observer" aria-label="Town Observer">
       <div className="side-panel__top">
@@ -52,27 +53,49 @@ export function TownObserver(props: TownObserverProps) {
                 ? "No visible town stories yet. Give the simulation a little time."
                 : "No recent observer-worthy activity yet."}
           </p>
+        ) : tab === "town" ? (
+          townGroups.map((group) => (
+            <section className="story-group" key={group.category}>
+              <header className="story-group__head">
+                <strong>{group.label}</strong>
+                <small>{group.stories.length}</small>
+              </header>
+              {group.stories.map((story) => (
+                <StoryCard key={story.id} story={story} names={props.names} />
+              ))}
+            </section>
+          ))
         ) : stories.map((story) => (
-          <article className={`story-item story-item--${story.tone}`} key={story.id}>
-            <span className="story-item__mark" aria-hidden="true" />
-            <div>
-              <p>{story.text}</p>
-              <footer>
-                <small>{story.when}</small>
-                {story.participants.length > 0 && (
-                  <span className="participant-stack" aria-label="Story participants">
-                    {story.participants.slice(0, 3).map((id) => (
-                      <i key={id} title={props.names.get(id) ?? id}>
-                        {residentInitials(props.names.get(id) ?? id)}
-                      </i>
-                    ))}
-                  </span>
-                )}
-              </footer>
-            </div>
-          </article>
+          <StoryCard key={story.id} story={story} names={props.names} />
         ))}
       </div>
     </aside>
+  );
+}
+
+
+function StoryCard({ story, names }: {
+  story: StoryView;
+  names: ReadonlyMap<string, string>;
+}) {
+  return (
+    <article className={`story-item story-item--${story.tone}`}>
+      <span className="story-item__mark" aria-hidden="true" />
+      <div>
+        <p>{story.text}</p>
+        <footer>
+          <small>{story.when}</small>
+          {story.participants.length > 0 && (
+            <span className="participant-stack" aria-label="Story participants">
+              {story.participants.slice(0, 3).map((id) => (
+                <i key={id} title={names.get(id) ?? id}>
+                  {residentInitials(names.get(id) ?? id)}
+                </i>
+              ))}
+            </span>
+          )}
+        </footer>
+      </div>
+    </article>
   );
 }
