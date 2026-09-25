@@ -9,6 +9,7 @@ import {
 } from "@echosim/simulation";
 import { LanguageModelService, MockLanguageModelProvider, DEFAULT_AI_CONFIG } from "@echosim/ai";
 import type { ConversationRecord } from "@echosim/simulation";
+import { ConversationIntent } from "@echosim/social";
 
 function step(town: Town, director: PlanningDirector, minutes: number): void {
   for (let i = 0; i < minutes; i += 10) {
@@ -33,6 +34,25 @@ function fingerprint(town: Town, director: PlanningDirector): string {
   parts.push(director.totalPlansSucceeded, director.totalPlansFailed);
   return JSON.stringify(parts);
 }
+
+describe("S22: autonomous conversation intent", () => {
+  it("can choose Invite for a familiar, positive relationship", () => {
+    const { town, miraId, rohanId } = createDemoTown(7001);
+    const rel = town.relationships.getOrCreate(miraId, rohanId);
+    rel.familiarity = 0.7;
+    rel.affinity = 0.7;
+
+    const intent = town.conversations.selectIntent(miraId, rohanId, {
+      relationshipOf: () => rel,
+      strongestFirstHandNegativeAboutThirdParty: () => undefined,
+      freshestBeliefAboutOther: () => false,
+      chattiness: () => 1,
+      chance: () => true,
+    });
+
+    expect(intent).toBe(ConversationIntent.Invite);
+  });
+});
 
 describe("S22: dialogue context builder", () => {
   it("includes only bounded, relevant data (never the whole memory store)", async () => {

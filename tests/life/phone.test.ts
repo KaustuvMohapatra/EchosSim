@@ -50,6 +50,58 @@ describe("S53: calendar", () => {
 });
 
 describe("S53: invitations", () => {
+  it("rejects invalid, past and duplicate pending commitments", () => {
+    const { town } = createAuthoredTown(7001);
+    const board = new InvitationBoard(town);
+    town.relationships.import("npc_anika", "npc_mira", {
+      familiarity: 0.5, affinity: 0.6, trust: 0.4, respect: 0,
+      attraction: 0, fear: 0, grievance: 0, obligation: 0,
+    });
+    const now = town.clock.currentTime.totalMinutes;
+
+    expect(board.maybeInvite("npc_mira", "npc_anika", "coffee", "cafe", now))
+      .toBeNull();
+    expect(board.maybeInvite("npc_mira", "npc_anika", "coffee", "missing", now + 120))
+      .toBeNull();
+
+    const first = board.maybeInvite(
+      "npc_mira", "npc_anika", "coffee", "cafe", now + 120);
+    expect(first).not.toBeNull();
+    expect(board.maybeInvite(
+      "npc_anika", "npc_mira", "coffee", "cafe", now + 180)).toBeNull();
+  });
+
+  it("turns an Invite conversation into a real pending commitment", () => {
+    const { town, miraId, rohanId } = createDemoTown(7001);
+    const location = town.agentsById.get(miraId)?.currentLocationId;
+    expect(location).toBeDefined();
+    town.relationships.import(rohanId, miraId, {
+      familiarity: 0.7, affinity: 0.7, trust: 0.5, respect: 0,
+      attraction: 0, fear: 0, grievance: 0, obligation: 0,
+    });
+
+    const atMinutes = town.clock.currentTime.totalMinutes;
+    town.events.publish("sim:conversation", {
+      initiator: miraId,
+      listener: rohanId,
+      intent: "Invite",
+      topicLabel: "the neighbourhood",
+      utterances: ["Want to hang out here later?"],
+      atMinutes,
+    });
+
+    expect(town.invitations.forAgent(rohanId)).toEqual([
+      expect.objectContaining({
+        from: miraId,
+        to: rohanId,
+        activityLabel: "hanging out",
+        lotId: location,
+        atMinutes: atMinutes + 120,
+        status: "pending",
+      }),
+    ]);
+  });
+
   it("requires affinity; accept commits both parties via memories", () => {
     const { town } = createAuthoredTown(7001);
     const board = new InvitationBoard(town);

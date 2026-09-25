@@ -567,6 +567,8 @@ export class ConversationSystem {
       return ConversationIntent.Gossip;
     if (rel.familiarity < 0.1) return ConversationIntent.Greet;
     if (rel.affinity < -0.3) return ConversationIntent.Confront;
+    if (rel.affinity > 0.45 && rel.familiarity > 0.35 && host.chance(0.12))
+      return ConversationIntent.Invite;
     if (rel.affinity > 0.5 && rel.familiarity > 0.3 && host.chance(0.15))
       return ConversationIntent.Tease;
     return ConversationIntent.SmallTalk;
@@ -601,7 +603,7 @@ export class ConversationSystem {
         break;
       }
       case ConversationIntent.Invite:
-        lines.push("Join me at the cafe later?"); break;
+        lines.push("Want to hang out here later?"); break;
       default:
         lines.push(variation === 0 ? `See you around, ${displayNameB}.` : `Take care, ${displayNameB}.`); break;
     }

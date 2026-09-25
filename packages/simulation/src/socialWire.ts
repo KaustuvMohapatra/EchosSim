@@ -45,6 +45,8 @@ const EMOTION_IMPULSE: Readonly<Record<string, number>> = {
   chat: 0.03, greeting: 0.02,
 };
 
+const INVITATION_LEAD_MINUTES = 120;
+
 export interface ConversationRecord {
   initiator: string; listener: string; intent: string;
   topicLabel: string; utterances: readonly string[];
@@ -75,6 +77,20 @@ export function wireAutonomousSocial(town: Town): void {
     "sim:plan-step-completed", (e) => {
       if (e.action === "act_talk") driveConversation(town, e.agent);
     });
+
+  // --- d) Invite conversations become real, participant-scoped commitments. ---
+  town.events.subscribe<ConversationRecord>("sim:conversation", (record) => {
+    if (record.intent !== ConversationIntent[ConversationIntent.Invite]) return;
+    const state = town.agentsById.get(record.initiator);
+    if (!state?.hasLocation) return;
+    town.invitations.maybeInvite(
+      record.initiator,
+      record.listener,
+      "hanging out",
+      state.currentLocationId,
+      record.atMinutes + INVITATION_LEAD_MINUTES,
+    );
+  });
 }
 
 function onObservation(

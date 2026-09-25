@@ -121,6 +121,17 @@ export class InvitationBoard {
 
   maybeInvite(from: string, to: string,
     activityLabel: string, lotId: string, atMinutes: number): Invitation | null {
+    if (from === to || !this.town.residents.tryMind(from) || !this.town.residents.tryMind(to))
+      return null;
+    if (!activityLabel.trim() || !this.town.locations.tryGet(lotId as never))
+      return null;
+    if (atMinutes <= this.town.clock.currentTime.totalMinutes)
+      return null;
+    if ([...this.items.values()].some((item) =>
+      item.status === "pending" &&
+      ((item.from === from && item.to === to) || (item.from === to && item.to === from))))
+      return null;
+
     const rel = this.town.relationships.tryGet(to, from); // inviter must be liked
     if (!rel || rel.affinity < this.inviteAffinity) return null;
     const inv: Invitation = {
