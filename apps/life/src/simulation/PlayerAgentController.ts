@@ -58,6 +58,7 @@ export class PlayerAgentController {
     if (!this.canSwitchTo(agentId)) return false;
     const previous = this.controlled;
     this.cancelAllFor(previous);
+    this.removeFinished();
     this.controlled = agentId;
     this.applyGate();
     this.emit();
@@ -110,6 +111,11 @@ export class PlayerAgentController {
     this.cancelAllForAgent(this.controlled);
   }
 
+  clearFinished(): void {
+    if (!this.removeFinished()) return;
+    this.afterMutation();
+  }
+
   items(): readonly QueuedAction[] { return [...this.queue]; }
   get busy(): boolean {
     return this.queue.some((q) =>
@@ -137,6 +143,7 @@ export class PlayerAgentController {
   // ---------------- internals ----------------
 
   private afterMutation(): void {
+    this.pruneFinishedHistory();
     this.applyGate();
     this.emit();
   }
@@ -201,15 +208,32 @@ export class PlayerAgentController {
       item.status = "cancelled";
       item.detail = "Cancelled by player.";
     }
-    this.drainToFinished();
     this.afterMutation();
   }
 
-  private drainToFinished(): void {
+  private removeFinished(): boolean {
+    let changed = false;
     for (let i = this.queue.length - 1; i >= 0; i--) {
       const status = this.queue[i]!.status;
-      if (status === "cancelled" || status === "done" || status === "failed") continue;
+      if (status !== "cancelled" && status !== "done" && status !== "failed") continue;
       this.queue.splice(i, 1);
+      changed = true;
+    }
+    return changed;
+  }
+
+  private pruneFinishedHistory(maxFinished = 24): void {
+    let finished = this.queue.filter((item) =>
+      item.status === "cancelled" || item.status === "done" || item.status === "failed").length;
+    if (finished <= maxFinished) return;
+    for (let i = 0; i < this.queue.length && finished > maxFinished;) {
+      const status = this.queue[i]!.status;
+      if (status === "cancelled" || status === "done" || status === "failed") {
+        this.queue.splice(i, 1);
+        finished--;
+      } else {
+        i++;
+      }
     }
   }
 }

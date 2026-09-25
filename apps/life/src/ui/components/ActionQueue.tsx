@@ -11,6 +11,8 @@ export function ActionQueue({ app }: { app: LifeApp | null }) {
     item.status === "pending" || item.status === "walking" || item.status === "active");
   const current = activeItems[0];
   const next = activeItems[1];
+  const hasFinished = items.some((item) =>
+    item.status === "done" || item.status === "failed" || item.status === "cancelled");
   const autonomy = autonomyView(app.player.autonomy);
   const modes: AutonomyMode[] = ["full-manual", "assisted", "autonomous"];
 
@@ -63,11 +65,18 @@ export function ActionQueue({ app }: { app: LifeApp | null }) {
               )}
             </div>
           ))}
-          {items.length > 0 && (
-            <button type="button" className="text-button" onClick={() => app.player.cancelAll()}>
-              Clear queue
-            </button>
-          )}
+          <div className="action-queue__footer">
+            {activeItems.length > 0 && (
+              <button type="button" className="text-button" onClick={() => app.player.cancelAll()}>
+                Cancel all
+              </button>
+            )}
+            {hasFinished && (
+              <button type="button" className="text-button" onClick={() => app.player.clearFinished()}>
+                Clear history
+              </button>
+            )}
+          </div>
         </div>
       )}
     </section>

@@ -75,7 +75,7 @@ describe("S39: action queue", () => {
     p.dispose(); a.dispose();
   });
 
-  it("cancelAll empties pending work and unblocks planning", () => {
+  it("cancelAll stops pending work while clearFinished removes history", () => {
     const a = new LifeModeAdapter({ seed: 7001 });
     const p = new PlayerAgentController(a);
     steps(a, 40);
@@ -83,6 +83,25 @@ describe("S39: action queue", () => {
     p.enqueueMove("park", "Park");
     p.cancelAll();
     expect(p.busy).toBe(false);
+    expect(p.items().every((item) => item.status === "cancelled")).toBe(true);
+    p.clearFinished();
+    expect(p.items()).toHaveLength(0);
+    p.dispose(); a.dispose();
+  });
+
+  it("does not carry old action history across household control switches", () => {
+    const a = new LifeModeAdapter({ seed: 7001 });
+    const p = new PlayerAgentController(a);
+    steps(a, 40);
+    p.enqueueMove("park", "Park");
+    drain(a, p);
+    expect(p.items()).toHaveLength(1);
+
+    const householdTarget = p.householdMembers().find((id) => id !== p.controlled)!;
+    expect(householdTarget).toBeDefined();
+    expect(p.switchTo(householdTarget)).toBe(true);
+    expect(p.items()).toHaveLength(0);
+
     p.dispose(); a.dispose();
   });
 
