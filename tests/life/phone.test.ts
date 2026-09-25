@@ -102,6 +102,24 @@ describe("S53: invitations", () => {
     ]);
   });
 
+  it("expires stale pending invitations and refuses late responses", () => {
+    const { town } = createAuthoredTown(7001);
+    town.relationships.import("npc_anika", "npc_mira", {
+      familiarity: 0.5, affinity: 0.6, trust: 0.4, respect: 0,
+      attraction: 0, fear: 0, grievance: 0, obligation: 0,
+    });
+    const now = town.clock.currentTime.totalMinutes;
+    const inv = town.invitations.maybeInvite(
+      "npc_mira", "npc_anika", "coffee", "cafe", now + 20)!;
+    expect(inv.status).toBe("pending");
+
+    town.clock.advance({ totalMinutes: 20 });
+    expect(town.invitations.get(inv.id)?.status).toBe("expired");
+    expect(town.invitations.pending()).toHaveLength(0);
+    expect(town.invitations.accept(inv.id)).toBe(false);
+    expect(town.invitations.decline(inv.id)).toBe(false);
+  });
+
   it("requires affinity; accept commits both parties via memories", () => {
     const { town } = createAuthoredTown(7001);
     const board = new InvitationBoard(town);

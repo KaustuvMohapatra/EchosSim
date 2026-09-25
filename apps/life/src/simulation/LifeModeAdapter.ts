@@ -60,7 +60,7 @@ export interface LifeInvitationSummary {
   activityLabel: string;
   lotId: string;
   atMinutes: number;
-  status: "pending" | "accepted" | "declined";
+  status: "pending" | "accepted" | "declined" | "expired";
 }
 
 export interface LifeSkillSummary {

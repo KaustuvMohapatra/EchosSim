@@ -101,6 +101,8 @@ export function workShifts(town: Town, agentId: string, horizonDays = 7): Calend
 
 // ---------------- invitations ----------------
 
+export type InvitationStatus = "pending" | "accepted" | "declined" | "expired";
+
 export interface Invitation {
   id: number;
   from: string;
@@ -108,7 +110,7 @@ export interface Invitation {
   activityLabel: string;
   lotId: string;
   atMinutes: number;
-  status: "pending" | "accepted" | "declined";
+  status: InvitationStatus;
 }
 
 export class InvitationBoard {
@@ -148,6 +150,18 @@ export class InvitationBoard {
     return [...this.items.values()].filter((i) => i.status === "pending");
   }
 
+  /** Expire commitments whose scheduled start has already arrived. */
+  expireDue(nowMinutes = this.town.clock.currentTime.totalMinutes): number {
+    let expired = 0;
+    for (const invitation of this.items.values()) {
+      if (invitation.status !== "pending" || invitation.atMinutes > nowMinutes) continue;
+      invitation.status = "expired";
+      expired++;
+      this.town.events.publish("sim:invitation-expired", { ...invitation });
+    }
+    return expired;
+  }
+
   /** Read-only presentation view for one participant, including resolved items. */
   forAgent(agentId: string): Invitation[] {
     return [...this.items.values()]
@@ -158,6 +172,7 @@ export class InvitationBoard {
 
   /** Accepting creates a soft commitment memory for both parties. */
   accept(id: number): boolean {
+    this.expireDue();
     const inv = this.items.get(id);
     if (!inv || inv.status !== "pending") return false;
     inv.status = "accepted";
@@ -185,6 +200,7 @@ export class InvitationBoard {
 
   /** Declining leaves a small social mark. */
   decline(id: number): boolean {
+    this.expireDue();
     const inv = this.items.get(id);
     if (!inv || inv.status !== "pending") return false;
     inv.status = "declined";

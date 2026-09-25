@@ -232,6 +232,11 @@ export class Town {
         void this.locations.get(id).refreshFromHours(nowMinutes());
     });
 
+    // Invitation commitments become stale once their scheduled start arrives.
+    this.scheduler.scheduleRepeating({ totalMinutes: 10 }, () => {
+      this.invitations.expireDue(nowMinutes());
+    });
+
     // Daily weather roll at each simulated midnight.
     this.scheduler.scheduleRepeating({ totalMinutes: 1440 }, () => {
       this.weather.rollForNewDay();
