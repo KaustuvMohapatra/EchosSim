@@ -6,11 +6,12 @@ import { DayCycle } from "./DayCycle.js";
 interface TopBarProps {
   app: LifeApp | null;
   time?: TimeInfo;
+  onPhone(): void;
   onTown(): void;
   onMap(): void;
 }
 
-export function TopBar({ app, time, onTown, onMap }: TopBarProps) {
+export function TopBar({ app, time, onPhone, onTown, onMap }: TopBarProps) {
   const speed = app?.adapter.speed ?? 1;
   const running = app?.adapter.running ?? false;
   const buildMode = app?.buildMode ?? false;
@@ -39,13 +40,14 @@ export function TopBar({ app, time, onTown, onMap }: TopBarProps) {
         ) : (
           <>
             <div className="hud-button-group" aria-label="Simulation speed">
-              <button type="button" className={!running ? "is-active" : ""}
+              <button type="button" className={`speed-button${!running ? " is-active" : ""}`}
                 aria-label={running ? "Pause simulation" : "Resume simulation"}
                 onClick={() => app?.adapter.togglePause()}>
                 {running ? "Pause" : "Play"}
               </button>
               {[1, 2, 4].map((value) => (
-                <button type="button" key={value} className={speed === value ? "is-active" : ""}
+                <button type="button" key={value}
+                  className={`speed-button speed-button--${value}${speed === value ? " is-active" : ""}`}
                   aria-label={`${value} times simulation speed`}
                   onClick={() => app?.adapter.setSpeed(value as 1 | 2 | 4)}>
                   {value}×
@@ -53,11 +55,17 @@ export function TopBar({ app, time, onTown, onMap }: TopBarProps) {
               ))}
             </div>
             <div className="hud-button-group hud-button-group--tools">
-              <button type="button" onClick={() => app?.camera.cycleMode()}
+              <button type="button" className="hud-tool hud-tool--camera"
+                onClick={() => app?.camera.cycleMode()}
                 title="Cycle camera (C)" aria-label="Cycle camera mode">Camera</button>
-              <button type="button" onClick={onTown} aria-label="Open Town Observer">Town</button>
-              <button type="button" onClick={onMap} aria-label="Open town map">Map</button>
-              <button type="button" onClick={() => app?.setBuildMode(true)} aria-label="Enter build mode">Build</button>
+              <button type="button" className="hud-tool hud-tool--phone"
+                onClick={onPhone} aria-label="Open phone">Phone</button>
+              <button type="button" className="hud-tool hud-tool--town"
+                onClick={onTown} aria-label="Open Town Observer">Town</button>
+              <button type="button" className="hud-tool hud-tool--map"
+                onClick={onMap} aria-label="Open town map">Map</button>
+              <button type="button" className="hud-tool hud-tool--build"
+                onClick={() => app?.setBuildMode(true)} aria-label="Enter build mode">Build</button>
             </div>
           </>
         )}

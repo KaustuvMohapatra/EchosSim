@@ -66,6 +66,10 @@ describe("S53: invitations", () => {
     expect(board.pending()).toHaveLength(1);
 
     expect(board.accept(inv!.id)).toBe(true);
+    expect(board.forAgent("npc_mira")).toEqual([
+      expect.objectContaining({ id: inv!.id, status: "accepted" }),
+    ]);
+    expect(board.forAgent("npc_rohan")).toHaveLength(0);
     const mem = [...town.memory.storeFor("npc_anika").all]
       .filter((m) => m.eventType === "plan");
     expect(mem.length).toBeGreaterThan(0);

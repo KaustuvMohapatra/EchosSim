@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import type { AgentInspectorSnapshot } from "@echosim/inspector";
+import type { LifePersonalSnapshot } from "../../simulation/LifeModeAdapter.js";
+import { formatClockMinute, formatSimMoment, skillProgress } from "../models/personalLifeView.js";
 import {
   cleanRelationshipLabel,
   moodOf,
@@ -13,6 +15,8 @@ interface ResidentDetailsProps {
   agent: AgentInspectorSnapshot;
   names: ReadonlyMap<string, string>;
   locations: ReadonlyMap<string, string>;
+  life?: LifePersonalSnapshot;
+  nowMinutes: number;
   controlled: boolean;
   canControl: boolean;
   followed: boolean;
@@ -21,7 +25,7 @@ interface ResidentDetailsProps {
   onClose(): void;
 }
 
-type ProfileTab = "overview" | "relationships" | "memories";
+type ProfileTab = "overview" | "relationships" | "memories" | "life";
 
 export function ResidentDetails(props: ResidentDetailsProps) {
   const { agent, names, locations } = props;
@@ -32,6 +36,9 @@ export function ResidentDetails(props: ResidentDetailsProps) {
       .filter((r) => r.to !== agent.summary.id)
       .slice(0, 10), [agent]);
   const memories = agent.memories.slice(0, 7);
+  const tabs: ProfileTab[] = props.life
+    ? ["overview", "relationships", "memories", "life"]
+    : ["overview", "relationships", "memories"];
 
   return (
     <aside className="side-panel resident-details" aria-label={`${agent.summary.name} profile`}>
@@ -61,7 +68,7 @@ export function ResidentDetails(props: ResidentDetailsProps) {
       </div>
 
       <nav className="panel-tabs" aria-label="Resident profile sections">
-        {(["overview", "relationships", "memories"] as const).map((value) => (
+        {tabs.map((value) => (
           <button type="button" key={value} className={tab === value ? "is-active" : ""}
             onClick={() => setTab(value)}>
             {value === "relationships" ? "Connections" : value[0]!.toUpperCase() + value.slice(1)}
@@ -131,6 +138,65 @@ export function ResidentDetails(props: ResidentDetailsProps) {
               </div>
             ))}
           </section>
+        )}
+
+        {tab === "life" && props.life && (
+          <div className="life-profile">
+            <section className="profile-section life-profile__section">
+              <div className="profile-section__title">
+                <strong>Household</strong><small>Home life</small>
+              </div>
+              {props.life.households.length === 0 ? (
+                <p className="empty-state">No household is listed.</p>
+              ) : props.life.households.map((household) => (
+                <div className="life-card" key={household.id}>
+                  <strong>{household.name}</strong>
+                  <small>{household.homeLocationId
+                    ? locations.get(household.homeLocationId) ?? household.homeLocationId
+                    : "Home location unavailable"}</small>
+                  <div className="household-members">
+                    {household.members.map((member) => (
+                      <span key={member.id}>{member.name}</span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </section>
+
+            <section className="profile-section life-profile__section">
+              <div className="profile-section__title">
+                <strong>Career</strong><small>Current work</small>
+              </div>
+              {agent.job ? (
+                <div className="life-card">
+                  <strong>{agent.job.title}</strong>
+                  <small>{locations.get(agent.job.workplace) ?? agent.job.workplace}</small>
+                  <span>{formatClockMinute(agent.job.shiftStartMinuteOfDay)}–{formatClockMinute(agent.job.shiftEndMinuteOfDay)}</span>
+                  {props.life.calendar[0] && (
+                    <em>Next: {formatSimMoment(props.life.calendar[0].atMinutes, props.nowMinutes)}</em>
+                  )}
+                </div>
+              ) : (
+                <p className="empty-state">Not currently employed.</p>
+              )}
+            </section>
+
+            <section className="profile-section life-profile__section">
+              <div className="profile-section__title">
+                <strong>Skills</strong><small>Real progression</small>
+              </div>
+              <div className="skill-list">
+                {props.life.skills.map((skill) => (
+                  <div className="skill-row" key={skill.name}>
+                    <span><strong>{skill.name}</strong><small>Level {skill.level} · {skill.xp} XP</small></span>
+                    <span className="skill-track" aria-label={`${skill.name}, level ${skill.level}`}>
+                      <i style={{ width: `${skillProgress(skill) * 100}%` }} />
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
         )}
       </div>
     </aside>

@@ -9,6 +9,7 @@ import { ResidentDetails } from "./components/ResidentDetails.js";
 import { ActionQueue } from "./components/ActionQueue.js";
 import { ContextMenu } from "./components/ContextMenu.js";
 import { TownObserver } from "./components/TownObserver.js";
+import { PhonePanel } from "./components/PhonePanel.js";
 import { WorldMap } from "./components/WorldMap.js";
 import { BuildPanel } from "./components/BuildPanel.js";
 import { ToastLayer } from "./components/ToastLayer.js";
@@ -16,7 +17,7 @@ import "./styles/tokens.css";
 import "./styles/life.css";
 import "./styles/components.css";
 
-type SidePanel = "town" | "resident" | null;
+type SidePanel = "town" | "resident" | "phone" | null;
 
 export function App() {
   const life = useLife();
@@ -43,6 +44,13 @@ export function App() {
     ? app.adapter.inspector.getAgent(controlledId) : undefined;
   const selectedAgent = selected && app
     ? app.adapter.inspector.getAgent(selected) : undefined;
+  const controlledLife = useMemo(() =>
+    app && snap && controlledId ? app.adapter.personalLifeFor(controlledId) : undefined,
+  [app, snap, controlledId]);
+  const selectedLife = useMemo(() =>
+    app && snap && selected && app.player.canSwitchTo(selected)
+      ? app.adapter.personalLifeFor(selected) : undefined,
+  [app, snap, selected, controlledId]);
 
   const household = useMemo(() => new Set(app?.player.householdMembers() ?? []), [app, snap, controlledId]);
   const names = useMemo(() => new Map((snap?.agents ?? []).map((agent) => [agent.id, agent.name])), [snap]);
@@ -103,6 +111,7 @@ export function App() {
       <canvas ref={hostRef} className="life-canvas" aria-label="EchoSim town view" />
 
       <TopBar app={app} time={snap?.time}
+        onPhone={() => setPanel((value) => value === "phone" ? null : "phone")}
         onTown={() => setPanel((value) => value === "town" ? null : "town")}
         onMap={() => setShowMap(true)} />
 
@@ -115,6 +124,26 @@ export function App() {
               setPanel("resident");
             }} />
           <ActionQueue app={app} />
+
+          {panel === "phone" && controlledLife && snap && controlledId && (
+            <PhonePanel
+              key={controlledId}
+              life={controlledLife}
+              residents={snap.agents}
+              names={names}
+              locations={locations}
+              nowMinutes={snap.time.totalMinutes}
+              onSend={(toId, text) => {
+                const sent = app?.adapter.sendMessage(controlledId, toId, text) ?? false;
+                if (app) setFlash(app.adapter.lastCommandFeedback);
+                return sent;
+              }}
+              onRespond={(invitationId, response) => {
+                app?.adapter.respondToInvitation(controlledId, invitationId, response);
+                if (app) setFlash(app.adapter.lastCommandFeedback);
+              }}
+              onClose={() => setPanel(null)} />
+          )}
 
           {panel === "town" && (
             <TownObserver
@@ -131,9 +160,12 @@ export function App() {
 
           {panel === "resident" && selectedAgent && selected && (
             <ResidentDetails
+              key={selected}
               agent={selectedAgent}
               names={names}
               locations={locations}
+              life={selectedLife}
+              nowMinutes={snap?.time.totalMinutes ?? 0}
               controlled={selected === controlledId}
               canControl={app?.player.canSwitchTo(selected) ?? false}
               followed={followed.has(selected)}

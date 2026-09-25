@@ -11,7 +11,11 @@ import { SimulationInspector } from "@echosim/inspector";
 import type {
   AgentSummary, SimEventEntry, TimeInfo, TownStats,
 } from "@echosim/inspector";
-import { PlanningDirector, Town, LodController } from "@echosim/simulation";
+import {
+  InvitationBoard, MessageLog, PlanningDirector, Town, LodController,
+  deliverMessage, workShifts,
+} from "@echosim/simulation";
+import { xpForLevel, type SkillName } from "@echosim/social";
 
 export interface LifeLocationSummary {
   id: string;
@@ -24,6 +28,54 @@ export interface LifeTownStorySummary {
   day: number;
   text: string;
   participants: readonly string[];
+}
+
+export interface LifeMessageSummary {
+  id: number;
+  from: string;
+  to: string;
+  text: string;
+  atMinutes: number;
+}
+
+export interface LifeCalendarEntrySummary {
+  atMinutes: number;
+  label: string;
+  kind: "shift" | "meeting" | "custom";
+}
+
+export interface LifeInvitationSummary {
+  id: number;
+  from: string;
+  to: string;
+  activityLabel: string;
+  lotId: string;
+  atMinutes: number;
+  status: "pending" | "accepted" | "declined";
+}
+
+export interface LifeSkillSummary {
+  name: SkillName;
+  xp: number;
+  level: number;
+  levelFloorXp: number;
+  nextLevelXp?: number;
+}
+
+export interface LifeHouseholdSummary {
+  id: string;
+  name: string;
+  homeLocationId?: string;
+  members: Array<{ id: string; name: string }>;
+}
+
+export interface LifePersonalSnapshot {
+  agentId: string;
+  messages: LifeMessageSummary[];
+  calendar: LifeCalendarEntrySummary[];
+  invitations: LifeInvitationSummary[];
+  skills: LifeSkillSummary[];
+  households: LifeHouseholdSummary[];
 }
 
 export interface LifeSnapshot {
@@ -45,6 +97,10 @@ export interface AdapterOptions {
 }
 
 const SPEEDS = [0, 1, 2, 4, 8] as const;
+const SKILL_NAMES: readonly SkillName[] = [
+  "Cooking", "Social", "Fitness", "Knowledge",
+  "Creativity", "Technology", "Professional",
+];
 
 export class LifeModeAdapter {
   readonly town: Town;
@@ -56,6 +112,8 @@ export class LifeModeAdapter {
   /** Last command feedback for the UI (presentation info only). */
   lastCommandFeedback = "";
 
+  private readonly phoneMessages: MessageLog;
+  private readonly phoneInvitations: InvitationBoard;
   private timer: ReturnType<typeof setInterval> | null = null;
   private listeners = new Set<() => void>();
   private readonly beatMs: number;
@@ -67,6 +125,8 @@ export class LifeModeAdapter {
     this.town = demo.town;
     this.director = demo.director;
     this.inspector = new SimulationInspector(this.town, this.director);
+    this.phoneMessages = new MessageLog();
+    this.phoneInvitations = new InvitationBoard(this.town);
     this.beatMs = options.beatMs ?? 400;
     this.stepMinutes = options.stepMinutes ?? 10;
     this.lod = new LodController();
@@ -173,6 +233,59 @@ export class LifeModeAdapter {
     this.lastCommandFeedback = "Action cancelled.";
   }
 
+  sendMessage(fromId: string, toId: string, text: string): boolean {
+    const body = text.trim();
+    const from = this.town.residents.tryMind(fromId);
+    const to = this.town.residents.tryMind(toId);
+    if (!from || !to) {
+      this.lastCommandFeedback = "That resident is no longer available.";
+      this.emit();
+      return false;
+    }
+    if (fromId === toId) {
+      this.lastCommandFeedback = "Choose someone else to message.";
+      this.emit();
+      return false;
+    }
+    if (!body) {
+      this.lastCommandFeedback = "Write a message first.";
+      this.emit();
+      return false;
+    }
+    if (body.length > 240) {
+      this.lastCommandFeedback = "Messages can be up to 240 characters.";
+      this.emit();
+      return false;
+    }
+    const delivered = deliverMessage(this.town, this.phoneMessages, fromId, toId, body);
+    this.lastCommandFeedback = delivered
+      ? `Message sent to ${to.displayName}.`
+      : "Message could not be delivered.";
+    this.emit();
+    return delivered !== null;
+  }
+
+  respondToInvitation(
+    agentId: string,
+    invitationId: number,
+    response: "accept" | "decline",
+  ): boolean {
+    const invitation = this.phoneInvitations.get(invitationId);
+    if (!invitation || invitation.to !== agentId || invitation.status !== "pending") {
+      this.lastCommandFeedback = "That invitation is no longer available.";
+      this.emit();
+      return false;
+    }
+    const changed = response === "accept"
+      ? this.phoneInvitations.accept(invitationId)
+      : this.phoneInvitations.decline(invitationId);
+    this.lastCommandFeedback = changed
+      ? response === "accept" ? "Invitation accepted." : "Invitation declined."
+      : "That invitation is no longer available.";
+    this.emit();
+    return changed;
+  }
+
   // ---------------- lifecycle ----------------
 
   get running(): boolean { return this.timer !== null; }
@@ -237,6 +350,56 @@ export class LifeModeAdapter {
           isOpen: runtime.isOpen,
         };
       }),
+    };
+  }
+
+  /**
+   * Private, resident-scoped personal-life read model. React receives copies
+   * and never owns message, invitation, calendar or skill simulation state.
+   */
+  personalLifeFor(agentId: string): LifePersonalSnapshot | undefined {
+    const mind = this.town.residents.tryMind(agentId);
+    if (!mind) return undefined;
+
+    const messageById = new Map<number, LifeMessageSummary>();
+    for (const otherId of this.town.residents.orderedIds()) {
+      if (otherId === agentId) continue;
+      for (const message of this.phoneMessages.between(agentId, otherId))
+        messageById.set(message.id, { ...message });
+    }
+    const messages = [...messageById.values()]
+      .sort((a, b) => a.atMinutes - b.atMinutes || a.id - b.id);
+
+    const skills = SKILL_NAMES.map((name): LifeSkillSummary => {
+      const state = this.town.skills.stateOf(agentId, name);
+      return {
+        name,
+        xp: state.xp,
+        level: state.level,
+        levelFloorXp: xpForLevel(state.level),
+        ...(state.level < 10 ? { nextLevelXp: xpForLevel(state.level + 1) } : {}),
+      };
+    });
+
+    const households = this.town.groups.groupsOf(agentId)
+      .filter((group) => group.kind === "Household")
+      .map((group): LifeHouseholdSummary => ({
+        id: group.id,
+        name: group.name,
+        ...(mind.homeLocationId ? { homeLocationId: mind.homeLocationId } : {}),
+        members: this.town.groups.membersOf(group.id).map((id) => ({
+          id,
+          name: this.town.residents.tryMind(id)?.displayName ?? id,
+        })),
+      }));
+
+    return {
+      agentId,
+      messages,
+      calendar: workShifts(this.town, agentId, 7).map((entry) => ({ ...entry })),
+      invitations: this.phoneInvitations.forAgent(agentId),
+      skills,
+      households,
     };
   }
 

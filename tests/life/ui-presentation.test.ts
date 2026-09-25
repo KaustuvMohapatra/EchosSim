@@ -7,6 +7,9 @@ import {
 } from "../../apps/life/src/ui/models/residentView.js";
 import { dayPeriod } from "../../apps/life/src/ui/models/townView.js";
 import { eventToStory, liveStories } from "../../apps/life/src/ui/models/storyView.js";
+import {
+  formatClockMinute, formatSimMoment, skillProgress,
+} from "../../apps/life/src/ui/models/personalLifeView.js";
 
 describe("Life UI presentation models", () => {
   it("derives the day period from simulation minutes", () => {
@@ -75,6 +78,37 @@ describe("Life UI presentation models", () => {
       12, { id: "player", locationId: "cafe" },
     );
     expect(stories.map((story) => story.text)).toEqual(["Mira arrived at Cafe."]);
+  });
+
+  it("formats personal-life dates from simulation time only", () => {
+    expect(formatClockMinute(9 * 60 + 5)).toBe("09:05");
+    expect(formatSimMoment(600, 500)).toBe("Today · 10:00");
+    expect(formatSimMoment(1440 + 75, 500)).toBe("Tomorrow · 01:15");
+    expect(skillProgress({
+      name: "Cooking", xp: 25, level: 1, levelFloorXp: 10, nextLevelXp: 40,
+    })).toBeCloseTo(0.5);
+  });
+
+  it("keeps phone messages resident-scoped and skill state simulation-backed", () => {
+    const adapter = new LifeModeAdapter({ seed: 7001n });
+    expect(adapter.sendMessage("player", "npc_mira", "Coffee later?")).toBe(true);
+
+    const playerLife = adapter.personalLifeFor("player")!;
+    const miraLife = adapter.personalLifeFor("npc_mira")!;
+    const rohanLife = adapter.personalLifeFor("npc_rohan")!;
+    expect(playerLife.messages).toHaveLength(1);
+    expect(miraLife.messages).toHaveLength(1);
+    expect(rohanLife.messages).toHaveLength(0);
+
+    adapter.town.skills.award("player", "Cooking", 12);
+    const cooking = adapter.personalLifeFor("player")!.skills
+      .find((skill) => skill.name === "Cooking");
+    expect(cooking).toMatchObject({
+      xp: 12, level: 1, levelFloorXp: 10, nextLevelXp: 40,
+    });
+    expect(playerLife.households.some((household) =>
+      household.members.some((member) => member.id === "player"))).toBe(true);
+    adapter.dispose();
   });
 
   it("keeps TownStories knowledge filtering intact at the adapter boundary", () => {

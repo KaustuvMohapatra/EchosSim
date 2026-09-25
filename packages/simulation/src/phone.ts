@@ -129,6 +129,14 @@ export class InvitationBoard {
     return [...this.items.values()].filter((i) => i.status === "pending");
   }
 
+  /** Read-only presentation view for one participant, including resolved items. */
+  forAgent(agentId: string): Invitation[] {
+    return [...this.items.values()]
+      .filter((i) => i.from === agentId || i.to === agentId)
+      .map((i) => ({ ...i }))
+      .sort((a, b) => b.atMinutes - a.atMinutes || b.id - a.id);
+  }
+
   /** Accepting creates a soft commitment memory for both parties. */
   accept(id: number): boolean {
     const inv = this.items.get(id);
