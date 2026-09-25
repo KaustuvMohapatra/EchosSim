@@ -189,3 +189,19 @@ export function autonomyView(mode: AutonomyMode): AutonomyView {
     description: "They take care of themselves when you're not directing them.",
   };
 }
+
+
+/**
+ * Stable rail ordering: the resident being played is always visible first,
+ * followed by their household. Everyone else keeps simulation/authored order.
+ */
+export function orderResidentRail(items: readonly ResidentRailItem[]): ResidentRailItem[] {
+  return items
+    .map((item, index) => ({
+      item,
+      index,
+      priority: item.controlled ? 0 : item.household ? 1 : 2,
+    }))
+    .sort((a, b) => a.priority - b.priority || a.index - b.index)
+    .map(({ item }) => item);
+}

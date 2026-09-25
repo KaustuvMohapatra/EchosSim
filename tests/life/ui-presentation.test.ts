@@ -3,7 +3,7 @@ import { PersonalityProfile } from "@echosim/cognition";
 import type { AgentSummary, SimEventEntry } from "@echosim/inspector";
 import { LifeModeAdapter } from "../../apps/life/src/simulation/LifeModeAdapter.js";
 import {
-  autonomyView, readableActivity, residentRailItem,
+  autonomyView, orderResidentRail, readableActivity, residentRailItem,
 } from "../../apps/life/src/ui/models/residentView.js";
 import { dayPeriod } from "../../apps/life/src/ui/models/townView.js";
 import {
@@ -40,6 +40,23 @@ describe("Life UI presentation models", () => {
       id: "mira", mood: "Good", activity: "At work",
       controlled: true, household: true, selected: false,
     });
+  });
+
+  it("keeps the controlled resident and household at the front of a large rail", () => {
+    const base = {
+      initials: "AA", mood: "Fine", activity: "Idle",
+      selected: false, followed: false,
+    };
+    const ordered = orderResidentRail([
+      { ...base, id: "npc_a", name: "A", controlled: false, household: false },
+      { ...base, id: "npc_b", name: "B", controlled: false, household: true },
+      { ...base, id: "player", name: "You", controlled: true, household: true },
+      { ...base, id: "npc_c", name: "C", controlled: false, household: true },
+      { ...base, id: "npc_d", name: "D", controlled: false, household: false },
+    ]);
+    expect(ordered.map((resident) => resident.id)).toEqual([
+      "player", "npc_b", "npc_c", "npc_a", "npc_d",
+    ]);
   });
 
   it("keeps autonomy labels friendly while preserving exact modes", () => {

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLife } from "./useLife.js";
-import { residentRailItem } from "./models/residentView.js";
+import { orderResidentRail, residentRailItem } from "./models/residentView.js";
 import { followedStories, liveStories, townStoryViews } from "./models/storyView.js";
 import { TopBar } from "./components/TopBar.js";
 import { ResidentRail } from "./components/ResidentRail.js";
@@ -56,12 +56,14 @@ export function App() {
   const names = useMemo(() => new Map((snap?.agents ?? []).map((agent) => [agent.id, agent.name])), [snap]);
   const locations = useMemo(() => new Map((snap?.locations ?? []).map((location) => [location.id, location.name])), [snap]);
 
-  const residents = useMemo(() => (snap?.agents ?? []).map((agent) => residentRailItem(agent, {
-    controlled: agent.id === controlledId,
-    household: household.has(agent.id),
-    selected: agent.id === selected,
-    followed: followed.has(agent.id),
-  })), [snap, controlledId, household, selected, followed]);
+  const residents = useMemo(() => orderResidentRail(
+    (snap?.agents ?? []).map((agent) => residentRailItem(agent, {
+      controlled: agent.id === controlledId,
+      household: household.has(agent.id),
+      selected: agent.id === selected,
+      followed: followed.has(agent.id),
+    })),
+  ), [snap, controlledId, household, selected, followed]);
 
   const observerLive = useMemo(() => snap
     ? liveStories(snap.events, snap.time.totalMinutes, names, locations, 14, controlledId
