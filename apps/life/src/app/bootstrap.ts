@@ -58,12 +58,12 @@ export function createLifeApp(canvas: HTMLCanvasElement,
   scene.activeCamera = camera;
 
   buildTownMeshes(scene, adapter.town);
-  const agents = new AgentLayer(scene, adapter);
+  const player = new PlayerAgentController(adapter);
+  const agents = new AgentLayer(scene, adapter, () => player.controlled);
   agents.update();
-  // Semantic locations change on simulation boundaries, not render frames.
+  // Knowledge-scoped semantic presence changes on simulation boundaries, not render frames.
   const unsubscribeAgentSync = adapter.subscribe(() => agents.update());
 
-  const player = new PlayerAgentController(adapter);
   const interactions = new InteractionController(adapter, () => player.controlled);
   const townDisplayName = (locationId: string): string =>
     adapter.town.locations.tryGet(locationId as never)?.definition.displayName ?? locationId;

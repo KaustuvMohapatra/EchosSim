@@ -56,19 +56,23 @@ describe("Life UI presentation models", () => {
   it("keeps remote resident presence knowledge-scoped", () => {
     const adapter = new LifeModeAdapter({ seed: 7001n });
 
-    const initialMira = adapter.residentPresenceFor("player")
-      .find((resident) => resident.id === "npc_mira");
+    const initialPresence = adapter.residentPresenceFor("player");
+    const initialMira = initialPresence.find((resident) => resident.id === "npc_mira");
     expect(initialMira?.visibility).toBe("unknown");
+    expect(initialPresence.filter((resident) => resident.current)
+      .some((resident) => resident.id === "npc_mira")).toBe(false);
     expect(adapter.residentPresenceFor("player")
       .find((resident) => resident.id === "npc_anika")?.visibility).toBe("current");
 
     adapter.town.moveAgent("player" as never, "park" as never);
     adapter.town.moveAgent("npc_mira" as never, "park" as never);
-    expect(adapter.residentPresenceFor("player")
-      .find((resident) => resident.id === "npc_mira")).toMatchObject({
-        visibility: "current",
-        current: expect.objectContaining({ locationId: "park" }),
-      });
+    const visibleAtPark = adapter.residentPresenceFor("player");
+    expect(visibleAtPark.find((resident) => resident.id === "npc_mira")).toMatchObject({
+      visibility: "current",
+      current: expect.objectContaining({ locationId: "park" }),
+    });
+    expect(visibleAtPark.filter((resident) => resident.current)
+      .some((resident) => resident.id === "npc_mira")).toBe(true);
 
     adapter.town.moveAgent("npc_mira" as never, "apt_a" as never);
     const lastKnownMira = adapter.residentPresenceFor("player")

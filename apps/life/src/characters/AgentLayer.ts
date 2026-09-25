@@ -55,11 +55,16 @@ function makeLabel(scene: Scene, text: string): Mesh {
 export class AgentLayer {
   private readonly visuals = new Map<string, AgentVisual>();
 
-  constructor(private readonly scene: Scene, private readonly adapter: LifeModeAdapter) {}
+  constructor(
+    private readonly scene: Scene,
+    private readonly adapter: LifeModeAdapter,
+    private readonly viewerId: () => string = () => adapter.playerId,
+  ) {}
 
-  /** Sync semantic snapshots only when the adapter emits, never at render FPS. */
+  /** Sync knowledge-scoped semantic snapshots only when the adapter emits. */
   update(): void {
-    const summaries = this.adapter.inspector.getAgents();
+    const summaries = this.adapter.residentPresenceFor(this.viewerId())
+      .flatMap((presence) => presence.current ? [presence.current] : []);
     const seen = new Set(summaries.map((summary) => summary.id));
 
     for (const summary of summaries) {
