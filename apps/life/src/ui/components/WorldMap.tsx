@@ -3,7 +3,7 @@ import type {
   LifeLocationSummary, LifeResidentPresenceSummary,
 } from "../../simulation/LifeModeAdapter.js";
 import { DISTRICTS, mapLots } from "../../world/map.js";
-import { residentInitials } from "../models/residentView.js";
+import { relativePresenceAge, residentInitials } from "../models/residentView.js";
 import { residentCountsByLocation } from "../models/townView.js";
 
 interface WorldMapProps {
@@ -12,6 +12,7 @@ interface WorldMapProps {
   controlledId?: string;
   selectedId?: string;
   destinationId?: string;
+  nowMinutes: number;
   onTravel(id: string, name: string): void;
   onClose(): void;
 }
@@ -70,7 +71,11 @@ export function WorldMap(props: WorldMapProps) {
                   {hasSelected && selected && (
                     <i className={selectedLastKnown ? "is-last-known" : ""}
                       title={selectedLastKnown
-                        ? `${selected.name} was last seen here`
+                        ? `${selected.name} was last seen here${
+                            selected.lastKnownAtMinutes !== undefined
+                              ? ` ${relativePresenceAge(props.nowMinutes, selected.lastKnownAtMinutes)}`
+                              : ""
+                          }`
                         : `${selected.name} is here`}>
                       {selectedLastKnown ? "?" : residentInitials(selected.name)}
                     </i>

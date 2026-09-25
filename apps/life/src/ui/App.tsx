@@ -84,8 +84,8 @@ export function App() {
       household: household.has(presence.id),
       selected: presence.id === selected,
       followed: followed.has(presence.id),
-    })),
-  ), [residentPresence, controlledId, household, selected, followed]);
+    }, snap?.time.totalMinutes)),
+  ), [residentPresence, controlledId, household, selected, followed, snap?.time.totalMinutes]);
 
   const observerLive = useMemo(() =>
     app && snap && controlledId
@@ -225,6 +225,7 @@ export function App() {
           controlledId={controlledId}
           selectedId={selected ?? undefined}
           destinationId={destinationId}
+          nowMinutes={snap.time.totalMinutes}
           onTravel={(id, name) => {
             app?.player.enqueueMove(id, name);
             setFlash(`Travel queued: ${name}.`);

@@ -45,7 +45,7 @@ export function ResidentDetails(props: ResidentDetailsProps) {
         relationship.from !== agent.summary.id)
       .slice(0, 10), [props.knowledge]);
   const memories = props.knowledge.memories.slice(0, 7);
-  const presenceView = residentProfilePresenceView(props.presence);
+  const presenceView = residentProfilePresenceView(props.presence, props.nowMinutes);
   const tabs: ProfileTab[] = props.life
     ? ["overview", "relationships", "memories", "life"]
     : ["overview", "relationships", "memories"];

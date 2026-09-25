@@ -3,7 +3,7 @@ import { PersonalityProfile } from "@echosim/cognition";
 import type { AgentSummary, SimEventEntry } from "@echosim/inspector";
 import { LifeModeAdapter } from "../../apps/life/src/simulation/LifeModeAdapter.js";
 import {
-  autonomyView, orderResidentRail, readableActivity,
+  autonomyView, orderResidentRail, readableActivity, relativePresenceAge,
   residentProfilePresenceView, residentRailItem, residentRailItemFromPresence,
 } from "../../apps/life/src/ui/models/residentView.js";
 import {
@@ -80,17 +80,21 @@ describe("Life UI presentation models", () => {
     expect(lastKnownMira).toMatchObject({
       visibility: "last-known",
       lastKnownLocationId: "park",
+      lastKnownAtMinutes: expect.any(Number),
     });
+    const now = adapter.town.clock.currentTime.totalMinutes + 90;
     const rail = residentRailItemFromPresence(lastKnownMira, {
       controlled: false, household: false, selected: false, followed: false,
-    });
+    }, now);
     expect(rail.mood).toBeUndefined();
     expect(rail.activity).toContain("Last seen");
-    expect(residentProfilePresenceView(lastKnownMira)).toEqual({
+    expect(rail.activity).toContain("ago");
+    expect(residentProfilePresenceView(lastKnownMira, now)).toEqual({
       status: "Last known",
       activity: "Current activity unknown",
-      location: "Last seen at Park",
+      location: expect.stringMatching(/^Last seen .+ ago at Park$/),
     });
+    expect(relativePresenceAge(200, 110)).toBe("1h ago");
     const unknown = adapter.residentPresenceFor("player")
       .find((resident) => resident.id === "npc_rohan")!;
     expect(residentProfilePresenceView(unknown)).toEqual({

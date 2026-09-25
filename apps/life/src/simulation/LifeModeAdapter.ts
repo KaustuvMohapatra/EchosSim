@@ -120,6 +120,7 @@ export interface LifeResidentPresenceSummary {
   current?: AgentSummary;
   lastKnownLocationId?: string;
   lastKnownLocationName?: string;
+  lastKnownAtMinutes?: number;
 }
 
 export interface LifeResidentKnowledgeSummary {
@@ -482,12 +483,18 @@ export class LifeModeAdapter {
     const householdIds = this.town.groups.groupsOf(viewerId)
       .filter((group) => group.kind === "Household")
       .map((group) => group.id);
-    const lastKnown = new Map<string, string>();
+    const lastKnown = new Map<string, { locationId: string; atMinutes: number }>();
     for (const observation of this.town.perception.observationsOf(viewerId)) {
       if (!observation.where) continue;
       for (const actor of observation.actors) {
         if (actor === viewerId || !this.town.residents.tryMind(actor)) continue;
-        lastKnown.set(actor, observation.where);
+        const previous = lastKnown.get(actor);
+        if (!previous || observation.timestampMinutes >= previous.atMinutes) {
+          lastKnown.set(actor, {
+            locationId: observation.where,
+            atMinutes: observation.timestampMinutes,
+          });
+        }
       }
     }
 
@@ -505,15 +512,16 @@ export class LifeModeAdapter {
         };
       }
 
-      const locationId = lastKnown.get(summary.id);
-      if (locationId) {
-        const runtime = this.town.locations.tryGet(locationId as never);
+      const known = lastKnown.get(summary.id);
+      if (known) {
+        const runtime = this.town.locations.tryGet(known.locationId as never);
         return {
           id: summary.id,
           name: summary.name,
           visibility: "last-known",
-          lastKnownLocationId: locationId,
-          lastKnownLocationName: runtime?.definition.displayName ?? locationId,
+          lastKnownLocationId: known.locationId,
+          lastKnownLocationName: runtime?.definition.displayName ?? known.locationId,
+          lastKnownAtMinutes: known.atMinutes,
         };
       }
       return { id: summary.id, name: summary.name, visibility: "unknown" };

@@ -190,6 +190,7 @@ export function residentRailItem(
 export function residentRailItemFromPresence(
   presence: LifeResidentPresenceSummary,
   flags: { controlled: boolean; household: boolean; selected: boolean; followed: boolean },
+  nowMinutes?: number,
 ): ResidentRailItem {
   if (presence.current) return residentRailItem(presence.current, flags);
   return {
@@ -197,15 +198,27 @@ export function residentRailItemFromPresence(
     name: presence.name,
     initials: residentInitials(presence.name),
     activity: presence.visibility === "last-known"
-      ? `Last seen · ${presence.lastKnownLocationName ?? presence.lastKnownLocationId ?? "somewhere in town"}`
+      ? `Last seen${nowMinutes !== undefined && presence.lastKnownAtMinutes !== undefined
+          ? ` ${relativePresenceAge(nowMinutes, presence.lastKnownAtMinutes)}`
+          : ""} · ${presence.lastKnownLocationName ?? presence.lastKnownLocationId ?? "somewhere in town"}`
       : "Elsewhere in town",
     visibility: presence.visibility,
     ...flags,
   };
 }
 
+export function relativePresenceAge(nowMinutes: number, atMinutes: number): string {
+  const delta = Math.max(0, Math.floor(nowMinutes - atMinutes));
+  if (delta < 20) return "just now";
+  if (delta < 60) return `${delta} min ago`;
+  if (delta < 1440) return `${Math.floor(delta / 60)}h ago`;
+  const days = Math.floor(delta / 1440);
+  return days === 1 ? "yesterday" : `${days} days ago`;
+}
+
 export function residentProfilePresenceView(
   presence: LifeResidentPresenceSummary,
+  nowMinutes?: number,
 ): ResidentProfilePresenceView {
   if (presence.current) {
     return {
@@ -216,10 +229,13 @@ export function residentProfilePresenceView(
     };
   }
   if (presence.visibility === "last-known") {
+    const age = nowMinutes !== undefined && presence.lastKnownAtMinutes !== undefined
+      ? ` ${relativePresenceAge(nowMinutes, presence.lastKnownAtMinutes)}`
+      : "";
     return {
       status: "Last known",
       activity: "Current activity unknown",
-      location: `Last seen at ${presence.lastKnownLocationName ??
+      location: `Last seen${age} at ${presence.lastKnownLocationName ??
         presence.lastKnownLocationId ?? "somewhere in town"}`,
     };
   }
