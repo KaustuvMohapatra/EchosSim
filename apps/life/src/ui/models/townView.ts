@@ -1,4 +1,4 @@
-import type { TimeInfo } from "@echosim/inspector";
+import type { AgentSummary, TimeInfo } from "@echosim/inspector";
 
 export type DayPeriodName = "Morning" | "Afternoon" | "Evening" | "Night";
 
@@ -60,4 +60,16 @@ export function weatherLabel(weather: string): string {
     case "HeavyRain": return "Heavy rain";
     default: return weather;
   }
+}
+
+
+export function residentCountsByLocation(
+  agents: readonly Pick<AgentSummary, "locationId">[],
+): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const agent of agents) {
+    if (!agent.locationId) continue;
+    counts.set(agent.locationId, (counts.get(agent.locationId) ?? 0) + 1);
+  }
+  return counts;
 }

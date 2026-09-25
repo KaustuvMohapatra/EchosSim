@@ -5,7 +5,9 @@ import { LifeModeAdapter } from "../../apps/life/src/simulation/LifeModeAdapter.
 import {
   autonomyView, orderResidentRail, readableActivity, residentRailItem,
 } from "../../apps/life/src/ui/models/residentView.js";
-import { dayPeriod } from "../../apps/life/src/ui/models/townView.js";
+import {
+  dayPeriod, residentCountsByLocation,
+} from "../../apps/life/src/ui/models/townView.js";
 import {
   eventToStory, groupTownStories, liveStories, townStoryViews,
 } from "../../apps/life/src/ui/models/storyView.js";
@@ -21,6 +23,14 @@ describe("Life UI presentation models", () => {
     expect(dayPeriod(12 * 60)).toBe("Afternoon");
     expect(dayPeriod(17 * 60)).toBe("Evening");
     expect(dayPeriod(21 * 60)).toBe("Night");
+  });
+
+  it("counts map presence from resident summaries without inventing occupancy", () => {
+    const counts = residentCountsByLocation([
+      { locationId: "cafe" }, { locationId: "cafe" },
+      { locationId: "park" }, {},
+    ]);
+    expect([...counts.entries()]).toEqual([["cafe", 2], ["park", 1]]);
   });
 
   it("maps real resident state into rail identity without inventing activity", () => {

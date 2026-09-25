@@ -154,6 +154,8 @@ export function App() {
               following={observerFollowing}
               names={names}
               followedCount={followed.size}
+              locations={snap?.locations ?? []}
+              agents={snap?.agents ?? []}
               currentLocationId={controlled?.summary.locationId}
               selectedLocationId={selectedAgent?.summary.locationId}
               onOpenMap={() => setShowMap(true)}

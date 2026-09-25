@@ -1,4 +1,6 @@
 import { useState } from "react";
+import type { AgentSummary } from "@echosim/inspector";
+import type { LifeLocationSummary } from "../../simulation/LifeModeAdapter.js";
 import { groupTownStories, type StoryView } from "../models/storyView.js";
 import { residentInitials } from "../models/residentView.js";
 import { TownMiniMap } from "./TownMiniMap.js";
@@ -9,6 +11,8 @@ interface TownObserverProps {
   following: readonly StoryView[];
   names: ReadonlyMap<string, string>;
   followedCount: number;
+  locations: readonly LifeLocationSummary[];
+  agents: readonly AgentSummary[];
   currentLocationId?: string;
   selectedLocationId?: string;
   onOpenMap(): void;
@@ -39,7 +43,10 @@ export function TownObserver(props: TownObserverProps) {
       <div className="side-panel__scroll story-feed">
         {tab === "map" ? (
           <div className="observer-map-callout">
-            <TownMiniMap currentLocationId={props.currentLocationId}
+            <TownMiniMap
+              locations={props.locations}
+              agents={props.agents}
+              currentLocationId={props.currentLocationId}
               selectedLocationId={props.selectedLocationId} />
             <strong>See where life is unfolding</strong>
             <p>See residents, open venues and where your next trip is headed.</p>
