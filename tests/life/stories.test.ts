@@ -55,8 +55,35 @@ describe("S55: town stories", () => {
     stories.noteFriendship("npc_mira", "npc_rohan",
       tierOf(town.relationships.getOrCreate("npc_rohan", "npc_mira")));
 
-    const all = stories.all().map((s) => s.text);
-    expect(all.some((t) => t.includes("promoted"))).toBe(true);
+    const all = stories.all();
+    expect(all.some((story) =>
+      story.category === "careers" && story.text.includes("promoted"))).toBe(true);
+    expect(all.some((story) =>
+      story.category === "relationships" && story.text.includes("became friends"))).toBe(true);
+  });
+
+  it("keeps private invitations participant-only even across shared groups", () => {
+    const { town } = createAuthoredTown(7001);
+    const stories = new TownStories(town);
+    const rel = town.relationships.getOrCreate("npc_anika", "npc_mira");
+    rel.affinity = 0.7;
+
+    const invitation = town.invitations.maybeInvite(
+      "npc_mira", "npc_anika", "coffee", "cafe",
+      town.clock.currentTime.totalMinutes + 90,
+    );
+    expect(invitation).not.toBeNull();
+
+    const miraStory = stories.visibleTo("npc_mira")
+      .find((story) => story.participants.includes("npc_anika"));
+    const anikaStory = stories.visibleTo("npc_anika")
+      .find((story) => story.participants.includes("npc_mira"));
+    expect(miraStory).toMatchObject({ category: "social", visibility: "participants" });
+    expect(anikaStory?.id).toBe(miraStory?.id);
+
+    // Rohan shares Mira's household, but the invitation itself is private.
+    expect(stories.visibleTo("npc_rohan")
+      .some((story) => story.id === miraStory?.id)).toBe(false);
   });
 
   it("knowledge filter hides stories about strangers", () => {

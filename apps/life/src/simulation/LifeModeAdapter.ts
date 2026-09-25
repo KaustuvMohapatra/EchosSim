@@ -27,6 +27,7 @@ export interface LifeTownStorySummary {
   day: number;
   text: string;
   participants: readonly string[];
+  category: "relationships" | "careers" | "social" | "town";
 }
 
 export interface LifeMessageSummary {
@@ -405,6 +406,7 @@ export class LifeModeAdapter {
       day: story.day,
       text: story.text,
       participants: [...story.participants],
+      category: story.category,
     }));
   }
 

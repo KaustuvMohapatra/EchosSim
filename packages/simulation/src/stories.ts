@@ -1,16 +1,20 @@
 /**
  * Town stories (Sprints 54–55): human-readable neighbourhood feed generated
- * from milestone events (promotions, friendships, invitations). Visibility is
- * knowledge-filtered: the player sees a story when they participate or share
- * a group with a participant.
+ * from milestone events. Each story carries an explicit category and
+ * visibility policy so presentation never has to infer semantics from prose.
  */
-import type { Town } from "@echosim/simulation";
+import type { Town } from "./town.js";
+
+export type StoryCategory = "relationships" | "careers" | "social" | "town";
+export type StoryVisibility = "participants" | "shared-groups";
 
 export interface Story {
   id: number;
   day: number;
   text: string;
   participants: readonly string[];
+  category: StoryCategory;
+  visibility: StoryVisibility;
 }
 
 export class TownStories {
@@ -22,18 +26,21 @@ export class TownStories {
     town.events.subscribe<{ agent: string; toTitle: string }>(
       "sim:promoted", (e) => this.add(
         [e.agent],
-        `${nameOf(town, e.agent)} was promoted to ${e.toTitle}.`));
+        `${nameOf(town, e.agent)} was promoted to ${e.toTitle}.`,
+        "careers"));
 
     town.events.subscribe<{ a: string; b: string }>(
       "sim:friendship-formed", (e) => this.add(
         [e.a, e.b],
-        `${nameOf(town, e.a)} and ${nameOf(town, e.b)} became close friends.`));
+        `${nameOf(town, e.a)} and ${nameOf(town, e.b)} became friends.`,
+        "relationships"));
 
     town.events.subscribe<{ from: string; to: string; activityLabel: string }>(
       "sim:invitation", (e) => this.add(
         [e.from, e.to],
         `${nameOf(town, e.from)} invited ${nameOf(town, e.to)} out for ${e.activityLabel}.`,
-        { soft: true }));
+        "social",
+        "participants"));
   }
 
   /** Social wire calls this after each relationship update. */
@@ -49,23 +56,35 @@ export class TownStories {
     }
   }
 
-  private add(participants: readonly string[], text: string,
-    opts: { soft?: boolean } = {}): void {
-    if (opts.soft && Math.random !== undefined) {
-      // Deterministic: invitation stories are low-priority; keep all for now
-      // but mark nothing special — kept simple for v0.2.
-    }
+  private add(
+    participants: readonly string[],
+    text: string,
+    category: StoryCategory,
+    visibility: StoryVisibility = "shared-groups",
+  ): void {
     const day = Math.floor(this.town.clock.currentTime.totalMinutes / 1440);
-    this.stories.push({ id: this.nextId++, day, text, participants: [...participants] });
+    this.stories.push({
+      id: this.nextId++,
+      day,
+      text,
+      participants: [...participants],
+      category,
+      visibility,
+    });
     if (this.stories.length > 200) this.stories.shift();
   }
 
-  /** Stories visible to the viewer: participation or shared group. */
+  /**
+   * Knowledge-filtered stories. Participant-only stories (for example private
+   * invitations) never spread merely because a viewer shares a household,
+   * workplace or club with one of the participants.
+   */
   visibleTo(viewerId: string): Story[] {
-    return this.stories.filter((s) => {
-      if (s.participants.includes(viewerId)) return true;
-      return s.participants.some((p) =>
-        this.town.groups.sharedGroups(viewerId, p).length > 0);
+    return this.stories.filter((story) => {
+      if (story.participants.includes(viewerId)) return true;
+      if (story.visibility === "participants") return false;
+      return story.participants.some((participant) =>
+        this.town.groups.sharedGroups(viewerId, participant).length > 0);
     });
   }
 
