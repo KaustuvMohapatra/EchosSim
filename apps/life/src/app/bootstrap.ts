@@ -82,6 +82,7 @@ export function createLifeApp(canvas: HTMLCanvasElement,
 
   // ---- Build mode ----
   let buildMode = false;
+  let resumeAfterBuild = false;
   let buildSelection: BuildKind | null = null;
   const buildMeshes = new Map<string, import("@babylonjs/core").Mesh>();
 
@@ -213,8 +214,16 @@ export function createLifeApp(canvas: HTMLCanvasElement,
     build,
     get buildMode(): boolean { return buildMode; },
     setBuildMode(on: boolean): void {
-      buildMode = on;
-      if (on) adapter.pause(); else adapter.play();
+      if (on === buildMode) return;
+      if (on) {
+        resumeAfterBuild = adapter.running;
+        buildMode = true;
+        adapter.pause();
+      } else {
+        buildMode = false;
+        if (resumeAfterBuild) adapter.play();
+        resumeAfterBuild = false;
+      }
       handlers.onBuildFeedback?.(on ? "Build Mode — simulation paused." : "");
       adapter.touch();
     },

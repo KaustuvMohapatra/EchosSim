@@ -47,7 +47,7 @@ export function TownMiniMap({
               location?.isOpen === false ? "Closed" : "Open",
               residentCount > 0
                 ? `${residentCount} known resident${residentCount === 1 ? "" : "s"} here`
-                : "No residents here",
+                : "No known residents here",
             ].join(" · ")}>
             {residentCount > 0 && <b>{residentCount}</b>}
           </i>
