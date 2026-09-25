@@ -10,7 +10,8 @@ import {
   eventToStory, groupTownStories, liveStories, townStoryViews,
 } from "../../apps/life/src/ui/models/storyView.js";
 import {
-  formatClockMinute, formatSimMoment, skillProgress,
+  formatClockMinute, formatSimMoment, habitText,
+  intentionStrengthLabel, intentionText, skillProgress,
 } from "../../apps/life/src/ui/models/personalLifeView.js";
 
 describe("Life UI presentation models", () => {
@@ -89,6 +90,9 @@ describe("Life UI presentation models", () => {
     expect(skillProgress({
       name: "Cooking", xp: 25, level: 1, levelFloorXp: 10, nextLevelXp: 40,
     })).toBeCloseTo(0.5);
+    expect(intentionText("repair", "Mira")).toBe("Repair things with Mira");
+    expect(intentionStrengthLabel(0.7)).toBe("Strong intention");
+    expect(habitText("visit", "Maple & Bean", 4)).toBe("Often visits Maple & Bean");
   });
 
   it("keeps phone messages resident-scoped and skill state simulation-backed", () => {
@@ -124,6 +128,21 @@ describe("Life UI presentation models", () => {
     ]);
     expect(adapter.respondToInvitation("player", invitation!.id, "accept")).toBe(true);
     expect(adapter.town.invitations.get(invitation!.id)?.status).toBe("accepted");
+
+    const socialRel = adapter.town.relationships.getOrCreate("player", "npc_mira");
+    socialRel.familiarity = 0.5;
+    socialRel.affinity = 0.6;
+    socialRel.trust = 0.2;
+    adapter.town.habits.record("player", "visit", "cafe", 0);
+    adapter.town.habits.record("player", "visit", "cafe", 1440);
+    adapter.town.habits.record("player", "visit", "cafe", 2880);
+    const developedLife = adapter.personalLifeFor("player")!;
+    expect(developedLife.intentions).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: "befriend", subjectKey: "npc_mira" }),
+    ]));
+    expect(developedLife.habits).toEqual(expect.arrayContaining([
+      expect.objectContaining({ behavior: "visit", targetKey: "cafe" }),
+    ]));
     adapter.dispose();
   });
 

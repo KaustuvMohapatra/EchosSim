@@ -1,7 +1,10 @@
 import { useMemo, useState } from "react";
 import type { AgentInspectorSnapshot } from "@echosim/inspector";
 import type { LifePersonalSnapshot } from "../../simulation/LifeModeAdapter.js";
-import { formatClockMinute, formatSimMoment, skillProgress } from "../models/personalLifeView.js";
+import {
+  formatClockMinute, formatSimMoment, habitText,
+  intentionStrengthLabel, intentionText, skillProgress,
+} from "../models/personalLifeView.js";
 import {
   cleanRelationshipLabel,
   moodOf,
@@ -195,6 +198,45 @@ export function ResidentDetails(props: ResidentDetailsProps) {
                   </div>
                 ))}
               </div>
+            </section>
+
+            <section className="profile-section life-profile__section">
+              <div className="profile-section__title">
+                <strong>Patterns &amp; plans</strong><small>Emergent</small>
+              </div>
+              {props.life.intentions.length === 0 && props.life.habits.length === 0 ? (
+                <p className="empty-state">
+                  No strong routines or longer-term social intentions have formed yet.
+                </p>
+              ) : (
+                <div className="pattern-list">
+                  {props.life.intentions.map((intention) => (
+                    <div className="pattern-row" key={`intention-${intention.kind}-${intention.subjectKey}`}>
+                      <span className={`pattern-row__mark pattern-row__mark--${intention.kind}`} aria-hidden="true" />
+                      <span>
+                        <strong>{intentionText(
+                          intention.kind,
+                          names.get(intention.subjectKey) ?? intention.subjectKey,
+                        )}</strong>
+                        <small>{intentionStrengthLabel(intention.strength)}</small>
+                      </span>
+                    </div>
+                  ))}
+                  {props.life.habits.map((habit) => (
+                    <div className="pattern-row" key={`habit-${habit.behavior}-${habit.targetKey}`}>
+                      <span className="pattern-row__mark pattern-row__mark--habit" aria-hidden="true" />
+                      <span>
+                        <strong>{habitText(
+                          habit.behavior,
+                          locations.get(habit.targetKey) ?? habit.targetKey,
+                          habit.repetitionCount,
+                        )}</strong>
+                        <small>Routine formed through repeated behaviour</small>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
           </div>
         )}

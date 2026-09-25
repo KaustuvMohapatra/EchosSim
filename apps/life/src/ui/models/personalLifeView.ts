@@ -22,3 +22,32 @@ export function skillProgress(skill: LifeSkillSummary): number {
   if (span <= 0) return 1;
   return Math.max(0, Math.min(1, (skill.xp - skill.levelFloorXp) / span));
 }
+
+
+export function intentionText(
+  kind: "befriend" | "repair" | "avoid",
+  subjectName: string,
+): string {
+  switch (kind) {
+    case "befriend": return `Get closer to ${subjectName}`;
+    case "repair": return `Repair things with ${subjectName}`;
+    case "avoid": return `Keep some distance from ${subjectName}`;
+  }
+}
+
+export function habitText(
+  behavior: string,
+  targetName: string,
+  repetitionCount: number,
+): string {
+  if (behavior === "visit")
+    return repetitionCount >= 6 ? `Regularly visits ${targetName}` : `Often visits ${targetName}`;
+  const readable = behavior.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  return `${readable}: ${targetName}`;
+}
+
+export function intentionStrengthLabel(strength: number): string {
+  if (strength >= 0.65) return "Strong intention";
+  if (strength >= 0.45) return "Growing intention";
+  return "Background intention";
+}

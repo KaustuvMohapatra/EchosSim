@@ -69,6 +69,19 @@ export interface LifeHouseholdSummary {
   members: Array<{ id: string; name: string }>;
 }
 
+export interface LifeHabitSummary {
+  behavior: string;
+  targetKey: string;
+  strength: number;
+  repetitionCount: number;
+}
+
+export interface LifeIntentionSummary {
+  kind: "befriend" | "repair" | "avoid";
+  subjectKey: string;
+  strength: number;
+}
+
 export interface LifePersonalSnapshot {
   agentId: string;
   messages: LifeMessageSummary[];
@@ -76,6 +89,8 @@ export interface LifePersonalSnapshot {
   invitations: LifeInvitationSummary[];
   skills: LifeSkillSummary[];
   households: LifeHouseholdSummary[];
+  habits: LifeHabitSummary[];
+  intentions: LifeIntentionSummary[];
 }
 
 export interface LifeSnapshot {
@@ -396,6 +411,17 @@ export class LifeModeAdapter {
       invitations: this.town.invitations.forAgent(agentId),
       skills,
       households,
+      habits: this.inspector.getHabits(agentId).slice(0, 5).map((habit) => ({
+        behavior: habit.behavior,
+        targetKey: habit.targetKey,
+        strength: habit.strength,
+        repetitionCount: habit.repetitionCount,
+      })),
+      intentions: this.inspector.getIntentions(agentId).slice(0, 5).map((intention) => ({
+        kind: intention.kind,
+        subjectKey: intention.subjectKey,
+        strength: intention.strength,
+      })),
     };
   }
 
