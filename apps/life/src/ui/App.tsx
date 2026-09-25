@@ -78,6 +78,15 @@ export function App() {
   const names = useMemo(() => new Map((snap?.agents ?? []).map((agent) => [agent.id, agent.name])), [snap]);
   const locations = useMemo(() => new Map((snap?.locations ?? []).map((location) => [location.id, location.name])), [snap]);
 
+  useEffect(() => {
+    if (!snap) return;
+    const residentIds = new Set(snap.agents.map((agent) => agent.id));
+    setFollowed((current) => {
+      const next = new Set([...current].filter((id) => residentIds.has(id)));
+      return next.size === current.size ? current : next;
+    });
+  }, [snap]);
+
   const residents = useMemo(() => orderResidentRail(
     residentPresence.map((presence) => residentRailItemFromPresence(presence, {
       controlled: presence.id === controlledId,
@@ -132,6 +141,30 @@ export function App() {
   };
 
   const buildMode = app?.buildMode ?? false;
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== "Escape") return;
+      if (menu) {
+        closeMenu();
+        return;
+      }
+      if (showMap) {
+        setShowMap(false);
+        return;
+      }
+      if (panel) setPanel(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [menu, showMap, panel, closeMenu]);
+
+  useEffect(() => {
+    if (!buildMode) return;
+    setPanel(null);
+    setShowMap(false);
+    closeMenu();
+  }, [buildMode, closeMenu]);
 
   return (
     <main className={`life-root${buildMode ? " is-build-mode" : ""}${panel ? " has-side-panel" : ""}`}

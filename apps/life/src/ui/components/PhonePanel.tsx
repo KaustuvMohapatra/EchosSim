@@ -62,45 +62,57 @@ export function PhonePanel(props: PhonePanelProps) {
       <div className="side-panel__scroll phone-panel__body">
         {tab === "messages" && (
           <section className="phone-messages">
-            <label className="phone-contact">
-              <span>Conversation</span>
-              <select value={contactId} onChange={(event) => setContactId(event.target.value)}>
-                {contacts.map((contact) => (
-                  <option key={contact.id} value={contact.id}>{contact.name}</option>
-                ))}
-              </select>
-            </label>
+            {contacts.length === 0 ? (
+              <div className="phone-empty">
+                <strong>No contacts yet</strong>
+                <p>
+                  Meet residents, build a relationship, share a household, or receive an
+                  invitation before they appear here.
+                </p>
+              </div>
+            ) : (
+              <>
+                <label className="phone-contact">
+                  <span>Conversation</span>
+                  <select value={contactId} onChange={(event) => setContactId(event.target.value)}>
+                    {contacts.map((contact) => (
+                      <option key={contact.id} value={contact.id}>{contact.name}</option>
+                    ))}
+                  </select>
+                </label>
 
-            <div className="message-thread" aria-live="polite">
-              {thread.length === 0 ? (
-                <p className="empty-state">No messages with this resident yet.</p>
-              ) : thread.map((message) => {
-                const outgoing = message.from === props.life.agentId;
-                return (
-                  <article className={`message-bubble${outgoing ? " is-outgoing" : ""}`}
-                    key={message.id}>
-                    <small>{outgoing ? "You" : contactNames.get(message.from) ?? "Known resident"}</small>
-                    <p>{message.text}</p>
-                    <time>{formatSimMoment(message.atMinutes, props.nowMinutes)}</time>
-                  </article>
-                );
-              })}
-            </div>
+                <div className="message-thread" aria-live="polite">
+                  {thread.length === 0 ? (
+                    <p className="empty-state">No messages with this resident yet.</p>
+                  ) : thread.map((message) => {
+                    const outgoing = message.from === props.life.agentId;
+                    return (
+                      <article className={`message-bubble${outgoing ? " is-outgoing" : ""}`}
+                        key={message.id}>
+                        <small>{outgoing ? "You" : contactNames.get(message.from) ?? "Known resident"}</small>
+                        <p>{message.text}</p>
+                        <time>{formatSimMoment(message.atMinutes, props.nowMinutes)}</time>
+                      </article>
+                    );
+                  })}
+                </div>
 
-            <div className="message-composer">
-              <input value={draft} maxLength={240}
-                onChange={(event) => setDraft(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-                    submit();
-                  }
-                }}
-                placeholder={contactId ? `Message ${contactNames.get(contactId) ?? "resident"}` : "No contacts yet"}
-                aria-label="Message text" disabled={!contactId} />
-              <button type="button" className="primary-button" onClick={submit}
-                disabled={!contactId || draft.trim().length === 0}>Send</button>
-            </div>
+                <div className="message-composer">
+                  <input value={draft} maxLength={240}
+                    onChange={(event) => setDraft(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && !event.shiftKey) {
+                        event.preventDefault();
+                        submit();
+                      }
+                    }}
+                    placeholder={`Message ${contactNames.get(contactId) ?? "resident"}`}
+                    aria-label="Message text" />
+                  <button type="button" className="primary-button" onClick={submit}
+                    disabled={draft.trim().length === 0}>Send</button>
+                </div>
+              </>
+            )}
           </section>
         )}
 
