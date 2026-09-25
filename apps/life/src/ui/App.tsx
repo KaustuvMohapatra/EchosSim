@@ -268,7 +268,7 @@ export function App() {
       )}
 
       {menu && app && (
-        <ContextMenu menu={menu} app={app} snap={snap}
+        <ContextMenu menu={menu} app={app}
           onClose={closeMenu} onFlash={setFlash} />
       )}
 

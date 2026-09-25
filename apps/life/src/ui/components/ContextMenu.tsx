@@ -1,7 +1,6 @@
 import type { CSSProperties } from "react";
 import { SocialActionType } from "@echosim/social";
 import type { LifeApp } from "../../app/bootstrap.js";
-import type { LifeSnapshot } from "../../simulation/LifeModeAdapter.js";
 import { cleanRelationshipLabel } from "../models/residentView.js";
 
 export interface ContextMenuState { objectId: string; x: number; y: number }
@@ -18,12 +17,11 @@ const SOCIAL_ITEMS: readonly [string, SocialActionType][] = [
 interface ContextMenuProps {
   menu: ContextMenuState;
   app: LifeApp;
-  snap: LifeSnapshot | null;
   onClose(): void;
   onFlash(text: string): void;
 }
 
-export function ContextMenu({ menu, app, snap, onClose, onFlash }: ContextMenuProps) {
+export function ContextMenu({ menu, app, onClose, onFlash }: ContextMenuProps) {
   const style: CSSProperties = typeof window === "undefined" ? {} : {
     left: Math.max(12, Math.min(menu.x, window.innerWidth - 260)),
     top: Math.max(76, Math.min(menu.y, window.innerHeight - 360)),
