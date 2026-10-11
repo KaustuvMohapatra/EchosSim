@@ -13,6 +13,10 @@ const KIND_GEOM: Record<PlacedObject["kind"], {
   counter:   { w: 3.2,  h: 1.0,  d: 0.7,  color: [0.3, 0.32, 0.36] },
   bed:       { w: 1.4,  h: 0.5,  d: 2.0,  color: [0.5, 0.48, 0.55] },
   desk:      { w: 1.5,  h: 0.74, d: 0.75, color: [0.44, 0.34, 0.24] },
+  arcade:    { w: 1.05, h: 1.9,  d: 0.85, color: [0.22, 0.33, 0.53] },
+  easel:     { w: 0.9,  h: 1.65, d: 0.85, color: [0.58, 0.39, 0.25] },
+  garden:    { w: 1.9,  h: 0.36, d: 1.2,  color: [0.35, 0.52, 0.34] },
+  noticeboard:{ w: 1.25, h: 1.6, d: 0.45, color: [0.55, 0.40, 0.27] },
 };
 
 export interface FurnitureHandle {
