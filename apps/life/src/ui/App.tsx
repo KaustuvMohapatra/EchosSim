@@ -4,7 +4,7 @@ import {
   orderResidentRail, residentRailItemFromPresence,
 } from "./models/residentView.js";
 import {
-  followedStories, observerMomentStories, townStoryViews,
+  followedStories, liveStories, observerMomentStories, townStoryViews,
 } from "./models/storyView.js";
 import { TopBar } from "./components/TopBar.js";
 import { ResidentRail } from "./components/ResidentRail.js";
@@ -107,17 +107,17 @@ export function App() {
 
   const observerLive = useMemo(() =>
     app && snap && controlledId
-      ? observerMomentStories(
-          app.adapter.observerMomentsFor(controlledId),
-          snap.time.totalMinutes,
-          names,
-          locations,
-          14,
-        )
+      ? app.worldView
+        ? liveStories(app.adapter.worldEventsFor(), snap.time.totalMinutes, names, locations, 14)
+        : observerMomentStories(app.adapter.observerMomentsFor(controlledId),
+            snap.time.totalMinutes, names, locations, 14)
       : [],
   [app, snap, names, locations, controlledId]);
   const observerTown = useMemo(() => app && snap && controlledId
-    ? townStoryViews(app.adapter.townStoriesFor(controlledId), snap.time.day) : [],
+    ? townStoryViews(app.worldView
+        ? app.adapter.worldTownStoriesFor()
+        : app.adapter.townStoriesFor(controlledId), snap.time.day)
+    : [],
   [app, snap, controlledId]);
   const observerFollowing = useMemo(() =>
     followedStories([...observerLive, ...observerTown], followed).slice(0, 14),
