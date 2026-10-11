@@ -47,7 +47,9 @@ const BASELINE = 0.45;
 /** Deterministic pick-set → personality profile. */
 export function profileFromPicks(pickedIds: readonly string[]): PersonalityProfile {
   const values = new Array<number>(14).fill(BASELINE);
-  for (const pickId of pickedIds) {
+  // Picks are choices, not stackable effects. Preserve first-seen order while
+  // ignoring duplicates from stale UI state or imported requests.
+  for (const pickId of new Set(pickedIds)) {
     const pick = TRAIT_PICKS.find((p) => p.id === pickId);
     if (!pick) continue;
     for (const [traitStr, delta] of Object.entries(pick.deltas)) {
