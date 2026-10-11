@@ -1,7 +1,8 @@
 import type { AgentInspectorSnapshot } from "@echosim/inspector";
 import {
-  moodOf, readableActivity, relevantNeeds, residentInitials,
+  moodOf, readableActivity, relevantNeeds,
 } from "../models/residentView.js";
+import { ResidentPortrait } from "./ResidentPortrait.js";
 
 interface ControlledResidentCardProps {
   agent?: AgentInspectorSnapshot;
@@ -15,9 +16,7 @@ export function ControlledResidentCard({ agent, onProfile }: ControlledResidentC
     <section className="controlled-card" data-testid="character-card">
       <button type="button" className="controlled-card__profile" onClick={onProfile}
         aria-label={`Open ${agent.summary.name}'s profile`}>
-        <span className="resident-avatar resident-avatar--large" aria-hidden="true">
-          {residentInitials(agent.summary.name)}
-        </span>
+        <ResidentPortrait id={agent.summary.id} large />
         <span className="controlled-card__identity">
           <small>Playing as</small>
           <strong>{agent.summary.name}</strong>
