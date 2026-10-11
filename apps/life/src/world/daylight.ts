@@ -9,28 +9,54 @@ export interface DaylightParams {
   nightFactor: number;
 }
 
-/** minuteOfDay in [0,1440). Deterministic and continuous-ish. */
+const DAY_MINUTES = 1440;
+const SUNRISE = 360;
+const SUNSET = 1200;
+const TWILIGHT_MINUTES = 45;
+
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+/** Continuous, zero-slope interpolation at both ends. */
+function smoothstep(value: number): number {
+  const t = clamp01(value);
+  return t * t * (3 - 2 * t);
+}
+
+function mix(from: number, to: number, amount: number): number {
+  return from + (to - from) * amount;
+}
+
+/**
+ * The twilight envelope avoids discontinuities at 06:00 and 20:00.
+ * Ramps are symmetric and periodic across midnight.
+ */
 export function daylightParams(minuteOfDay: number): DaylightParams {
-  const m = ((minuteOfDay % 1440) + 1440) % 1440;
-  // Solar phase: sunrise 06:00, sunset 20:00.
-  const t = (m - 360) / (840); // 0..1 across daytime
-  const day = m >= 360 && m <= 1200;
-  const elevation = day
-    ? Math.max(0, Math.sin(Math.PI * Math.min(1, Math.max(0, t))))
-    : 0;
+  if (!Number.isFinite(minuteOfDay)) {
+    throw new RangeError("minuteOfDay must be finite");
+  }
+  const m = ((minuteOfDay % DAY_MINUTES) + DAY_MINUTES) % DAY_MINUTES;
+  const dawn = smoothstep((m - (SUNRISE - TWILIGHT_MINUTES)) / (2 * TWILIGHT_MINUTES));
+  const dusk = 1 - smoothstep((m - (SUNSET - TWILIGHT_MINUTES)) / (2 * TWILIGHT_MINUTES));
+  const daylight = dawn * dusk;
 
-  const golden = day && (m < 480 || m > 1080);
-  const night = !day;
+  const solarProgress = clamp01((m - SUNRISE) / (SUNSET - SUNRISE));
+  const elevation = Math.max(0, Math.sin(Math.PI * solarProgress)) * daylight;
+  const goldenWeight = daylight * (1 - smoothstep(elevation / 0.40));
 
-  const r = night ? 0.45 : golden ? 1.0 : 1.0;
-  const g = night ? 0.52 : golden ? 0.72 : 0.96;
-  const b = night ? 0.75 : golden ? 0.55 : 0.88;
+  const nightColor: readonly number[] = [0.45, 0.52, 0.75];
+  const dayColor: readonly number[] = [1.0, 0.96, 0.88];
+  const goldenColor: readonly number[] = [1.0, 0.72, 0.55];
+  const sunColor = dayColor.map((channel, index) =>
+    mix(mix(nightColor[index]!, channel, daylight), goldenColor[index]!, goldenWeight),
+  ) as [number, number, number];
 
   return {
     elevation,
-    sunIntensity: night ? 0.12 : 0.35 + 0.8 * elevation,
-    hemiIntensity: night ? 0.28 : 0.55 + 0.3 * elevation,
-    sunColor: [r, g, b],
-    nightFactor: night ? 1 : 1 - elevation,
+    sunIntensity: mix(0.12, 0.35 + 0.8 * elevation, daylight),
+    hemiIntensity: mix(0.28, 0.55 + 0.3 * elevation, daylight),
+    sunColor,
+    nightFactor: 1 - elevation,
   };
 }
