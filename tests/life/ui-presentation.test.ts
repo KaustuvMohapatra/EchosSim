@@ -103,6 +103,15 @@ describe("Life UI presentation models", () => {
       location: expect.stringMatching(/^Last seen .+ ago at Park$/),
     });
     expect(relativePresenceAge(200, 110)).toBe("1h ago");
+    expect(relativePresenceAge(100, 110)).toBe("just now");
+    for (const invalid of [NaN, Infinity, -Infinity]) {
+      expect(relativePresenceAge(invalid, 110)).toBe("at an unknown time");
+      expect(relativePresenceAge(200, invalid)).toBe("at an unknown time");
+    }
+    expect(relativePresenceAge(Number.MAX_VALUE, -Number.MAX_VALUE))
+      .toBe("at an unknown time");
+    expect(residentProfilePresenceView(lastKnownMira, NaN).location)
+      .toContain("Last seen at an unknown time at Park");
     const unknown = adapter.residentPresenceFor("player")
       .find((resident) => resident.id === "npc_rohan")!;
     expect(residentProfilePresenceView(unknown)).toEqual({
