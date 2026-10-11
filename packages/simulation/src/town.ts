@@ -308,9 +308,20 @@ export class Town {
     return this.socialRng().chance(p);
   }
 
-  /** Persistence hook: keep the encoder id counter clear of imported ids. */
+  /** Counter is simulation state, even if an observation encoded no memory. */
+  memoryIdForSave(): number { return this.memoryIdCounter; }
+
+  /** Persistence hook: avoid reusing imported IDs in older saves. */
   ensureMemoryIdBeyond(value: number): void {
-    if (this.memoryIdCounter < value) this.memoryIdCounter = value;
+    if (Number.isSafeInteger(value) && this.memoryIdCounter < value)
+      this.memoryIdCounter = value;
+  }
+
+  /** Restore exact counter after importing memory records, for reproducibility. */
+  restoreMemoryIdCounter(value: number): void {
+    if (!Number.isSafeInteger(value) || value < this.memoryIdCounter)
+      throw new Error("Invalid memory ID counter in saved world.");
+    this.memoryIdCounter = value;
   }
 
   /**
