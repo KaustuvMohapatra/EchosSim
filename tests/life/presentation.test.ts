@@ -28,6 +28,37 @@ describe("S56: daylight", () => {
   });
 });
 
+describe("S56: continuous daylight boundaries", () => {
+  it.each([360, 1200])("does not abruptly change lighting at minute %i", (boundary) => {
+    const before = daylightParams(boundary - 0.001);
+    const after = daylightParams(boundary + 0.001);
+    expect(Math.abs(after.sunIntensity - before.sunIntensity)).toBeLessThan(0.001);
+    expect(Math.abs(after.hemiIntensity - before.hemiIntensity)).toBeLessThan(0.001);
+    expect(Math.abs(after.nightFactor - before.nightFactor)).toBeLessThan(0.001);
+    for (let i = 0; i < 3; i++) {
+      expect(Math.abs(after.sunColor[i]! - before.sunColor[i]!)).toBeLessThan(0.001);
+    }
+  });
+
+  it("preserves the same lighting after a complete day and for negative minutes", () => {
+    for (const minute of [0, 359, 375, 420, 720, 1185, 1200, 1439]) {
+      expect(daylightParams(minute + 1440)).toEqual(daylightParams(minute));
+      expect(daylightParams(minute - 1440)).toEqual(daylightParams(minute));
+    }
+  });
+
+  it("has smooth intermediate twilight illumination without darkening at noon", () => {
+    const midnight = daylightParams(0);
+    const dawn = daylightParams(375);
+    const noon = daylightParams(720);
+    const dusk = daylightParams(1185);
+    expect(dawn.sunIntensity).toBeGreaterThan(midnight.sunIntensity);
+    expect(dawn.sunIntensity).toBeLessThan(noon.sunIntensity);
+    expect(dusk.sunIntensity).toBeGreaterThan(midnight.sunIntensity);
+    expect(dusk.sunIntensity).toBeLessThan(noon.sunIntensity);
+  });
+});
+
 describe("S57: ambience settings", () => {
   it("persists through injected storage and clamps volume", () => {
     const backing = new Map<string, string>();
