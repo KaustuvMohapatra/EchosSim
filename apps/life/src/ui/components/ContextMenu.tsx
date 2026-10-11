@@ -91,9 +91,19 @@ export function ContextMenu({ menu, app, onClose, onFlash }: ContextMenuProps) {
 
   if (menu.objectId.startsWith("built:")) {
     const objectId = menu.objectId.slice(6);
+    const placed = app.build.get(objectId);
+    const activity = app.interactions.builtAffordance(objectId);
     return (
       <div className="context-menu" style={style} data-context-menu="1" role="menu">
-        <div className="context-menu__head"><strong>Furniture</strong></div>
+        <div className="context-menu__head"><strong>{placed?.kind.replace(/_/g, " ") ?? "Furniture"}</strong></div>
+        {activity && (
+          <button type="button" role="menuitem" data-context-menu="1"
+            onClick={() => {
+              const result = app.interactions.useBuiltObject(objectId);
+              onFlash(result.feedback);
+              onClose();
+            }}>{activity.label}</button>
+        )}
         <button type="button" role="menuitem" data-context-menu="1"
           onClick={() => { app.build.rotate(objectId); onClose(); }}>Rotate</button>
         <button type="button" role="menuitem" className="is-danger" data-context-menu="1"
