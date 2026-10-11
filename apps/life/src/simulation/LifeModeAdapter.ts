@@ -556,6 +556,36 @@ export class LifeModeAdapter {
   }
 
   /**
+   * Deliberately omniscient read models for god/Creator view. Resident mode
+   * continues to call the viewer-scoped methods below. Keeping both APIs
+   * separate prevents a debug-inspector leak into ordinary resident play.
+   */
+  worldPresenceFor(): LifeResidentPresenceSummary[] {
+    return this.inspector.getAgents().map((agent) => ({
+      id: agent.id,
+      name: agent.name,
+      visibility: "current" as const,
+      current: { ...agent },
+    }));
+  }
+
+  worldResidentDetailsFor(targetId: string): AgentInspectorSnapshot | undefined {
+    if (!this.town.residents.tryMind(targetId)) return undefined;
+    return this.inspector.getAgent(targetId);
+  }
+
+  worldResidentKnowledgeFor(targetId: string): LifeResidentKnowledgeSummary | undefined {
+    if (!this.town.residents.tryMind(targetId)) return undefined;
+    return {
+      viewerId: "world",
+      targetId,
+      privateAccess: true,
+      relationships: this.inspector.getRelationships(targetId).map((relationship) => ({ ...relationship })),
+      memories: this.inspector.getMemories(targetId, { sort: "recency", limit: 7 }),
+    };
+  }
+
+  /**
    * Full inspector detail is private resident state. Only self or a member of
    * the viewer's controllable household may cross this adapter boundary.
    */
