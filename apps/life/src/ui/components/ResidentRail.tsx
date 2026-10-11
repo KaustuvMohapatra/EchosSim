@@ -19,12 +19,15 @@ export function ResidentRail({ residents, onSelect, onControl }: ResidentRailPro
           <article key={resident.id}
             className={[
               "resident-chip",
+              resident.visibility !== "current" ? "is-out-of-sight" : "",
               resident.selected ? "is-selected" : "",
               resident.controlled ? "is-controlled" : "",
               resident.household ? "is-household" : "",
             ].filter(Boolean).join(" ")}>
             <button type="button" className="resident-chip__main"
-              onClick={() => onSelect(resident.id)} aria-pressed={resident.selected}>
+              onClick={() => onSelect(resident.id)} aria-pressed={resident.selected}
+              aria-label={`View ${resident.name} · ${resident.visibility === "current" ? "Currently observed" : resident.visibility === "last-known" ? "Last known location" : "Whereabouts unknown"}`}>
+              
               <ResidentPortrait id={resident.id} />
               <span className="resident-chip__copy">
                 <strong>{resident.name}</strong>
