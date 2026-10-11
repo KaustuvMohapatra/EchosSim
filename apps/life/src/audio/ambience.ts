@@ -26,10 +26,12 @@ export function saveSettings(s: AmbienceSettings, storage?: {
   getItem(k: string): string | null; setItem(k: string, v: string): void;
 }): void {
   if (!storage) return;
-  try { storage.setItem(KEY, JSON.stringify(s)); } catch { /* ignore */ }
+  try { storage.setItem(KEY, JSON.stringify({ enabled: !!s.enabled, volume: clamp01(s.volume) })); } catch { /* ignore */ }
 }
 
-function clamp01(v: number): number { return Math.max(0, Math.min(1, v)); }
+function clamp01(v: number): number {
+  return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : DEFAULT_SETTINGS.volume;
+}
 
 /**
  * Gain envelope per weather/time state. Presentation-only; the simulation's
@@ -38,8 +40,9 @@ function clamp01(v: number): number { return Math.max(0, Math.min(1, v)); }
 export function ambienceGain(settings: AmbienceSettings,
   weatherState: number, isNight: boolean): number {
   if (!settings.enabled) return 0;
-  const base = settings.volume * 0.25;
-  if (weatherState >= 2) return base + settings.volume * 0.2; // rain layers up
+  const volume = clamp01(settings.volume);
+  const base = volume * 0.25;
+  if (weatherState >= 2) return base + volume * 0.2; // rain layers up
   if (isNight) return base * 0.4;                              // quiet nights
   return base;
 }
