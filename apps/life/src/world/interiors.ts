@@ -64,7 +64,8 @@ export function ring(lotId: string, r: Rect, thickness: number,
     for (const g of axis) {
       const from = Math.max(0, g.at - g.w / 2);
       if (from > cursor) pieces.push({ from: cursor, to: from });
-      // Overlapping or nested openings form a union; never walk the cursor back.\n      cursor = Math.max(cursor, Math.min(length, g.at + g.w / 2));
+      // Overlapping or nested openings form a union; never walk the cursor back.
+      cursor = Math.max(cursor, Math.min(length, g.at + g.w / 2));
     }
     if (cursor < length) pieces.push({ from: cursor, to: length });
 
