@@ -129,6 +129,12 @@ export class AgentLayer {
   private showObjectUse(agentId: string, objectId: string, kind: WorldObjectKind): void {
     const visual = this.visuals.get(agentId);
     if (!visual) return;
+    // A new activity supersedes an earlier object approach. Without this,
+    // the previous object's waypoint stays ahead of the new object's target.
+    if (visual.activity?.headedToObject && !visual.activity.arrived) {
+      visual.waypoints = [];
+    }
+    visual.badge.isVisible = false;
     const presentation = activityPresentation(kind);
     visual.activity = {
       kind, timeLeft: presentation.seconds,
@@ -159,8 +165,11 @@ export class AgentLayer {
           summary.locationId, summary.id,
         ).slice(1);
         visual.locationId = summary.locationId;
-        // A new destination interrupts any previous cosmetic activity.
-        if (visual.activity?.arrived) visual.activity = undefined;
+        // Any destination change interrupts the old cosmetic activity, even
+        // while walking toward an object. Otherwise its stale anchor can be
+        // enqueued when the new location's sidewalk route completes.
+        visual.activity = undefined;
+        visual.badge.isVisible = false;
         // A new journey invalidates an old presentation-only sitting pose.
         this.adapter.seatedAt.delete(summary.id);
       }
