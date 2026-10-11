@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { residentAtlasIndex, residentAtlasUrl, RESIDENT_ATLAS_COUNT } from "../../apps/life/src/characters/residentAssets.js";
+import { residentAtlasIndex, residentAtlasUrl, nextResidentIdForAppearance, RESIDENT_ATLAS_COUNT } from "../../apps/life/src/characters/residentAssets.js";
 
 describe("EchoSim original pixel art asset pack", () => {
   it("contains 32 PNG atlases in the correct 4×5 animation layout", () => {
@@ -20,6 +20,23 @@ describe("EchoSim original pixel art asset pack", () => {
       expect(data[25]).toBe(3); // palette-indexed PNG
       expect(data.includes(Buffer.from("tRNS"))).toBe(true); // transparent background
     }
+  });
+
+  it("lets players choose any look with stable collision-free IDs", () => {
+    const used: string[] = [];
+    const selected = new Set<string>();
+    for (let n = 0; n < RESIDENT_ATLAS_COUNT; n++) {
+      const id = nextResidentIdForAppearance(used, n);
+      expect(id).toMatch(/^created_[0-9]{4,}$/);
+      expect(residentAtlasIndex(id)).toBe(n);
+      expect(selected.has(id)).toBe(false);
+      selected.add(id);
+      used.push(id);
+    }
+    expect(nextResidentIdForAppearance(["created_0001"], residentAtlasIndex("created_0001")))
+      .not.toBe("created_0001");
+    expect(() => nextResidentIdForAppearance([], -1)).toThrow();
+    expect(() => nextResidentIdForAppearance([], RESIDENT_ATLAS_COUNT)).toThrow();
   });
 
   it("maps any resident to a deterministic and existing atlas", () => {
