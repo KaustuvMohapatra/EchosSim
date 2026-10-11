@@ -5,10 +5,12 @@ import type {
 import { DISTRICTS, mapLots } from "../../world/map.js";
 import { relativePresenceAge, residentInitials } from "../models/residentView.js";
 import { residentCountsByLocation } from "../models/townView.js";
+import type { BuildPlacement } from "../../build/BuildController.js";
 
 interface WorldMapProps {
   locations: readonly LifeLocationSummary[];
   residents: readonly LifeResidentPresenceSummary[];
+  attractions?: readonly BuildPlacement[];
   controlledId?: string;
   selectedId?: string;
   destinationId?: string;
@@ -24,6 +26,9 @@ export function WorldMap(props: WorldMapProps) {
   const currentResidents = props.residents.flatMap((resident) =>
     resident.current ? [resident.current] : []);
   const residentCounts = residentCountsByLocation(currentResidents);
+  const attractionCounts = new Map<string, number>();
+  for (const item of props.attractions ?? [])
+    attractionCounts.set(item.lotId, (attractionCounts.get(item.lotId) ?? 0) + 1);
   return (
     <div className="map-overlay" role="dialog" aria-modal="true" aria-label="Town map"
       onPointerDown={(event) => { if (event.target === event.currentTarget) props.onClose(); }}>
@@ -64,6 +69,8 @@ export function WorldMap(props: WorldMapProps) {
                 <small>
                   {location?.isOpen === false ? "Closed" : lot.district?.name ?? "Town"}
                   {residentCount > 0 ? ` · ${residentCount} known here` : ""}
+                  {(attractionCounts.get(lot.locationId) ?? 0) > 0
+                    ? ` · ${attractionCounts.get(lot.locationId)} objects` : ""}
                 </small>
                 <span className="map-lot__markers">
                   {current && controlled && <i className="is-controlled" title={`${controlled.name} is here`}>
