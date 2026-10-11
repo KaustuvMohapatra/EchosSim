@@ -32,17 +32,15 @@ describe("S42: interior construction", () => {
 
   it("unions overlapping and nested door gaps without restoring walls across an opening", () => {
     const result = ring("test", { x1: -5, z1: -4, x2: 5, z2: 4 }, 0.3, [
-      { x: -5, z: -1, width: 5 }, // opening from -3.5 to 1.5
-      { x: -5, z: 0, width: 1 }, // nested gap
-      { x: -5, z: 1.5, width: 2 }, // overlapping gap extends to 2.5
+      { x: -5, z: -1, width: 5 },
+      { x: -5, z: 0, width: 1 },
+      { x: -5, z: 1.5, width: 2 },
     ], "test");
-    // Every wall segment must stay outside the union of these openings.
-    for (const wall of result.walls) {
-      const west = wall.id.startsWith("test-v") && wall.x1 < 0 && wall.x2 < 0;
-      if (west) {
-        expect(wall.z2 <= -3.5 || wall.z1 >= 2.5).toBe(true);
-      }
-    }
+    // A wall crossing the west entrance must never cover the shared opening.
+    const doorwayWalls = result.walls.filter((wall) =>
+      wall.z2 > -3.5 && wall.z1 < 2.5 && wall.x1 < -4 && wall.x2 < -4
+    );
+    expect(doorwayWalls).toEqual([]);
   });
 
   it("divider walls create distinct rooms with privacy levels", () => {
