@@ -23,5 +23,7 @@ describe("relativeSimulationTime", () => {
       expect(relativeSimulationTime(500, invalid)).toBe("Just now");
     }
     expect(relativeSimulationTime(400, 500)).toBe("Just now");
+    // Extreme finite input pairs can overflow during subtraction.
+    expect(relativeSimulationTime(Number.MAX_VALUE, -Number.MAX_VALUE)).toBe("Just now");
   });
 });
