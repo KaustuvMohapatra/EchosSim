@@ -15,11 +15,12 @@ import {
   makeResidentAtlas, PIXEL_FRAMES, PIXEL_POSE_ROW, PIXEL_ROWS,
   residentHash, type PixelPose,
 } from "./pixelResident.js";
+import { residentAtlasUrl } from "./residentAssets.js";
 
 interface AgentVisual {
   root: Mesh;
   label: Mesh;
-  texture: DynamicTexture;
+  texture: Texture;
   targetX: number;
   targetZ: number;
   facing: Exclude<PixelPose, "seated">;
@@ -104,7 +105,30 @@ export class AgentLayer {
     root.isPickable = true;
     root.metadata = { kind: "agent", agentId: id };
 
-    const texture = makeResidentAtlas(this.scene, id);
+    // Use real checked-in sprite atlas; retain deterministic drawing as a
+    // fallback for missing assets/offline builds. One atlas has all 20 frames.
+    let visual: AgentVisual | undefined;
+    const texture = new Texture(
+      residentAtlasUrl(id), this.scene, true, false, Texture.NEAREST_SAMPLINGMODE,
+      undefined,
+      (_message, error) => {
+        console.warn("EchoSim resident sprite failed; using fallback art.", id, error);
+        const fallback = makeResidentAtlas(this.scene, id);
+        mat.diffuseTexture = fallback;
+        if (visual) {
+          visual.texture = fallback;
+          // Force UV refresh to the exact pose after the fallback swap.
+          visual.poseRow = -1;
+          visual.poseFrame = -1;
+        }
+        texture.dispose();
+      },
+    );
+    texture.hasAlpha = true;
+    texture.wrapU = Texture.CLAMP_ADDRESSMODE;
+    texture.wrapV = Texture.CLAMP_ADDRESSMODE;
+    texture.uScale = 1 / PIXEL_FRAMES;
+    texture.vScale = 1 / PIXEL_ROWS;
     const mat = new StandardMaterial("resident-pixels-" + id, this.scene);
     mat.diffuseTexture = texture;
     mat.useAlphaFromDiffuseTexture = true;
@@ -120,13 +144,14 @@ export class AgentLayer {
     label.parent = root;
     label.position.y = 1.66;
 
-    return {
+    visual = {
       root, label, texture,
       targetX: root.position.x, targetZ: root.position.z,
       facing: "front",
       elapsed: (residentHash(id) % 60) / 60,
       poseRow: -1, poseFrame: -1,
     };
+    return visual;
   }
 
   /** Delta-based movement and animation are visual only; no simulation mutations. */
