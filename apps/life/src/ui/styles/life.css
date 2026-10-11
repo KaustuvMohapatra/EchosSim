@@ -30,3 +30,24 @@
 @media(prefers-reduced-motion:reduce){.life-root *{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}}
 
 .action-queue__footer{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:4px}.action-queue__footer:empty{display:none}
+
+
+/* World sandbox controls remain reachable on touch screens: scroll tool row
+   instead of hiding creation, world perspective, construction or save. */
+@media(max-width:780px){
+  .hud-button-group--tools{min-width:0;max-width:48vw;overflow-x:auto;scrollbar-width:thin;overscroll-behavior-x:contain;touch-action:pan-x}
+  .hud-button-group--tools>button{white-space:nowrap;flex:0 0 auto}
+  .hud-tool--camera,.hud-tool--build{display:block}
+}
+@media(max-width:520px){
+  .top-bar{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto;gap:4px;padding:7px 9px;min-height:77px}
+  .day-cycle{min-height:20px}
+  .top-bar__controls{width:100%;justify-content:flex-start;gap:7px}
+  .hud-button-group--tools{max-width:none;flex:1}
+  .hud-tool--town,.speed-button--4{display:block}
+  .side-panel{top:105px}
+  .hud-tool--world,.hud-tool--save{font-size:0!important;min-width:32px}
+  .hud-tool--world::after{content:"◎";font-size:15px}
+  .hud-tool--save::after{content:"↓";font-size:16px}
+  .toast-layer{max-width:calc(100vw - 24px)}
+}
