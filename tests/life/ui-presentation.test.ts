@@ -157,6 +157,10 @@ describe("Life UI presentation models", () => {
 
   it("keeps live observer history tied to actual perception time", () => {
     const adapter = new LifeModeAdapter({ seed: 7001n });
+    // At midnight the authored cafe and park may be closed. Force these
+    // fixtures open: this test is about observation timing, not venue hours.
+    adapter.town.locations.get("cafe" as never).forceOpen(true);
+    adapter.town.locations.get("park" as never).forceOpen(true);
     adapter.town.moveAgent("player" as never, "apt_b" as never);
     adapter.town.moveAgent("npc_rohan" as never, "cafe" as never);
 
