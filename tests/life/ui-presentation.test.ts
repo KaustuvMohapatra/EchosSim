@@ -409,6 +409,27 @@ describe("Life resident creator and world observation", () => {
     expect(personalityForPreset("ambitious").get(PersonalityTrait.Ambition)).toBeGreaterThan(0.9);
   });
 
+  it("restores newly created residents and their personality through the real world save", () => {
+    const original = new LifeModeAdapter({ seed: 7001n });
+    const made = original.createResidentFromPreset({
+      name: "Basil Reed", preset: "ambitious", homeLocationId: "apt_c",
+    });
+    expect(made.ok).toBe(true);
+    const id = made.id!;
+    const expected = original.town.residents.mind(id).personality.toArray();
+    const save = original.saveWorld();
+    original.dispose();
+
+    const restored = new LifeModeAdapter({ savedWorld: save });
+    const mind = restored.town.residents.tryMind(id);
+    expect(mind).toBeDefined();
+    expect(mind?.displayName).toBe("Basil Reed");
+    expect(mind?.personality.toArray()).toEqual(expected);
+    expect(restored.worldResidentDetailsFor(id)?.summary.name).toBe("Basil Reed");
+    expect(nextResidentId(restored.town.residents.orderedIds())).toBe("created_0002");
+    restored.dispose();
+  });
+
   it("creates an autonomous resident visible to World mode without leaking details to Live mode", () => {
     const adapter = new LifeModeAdapter({ seed: 7001n });
     const before = adapter.town.residents.orderedIds().length;
