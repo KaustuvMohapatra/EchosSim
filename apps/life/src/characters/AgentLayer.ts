@@ -9,7 +9,8 @@ import {
   Color3, DynamicTexture, Material, Mesh, MeshBuilder, Scene,
   StandardMaterial, Texture, Vector3,
 } from "@babylonjs/core";
-import { agentOffset, lotOf } from "../world/layout.js";
+import { lotOf } from "../world/layout.js";
+import { advanceWalk, routeFromPosition, standingPoint, type WalkPoint } from "../world/pedestrianPaths.js";
 import type { LifeModeAdapter } from "../simulation/LifeModeAdapter.js";
 import {
   makeResidentAtlas, PIXEL_FRAMES, PIXEL_POSE_ROW, PIXEL_ROWS,
@@ -21,8 +22,8 @@ interface AgentVisual {
   root: Mesh;
   label: Mesh;
   texture: Texture;
-  targetX: number;
-  targetZ: number;
+  locationId?: string;
+  waypoints: WalkPoint[];
   facing: Exclude<PixelPose, "seated">;
   elapsed: number;
   poseRow: number;
@@ -80,11 +81,16 @@ export class AgentLayer {
         visual = this.create(summary.id, summary.name, summary.locationId);
         this.visuals.set(summary.id, visual);
       }
-      const lot = summary.locationId ? lotOf(summary.locationId) : undefined;
-      if (lot) {
-        const offset = agentOffset(summary.id);
-        visual.targetX = lot.x + offset.dx;
-        visual.targetZ = lot.z + offset.dz + lot.depth / 4;
+      // Semantic movement is authoritative; the view follows sidewalk
+      // waypoints without modifying cognition, arrival times or occupancy.
+      if (summary.locationId && visual.locationId !== summary.locationId) {
+        visual.waypoints = routeFromPosition(
+          { x: visual.root.position.x, z: visual.root.position.z },
+          summary.locationId, summary.id,
+        ).slice(1);
+        visual.locationId = summary.locationId;
+        // A new journey invalidates an old presentation-only sitting pose.
+        this.adapter.seatedAt.delete(summary.id);
       }
     }
     for (const [id, visual] of this.visuals) {
@@ -95,12 +101,12 @@ export class AgentLayer {
   }
 
   private create(id: string, name: string, locationId?: string): AgentVisual {
-    const start = (locationId && lotOf(locationId)) || lotOf("park")!;
-    const offset = agentOffset(id);
+    const start = locationId ? standingPoint(locationId, id) : undefined;
+    const fallback = lotOf("park")!;
     const root = MeshBuilder.CreatePlane("resident-sprite-" + id, {
       width: 1.7, height: 2.55,
     }, this.scene);
-    root.position.set(start.x + offset.dx, 1.275, start.z + offset.dz + start.depth / 4);
+    root.position.set(start?.x ?? fallback.x, 1.275, start?.z ?? fallback.z);
     root.billboardMode = Mesh.BILLBOARDMODE_Y;
     root.isPickable = true;
     root.metadata = { kind: "agent", agentId: id };
@@ -146,7 +152,8 @@ export class AgentLayer {
 
     visual = {
       root, label, texture,
-      targetX: root.position.x, targetZ: root.position.z,
+      locationId,
+      waypoints: [],
       facing: "front",
       elapsed: (residentHash(id) % 60) / 60,
       poseRow: -1, poseFrame: -1,
@@ -166,17 +173,22 @@ export class AgentLayer {
         continue;
       }
       visual.root.position.y = 1.275;
-      const dx = visual.targetX - visual.root.position.x;
-      const dz = visual.targetZ - visual.root.position.z;
-      const moving = Math.hypot(dx, dz) > 0.06;
+      const oldX = visual.root.position.x, oldZ = visual.root.position.z;
+      // Walk on authored footpaths at a consistent visual speed. Large
+      // frame hitches cannot launch the character through several buildings.
+      const result = advanceWalk(
+        { x: oldX, z: oldZ }, visual.waypoints, 25 * dt,
+      );
+      visual.waypoints = result.remaining;
+      visual.root.position.x = result.point.x;
+      visual.root.position.z = result.point.z;
+      const dx = result.point.x - oldX, dz = result.point.z - oldZ;
+      const moving = Math.hypot(dx, dz) > 0.001;
       if (moving) {
         visual.facing = Math.abs(dx) > Math.abs(dz)
           ? (dx < 0 ? "left" : "right")
           : (dz < 0 ? "back" : "front");
       }
-      const smoothing = 1 - Math.exp(-8 * dt);
-      visual.root.position.x += dx * smoothing;
-      visual.root.position.z += dz * smoothing;
       const frame = moving
         ? Math.floor(visual.elapsed * 8) % PIXEL_FRAMES
         : Math.floor(visual.elapsed * 2) % 2;
