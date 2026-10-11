@@ -47,4 +47,26 @@ describe("phone conversation drafts", () => {
     expect(send).toHaveBeenCalledWith("mira", "Try again");
     expect(composer).toHaveProperty("value", "Try again");
   });
+  it("keeps private drafts with their owning resident when household control changes", () => {
+    const onSend = vi.fn(() => true);
+    const props = { locations: new Map<string, string>(), nowMinutes: 0,
+      onSend, onRespond: () => {}, onTravel: () => {}, onClose: () => {} };
+    const secondLife = { ...life, agentId: "housemate" };
+    const view = render(<PhonePanel {...props} life={life} />);
+    const composer = screen.getByRole("textbox", { name: "Message text" });
+    fireEvent.change(composer, { target: { value: "Player private draft" } });
+
+    view.rerender(<PhonePanel {...props} life={secondLife} />);
+    expect(composer).toHaveProperty("value", "");
+    fireEvent.change(composer, { target: { value: "Housemate draft" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(onSend).toHaveBeenCalledWith("mira", "Housemate draft");
+    expect(onSend).not.toHaveBeenCalledWith("mira", "Player private draft");
+
+    view.rerender(<PhonePanel {...props} life={life} />);
+    expect(composer).toHaveProperty("value", "Player private draft");
+    view.rerender(<PhonePanel {...props} life={secondLife} />);
+    expect(composer).toHaveProperty("value", "");
+  });
+
 });
