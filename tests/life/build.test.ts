@@ -116,6 +116,65 @@ describe("S43: persistence", () => {
   });
 });
 
+describe("build save validation", () => {
+  it("accepts legacy placement arrays and current structural saves", () => {
+    resetBuildIds();
+    const source = new BuildController(boundsOf);
+    expect(source.place("chair", "cafe", 0, 0).ok).toBe(true);
+    const legacy = JSON.stringify(source.list());
+    const restored = new BuildController(boundsOf);
+    restored.load(legacy);
+    expect(restored.list()).toEqual(source.list());
+    restored.load(source.serialize());
+    expect(restored.list()).toEqual(source.list());
+  });
+
+  it("rejects invalid, overlapping or out-of-bounds furniture without changing state", () => {
+    resetBuildIds();
+    const b = new BuildController(boundsOf);
+    b.place("chair", "cafe", 0, 0);
+    const original = b.serialize();
+    const sample = { objectId: "built_100", kind: "chair", lotId: "cafe", dx: 2, dz: 2, rot: 0 };
+    const bad = [
+      "{",
+      "null",
+      JSON.stringify({ version: 99, placements: [] }),
+      JSON.stringify({ version: 2, placements: {} }),
+      JSON.stringify([{ ...sample, kind: "not-a-kind" }]),
+      JSON.stringify([{ ...sample, dx: null }]),
+      JSON.stringify([{ ...sample, lotId: "missing" }]),
+      JSON.stringify([{ ...sample, dx: 99 }]),
+      JSON.stringify([sample, { ...sample, objectId: "built_101" }]),
+      JSON.stringify([sample, { ...sample, dx: 4 }].map((p) => ({ ...p, objectId: "built_100" }))),
+    ];
+    for (const value of bad) {
+      expect(() => b.load(value)).toThrow();
+      expect(b.serialize()).toBe(original);
+    }
+    expect(b.canUndo).toBe(true);
+    expect(b.undo()).toBe(true);
+    expect(b.list()).toHaveLength(0);
+  });
+
+  it("rejects invalid wall, door and floor geometry without a partial restore", () => {
+    resetBuildIds();
+    const b = new BuildController(boundsOf);
+    b.place("desk", "cafe", 0, 0);
+    const original = b.serialize();
+    const invalidDocuments = [
+      { walls: [{ wallId: "wall_7", lotId: "cafe", x1: 0, z1: 0, x2: 1, z2: 1 }] },
+      { doors: [{ doorId: "door_7", lotId: "cafe", x: 200, z: 0, axis: "x" }] },
+      { floors: [{ floorId: "floor_7", lotId: "cafe", x1: 2, z1: 0, x2: 1, z2: 2 }] },
+    ];
+    for (const fields of invalidDocuments) {
+      expect(() => b.load(JSON.stringify({
+        version: 2, placements: [], walls: [], doors: [], floors: [], ...fields,
+      }))).toThrow();
+      expect(b.serialize()).toBe(original);
+    }
+  });
+});
+
 describe("S44: structural build", () => {
   it("places an axis-aligned wall snapped to grid, inside the lot", () => {
     resetBuildIds();
