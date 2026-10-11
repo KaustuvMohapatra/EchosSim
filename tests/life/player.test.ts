@@ -98,6 +98,21 @@ describe("S39: action queue", () => {
     p.dispose(); a.dispose();
   });
 
+  it("releases the previously controlled resident to autonomous LOD", () => {
+    const a = new LifeModeAdapter({ seed: 7001 });
+    const p = new PlayerAgentController(a);
+    p.setAutonomy("full-manual");
+    const previous = p.controlled;
+    expect(a.lod.levelOf(previous)).toBe(2);
+
+    const next = p.householdMembers().find((id) => id !== previous)!;
+    expect(p.switchTo(next)).toBe(true);
+    expect(a.lod.levelOf(previous)).toBe(0);
+    expect(a.lod.levelOf(next)).toBe(2);
+
+    p.dispose(); a.dispose();
+  });
+
   it("records the owner of commands across household switching", () => {
     const a = new LifeModeAdapter({ seed: 7001 });
     const p = new PlayerAgentController(a);
