@@ -30,6 +30,8 @@ export interface LifeApp {
   interactions: InteractionController;
   player: PlayerAgentController;
   build: BuildController;
+  worldView: boolean;
+  setWorldView(on: boolean): void;
   buildMode: boolean;
   setBuildMode(on: boolean): void;
   buildSelection: BuildKind | null;
@@ -59,7 +61,8 @@ export function createLifeApp(canvas: HTMLCanvasElement,
 
   buildTownMeshes(scene, adapter.town);
   const player = new PlayerAgentController(adapter);
-  const agents = new AgentLayer(scene, adapter, () => player.controlled);
+  let worldView = true;
+  const agents = new AgentLayer(scene, adapter, () => player.controlled, () => worldView);
   agents.update();
   // Knowledge-scoped semantic presence changes on simulation boundaries, not render frames.
   const unsubscribeAgentSync = adapter.subscribe(() => agents.update());
@@ -212,6 +215,13 @@ export function createLifeApp(canvas: HTMLCanvasElement,
     interactions,
     player,
     build,
+    get worldView(): boolean { return worldView; },
+    setWorldView(on: boolean): void {
+      if (worldView === on) return;
+      worldView = on;
+      agents.update();
+      adapter.touch();
+    },
     get buildMode(): boolean { return buildMode; },
     setBuildMode(on: boolean): void {
       if (on === buildMode) return;
