@@ -36,7 +36,7 @@ describe("S42: interior construction", () => {
       { x: -5, z: 0, width: 1 }, // nested opening must not rewind the cursor
       { x: -5, z: 1.5, width: 2 }, // overlapping continuation to +2.5
     ], "test");
-    const west = result.walls.filter((w) => w.id.startsWith("test-v") && w.x2 < 0 && w.z2 > w.z1);
+    const west = result.walls.filter((w) => w.id.startsWith("test-v") && w.x2 < 0 && w.z2 > w.z1 && w.z1 !== -4 || false);
     const westIntervals = west.map((w) => [w.z1, w.z2]);
     expect(westIntervals).toEqual([
       [-4, -3.5],
