@@ -4,7 +4,8 @@
  * silently route interactions back to the original player resident.
  */
 import type { LifeModeAdapter } from "../simulation/LifeModeAdapter.js";
-import { performVenueActivity } from "@echosim/simulation";
+import { performVenueActivity, performWorldObjectActivity, activityForObject } from "@echosim/simulation";
+import type { BuildController } from "../build/BuildController.js";
 import { PLACED_OBJECTS, SeatRegistry, anchorsInWorld } from "./catalog.js";
 import { lotOf } from "../world/layout.js";
 
@@ -24,12 +25,42 @@ export class InteractionController {
 
   private pendingSeat: { agentId: string; objectId: string } | null = null;
   private readonly unsubscribe: () => void;
+  private build: BuildController | null = null;
+  private pendingBuiltUse: { agentId: string; objectId: string } | null = null;
 
   constructor(
     private readonly adapter: LifeModeAdapter,
     private readonly controlledId: () => string = () => adapter.playerId,
   ) {
     this.unsubscribe = this.adapter.subscribe(() => this.onTick());
+  }
+
+  attachBuildController(build: BuildController): void { this.build = build; }
+
+  builtAffordance(objectId: string): { id: string; label: string } | undefined {
+    const placement = this.build?.get(objectId);
+    if (!placement) return undefined;
+    const activity = activityForObject(placement.kind);
+    return { id: activity.id, label: activity.label };
+  }
+
+  /** Built items are resolved from live inventory every time, never stale catalog data. */
+  useBuiltObject(objectId: string): UseResult {
+    const placement = this.build?.get(objectId);
+    if (!placement) return { ok: false, feedback: "This object has been removed." };
+    const agentId = this.controlledId();
+    if (this.adapter.playerLocationId(agentId) !== placement.lotId) {
+      const ok = this.adapter.commandMoveTo(placement.lotId, agentId);
+      if (!ok) return { ok: false, feedback: this.adapter.lastCommandFeedback };
+      this.pendingBuiltUse = { agentId, objectId };
+      return { ok: true, feedback: "Traveling to use " + placement.kind + "…" };
+    }
+    this.pendingBuiltUse = null;
+    const result = performWorldObjectActivity(this.adapter.town, agentId,
+      placement, activityForObject(placement.kind).id);
+    this.adapter.lastCommandFeedback = result.feedback;
+    if (result.ok) this.adapter.touch();
+    return result;
   }
 
   affordancesOf(objectId: string) {
@@ -75,6 +106,19 @@ export class InteractionController {
   }
 
   private onTick(): void {
+    const built = this.pendingBuiltUse;
+    if (built && this.build) {
+      const placement = this.build.get(built.objectId);
+      if (!placement) this.pendingBuiltUse = null;
+      else if (this.adapter.playerLocationId(built.agentId) === placement.lotId) {
+        // Clear first: touch() below fires another subscription synchronously.
+        this.pendingBuiltUse = null;
+        const result = performWorldObjectActivity(this.adapter.town, built.agentId,
+          placement, activityForObject(placement.kind).id);
+        this.adapter.lastCommandFeedback = result.feedback;
+        if (result.ok) this.adapter.touch();
+      }
+    }
     const pending = this.pendingSeat;
     if (!pending) return;
     const def = this.objectDef(pending.objectId);
