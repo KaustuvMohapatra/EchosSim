@@ -30,7 +30,9 @@ describe("Babylon resident seating presentation", () => {
     visual.activity = { kind: "bench", timeLeft: 4, headedToObject: true, arrived: true };
     seatedAt.set("npc", { x: 5, z: 7 });
     layer.renderFrame(1 / 60);
-    expect(root.position).toEqual(new Vector3(5, 0.94, 7));
+    expect(root.position.x).toBe(5);
+    expect(root.position.y).toBe(0.94);
+    expect(root.position.z).toBe(7);
     expect(visual.waypoints).toEqual([]);
     expect(visual.activity).toBeUndefined();
     expect(visual.badge.isVisible).toBe(false);
