@@ -77,6 +77,8 @@ export interface SaveTownStory {
 export interface SaveDocument {
   version: number;
   seed: string;
+  /** Exact cognition/perception encoder counter for deterministic future IDs. */
+  memoryIdCounter?: number;
   clockMinutes: number;
   weather: number;
   locations: SaveLocation[];
@@ -253,6 +255,7 @@ export function serializeTown(town: Town, director: PlanningDirector): SaveDocum
   return {
     version: CURRENT_SAVE_VERSION,
     seed: town.seed.toString(),
+    memoryIdCounter: town.memoryIdForSave(),
     clockMinutes: town.clock.currentTime.totalMinutes,
     weather: town.weather.current,
     locations, agents, relationships, memoriesByOwner, beliefsByOwner,
@@ -374,8 +377,10 @@ export function deserializeAndRestore(doc: SaveDocument): RestoredWorld {
       }));
     }
     // Keep the town's encoder id counter clear of imported ids.
-    town.ensureMemoryIdBeyond(maxId + 1);
+    town.ensureMemoryIdBeyond(maxId);
   }
+  if (doc.memoryIdCounter !== undefined)
+    town.restoreMemoryIdCounter(doc.memoryIdCounter);
   for (const [owner, list] of Object.entries(doc.beliefsByOwner)) {
     const store = town.beliefs.storeFor(owner);
     for (const b of list) {
