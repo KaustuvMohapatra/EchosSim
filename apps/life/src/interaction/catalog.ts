@@ -7,7 +7,8 @@
 
 export type ObjectKind =
   | "chair" | "sofa" | "table" | "bookshelf" | "bench"
-  | "counter" | "bed" | "desk";
+  | "counter" | "bed" | "desk"
+  | "arcade" | "easel" | "garden" | "noticeboard";
 
 export interface Affordance {
   id: string;
