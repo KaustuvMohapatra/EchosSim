@@ -212,6 +212,25 @@ describe("persistence: mid-flight round trip", () => {
     expect(restored.town.stories.all()).toEqual([]);
   });
 
+  it("accepts supported historical save versions and rejects invalid versions", () => {
+    const a = createDemoTown(7001);
+    const doc = JSON.parse(saveToJson(a.town, a.director)) as { version: number };
+    for (const version of [1, 2, 3]) {
+      doc.version = version;
+      expect(() => restoreFromJson(JSON.stringify(doc))).not.toThrow();
+    }
+    for (const version of [0, -1, 1.5, Number.NaN, 4]) {
+      doc.version = version;
+      expect(() => restoreFromJson(JSON.stringify(doc)))
+        .toThrow(UnsupportedSaveVersionException);
+    }
+    // Missing and non-numeric versions cannot be treated as compatible.
+    expect(() => restoreFromJson(JSON.stringify({ ...doc, version: undefined })))
+      .toThrow(UnsupportedSaveVersionException);
+    expect(() => restoreFromJson(JSON.stringify({ ...doc, version: "3" })))
+      .toThrow(UnsupportedSaveVersionException);
+  });
+
   it("rejects saves from a newer schema version gracefully", () => {
     const a = createDemoTown(7001);
     const doc = JSON.parse(saveToJson(a.town, a.director)) as { version: number };
