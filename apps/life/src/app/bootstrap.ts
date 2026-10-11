@@ -89,6 +89,25 @@ export function createLifeApp(canvas: HTMLCanvasElement,
   });
   const onPageHide = (): void => { persistWorld(); };
   window.addEventListener("pagehide", onPageHide);
+  // A living day/night cycle, driven by simulated time (never wall-clock).
+  const updateLighting = (): void => {
+    const minute = adapter.town.clock.currentTime.totalMinutes % 1440;
+    const elevation = Math.max(0, Math.cos((minute - 720) * Math.PI / 720));
+    const daylight = Math.pow(elevation, 0.65);
+    sun.intensity = 0.10 + 1.05 * daylight;
+    hemi.intensity = 0.32 + 0.55 * daylight;
+    const dawn = 1 - Math.min(1, Math.abs(minute - 360) / 145);
+    const dusk = 1 - Math.min(1, Math.abs(minute - 1110) / 145);
+    const warm = Math.max(0, dawn, dusk);
+    sun.diffuse = new Color3(1, 0.94 - 0.10 * warm, 0.88 - 0.16 * warm);
+    scene.clearColor = new Color3(
+      0.06 + 0.25 * daylight + 0.08 * warm,
+      0.09 + 0.31 * daylight + 0.04 * warm,
+      0.16 + 0.39 * daylight,
+    ).toColor4(1);
+  };
+  updateLighting();
+  const unsubscribeLighting = adapter.subscribe(updateLighting);
   const camera = createLifeCamera(scene, canvas);
   scene.activeCamera = camera;
 
@@ -282,6 +301,7 @@ export function createLifeApp(canvas: HTMLCanvasElement,
       persistWorld();
       window.removeEventListener("pagehide", onPageHide);
       unsubscribeAutosave();
+      unsubscribeLighting();
       unsubscribeAgentSync();
       player.dispose();
       interactions.dispose();
