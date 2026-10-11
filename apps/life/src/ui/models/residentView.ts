@@ -49,12 +49,20 @@ export interface AutonomyView {
   description: string;
 }
 
+/** Inspector input should be finite; a malformed snapshot must not leak NaN into CSS. */
+function needPressure(value: number): number {
+  return Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 0;
+}
+
 export function needViews(agent: AgentInspectorSnapshot): NeedView[] {
-  return agent.needs.map((n) => ({
-    key: n.name,
-    fill: Math.max(0, Math.min(1, n.value / 100)),
-    level: n.critical ? "critical" : n.value > 55 ? "warn" : "good",
-  }));
+  return agent.needs.map((n) => {
+    const pressure = needPressure(n.value);
+    return {
+      key: n.name,
+      fill: pressure / 100,
+      level: pressure >= 80 ? "critical" : pressure > 55 ? "warn" : "good",
+    };
+  });
 }
 
 /** Broad mood word derived from existing state — never a second emotion system. */
@@ -100,7 +108,7 @@ export function characterCard(agent: AgentInspectorSnapshot): CharacterCardModel
 export function relevantNeeds(agent: AgentInspectorSnapshot, limit = 3): NeedView[] {
   const source = needViews(agent).map((view, index) => ({
     view,
-    value: agent.needs[index]?.value ?? 0,
+    value: needPressure(agent.needs[index]?.value ?? 0),
   }));
   return source
     .sort((a, b) => b.value - a.value || a.view.key.localeCompare(b.view.key))
