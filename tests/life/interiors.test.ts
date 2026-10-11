@@ -34,7 +34,7 @@ describe("S42: interior construction", () => {
     const result = ring("test", { x1: -5, z1: -4, x2: 5, z2: 4 }, 0.3, [
       { x: -5, z: -1, width: 5 }, // opening from -3.5 to 1.5
       { x: -5, z: 0, width: 1 }, // nested opening must not rewind the cursor
-      { x: -5, z: 2, width: 1 }, // overlapping continuation to +2.5
+      { x: -5, z: 1.5, width: 2 }, // overlapping continuation to +2.5
     ], "test");
     const west = result.walls.filter((w) => w.id.startsWith("test-v") && w.x2 < 0);
     const westIntervals = west.map((w) => [w.z1, w.z2]);
