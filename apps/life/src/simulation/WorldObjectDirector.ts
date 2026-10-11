@@ -155,7 +155,11 @@ export class WorldObjectDirector {
     const slot = Math.floor(now / 120);
     if (this.lastOfferedSlot.get(agentId) === slot) return false;
     this.lastOfferedSlot.set(agentId, slot);
-    if (now - (this.lastLeisureAt.get(agentId) ?? -Infinity) < 240) return false;
+    const lastRemembered = this.adapter.town.memory.storeFor(agentId).all
+      .filter((entry) => entry.eventType === "world_object")
+      .at(-1)?.timestampMinutes ?? -Infinity;
+    if (now - Math.max(this.lastLeisureAt.get(agentId) ?? -Infinity,
+      lastRemembered) < 240) return false;
     const suggestion = this.recommendAttraction(agentId);
     if (!suggestion || suggestion.score < 0.31) return false;
     // Cap trips: the player should see occasional visits, not NPCs
