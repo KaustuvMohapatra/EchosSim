@@ -40,6 +40,19 @@ describe("Living World pedestrian waypoints", () => {
     expect(advanceWalk(result.point, [], 5).point).toEqual({ x: 5, z: 5 });
   });
 
+  it("never corrupts sprite coordinates on invalid frame distances", () => {
+    const start = { x: 0, z: 0 };
+    const path = [{ x: 5, z: 0 }];
+    for (const distance of [Number.NaN, Infinity, -Infinity, -4]) {
+      const result = advanceWalk(start, path, distance);
+      expect(result.point).toEqual(start);
+      expect(result.remaining).toEqual(path);
+      expect(result.moving).toBe(true);
+    }
+    const recovered = advanceWalk(start, path, 2);
+    expect(recovered.point).toEqual({ x: 2, z: 0 });
+  });
+
   it("retargets while mid-route without teleporting the sprite", () => {
     const origin = standingPoint("cafe", "npc_mira")!;
     const route = routeFromPosition(origin, "studio", "npc_mira");
