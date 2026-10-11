@@ -17,6 +17,8 @@ import {
   residentHash, type PixelPose,
 } from "./pixelResident.js";
 import { residentAtlasUrl } from "./residentAssets.js";
+import { activityPresentation } from "./activityStates.js";
+import type { WorldObjectKind } from "@echosim/simulation";
 
 interface AgentVisual {
   root: Mesh;
@@ -28,6 +30,15 @@ interface AgentVisual {
   elapsed: number;
   poseRow: number;
   poseFrame: number;
+  badge: Mesh;
+  badgeTexture: DynamicTexture;
+  activity?: {
+    kind: WorldObjectKind;
+    timeLeft: number;
+    target?: WalkPoint;
+    headedToObject: boolean;
+    arrived: boolean;
+  };
 }
 
 function makeLabel(scene: Scene, id: string, name: string): Mesh {
@@ -58,15 +69,74 @@ function makeLabel(scene: Scene, id: string, name: string): Mesh {
   return label;
 }
 
+function createActivityBadge(scene: Scene, id: string): {
+  plane: Mesh; texture: DynamicTexture;
+} {
+  const texture = new DynamicTexture("resident-action-" + id,
+    { width: 256, height: 64 }, scene, false);
+  const material = new StandardMaterial("resident-action-mat-" + id, scene);
+  material.diffuseTexture = texture;
+  material.opacityTexture = texture;
+  material.emissiveColor = Color3.White();
+  material.disableLighting = true;
+  material.backFaceCulling = false;
+  const plane = MeshBuilder.CreatePlane("resident-action-bubble-" + id,
+    { width: 2.5, height: 0.60 }, scene);
+  plane.billboardMode = Mesh.BILLBOARDMODE_ALL;
+  plane.material = material;
+  plane.isVisible = false;
+  plane.isPickable = false;
+  return { plane, texture };
+}
+
+function showActivityBadge(texture: DynamicTexture, title: string): void {
+  const ctx = texture.getContext() as CanvasRenderingContext2D;
+  ctx.clearRect(0, 0, 256, 64);
+  ctx.fillStyle = "#172d36";
+  ctx.fillRect(5, 5, 246, 54);
+  ctx.fillStyle = "#70c8ad";
+  ctx.fillRect(5, 5, 246, 4);
+  ctx.fillStyle = "#f4edde";
+  ctx.font = "bold 25px system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(title, 128, 35, 220);
+  texture.update();
+}
+
 export class AgentLayer {
   private readonly visuals = new Map<string, AgentVisual>();
+  private resolveActivityAnchor: (objectId: string) => WalkPoint | undefined = () => undefined;
+  private readonly unsubscribeObjectUsed: () => void;
 
   constructor(
     private readonly scene: Scene,
     private readonly adapter: LifeModeAdapter,
     private readonly viewerId: () => string = () => adapter.playerId,
     private readonly showWorld: () => boolean = () => false,
-  ) {}
+  ) {
+    this.unsubscribeObjectUsed = adapter.town.events.subscribe<{
+      agent: string; kind: WorldObjectKind; objectId: string;
+    }>("sim:world-object-used", (event) => this.showObjectUse(
+      event.agent, event.objectId, event.kind));
+  }
+
+  /** Read-only visual geometry lookup: does not change an NPC's navigation. */
+  setActivityAnchorResolver(resolve: (objectId: string) => WalkPoint | undefined): void {
+    this.resolveActivityAnchor = resolve;
+  }
+
+  private showObjectUse(agentId: string, objectId: string, kind: WorldObjectKind): void {
+    const visual = this.visuals.get(agentId);
+    if (!visual) return;
+    const presentation = activityPresentation(kind);
+    visual.activity = {
+      kind, timeLeft: presentation.seconds,
+      target: this.resolveActivityAnchor(objectId),
+      headedToObject: false, arrived: false,
+    };
+    showActivityBadge(visual.badgeTexture, presentation.label);
+  }
 
   /** World state is read only on adapter emissions, never polled from render FPS. */
   update(): void {
@@ -89,6 +159,8 @@ export class AgentLayer {
           summary.locationId, summary.id,
         ).slice(1);
         visual.locationId = summary.locationId;
+        // A new destination interrupts any previous cosmetic activity.
+        if (visual.activity?.arrived) visual.activity = undefined;
         // A new journey invalidates an old presentation-only sitting pose.
         this.adapter.seatedAt.delete(summary.id);
       }
@@ -149,9 +221,12 @@ export class AgentLayer {
     const label = makeLabel(this.scene, id, name);
     label.parent = root;
     label.position.y = 1.66;
+    const bubble = createActivityBadge(this.scene, id);
+    bubble.plane.parent = root;
+    bubble.plane.position.y = 2.42;
 
     visual = {
-      root, label, texture,
+      root, label, texture, badge: bubble.plane, badgeTexture: bubble.texture,
       locationId,
       waypoints: [],
       facing: "front",
@@ -173,6 +248,14 @@ export class AgentLayer {
         continue;
       }
       visual.root.position.y = 1.275;
+      const activity = visual.activity;
+      // Only walk to an object after reaching its semantic destination.
+      // Built props appear in sidewalk-facing courtyards, so this final
+      // short step stays outside opaque Babylon building shells.
+      if (activity && !activity.headedToObject && visual.waypoints.length === 0) {
+        activity.headedToObject = true;
+        if (activity.target) visual.waypoints.push(activity.target);
+      }
       const oldX = visual.root.position.x, oldZ = visual.root.position.z;
       // Walk on authored footpaths at a consistent visual speed. Large
       // frame hitches cannot launch the character through several buildings.
@@ -192,6 +275,22 @@ export class AgentLayer {
       const frame = moving
         ? Math.floor(visual.elapsed * 8) % PIXEL_FRAMES
         : Math.floor(visual.elapsed * 2) % 2;
+      if (activity && activity.headedToObject && !moving &&
+          visual.waypoints.length === 0) {
+        activity.arrived = true;
+        activity.timeLeft -= dt;
+        visual.badge.isVisible = activity.timeLeft > 0;
+        if (activity.timeLeft > 0) {
+          const spec = activityPresentation(activity.kind);
+          visual.root.position.y = spec.pose === "seated" ? 0.94 : 1.275;
+          // While using an object, four-frame front/seated gestures loop.
+          this.setPose(visual, spec.pose, Math.floor(visual.elapsed * 4) % PIXEL_FRAMES);
+          continue;
+        }
+        visual.activity = undefined;
+      } else {
+        visual.badge.isVisible = false;
+      }
       this.setPose(visual, visual.facing, frame);
     }
   }
@@ -214,10 +313,14 @@ export class AgentLayer {
     visual.texture.dispose();
     visual.label.material?.dispose(false, true);
     visual.label.dispose();
+    visual.badge.material?.dispose(false, false);
+    visual.badgeTexture.dispose();
+    visual.badge.dispose();
     visual.root.dispose();
   }
 
   dispose(): void {
+    this.unsubscribeObjectUsed();
     for (const visual of this.visuals.values()) this.release(visual);
     this.visuals.clear();
   }
