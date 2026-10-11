@@ -54,6 +54,12 @@ export class PlanningDirector {
 
   intervention?: (agent: string, action: PlanningAction) => ActionFailureType | null;
   lod?: LodController;
+  /**
+   * Optional low-priority, simulation-side idle leisure extension. Returning
+   * true means an external activity owns this idle tick. Critical needs
+   * always flow into the native GOAP planner instead.
+   */
+  externalIdleActivity?: (agentId: string, critical: boolean) => boolean;
 
   attachLod(controller: LodController): void {
     this.lod = controller;
@@ -108,6 +114,10 @@ export class PlanningDirector {
         if (this.now() - last < (this.lod?.reducedCadenceMinutes ?? 30)) return;
       }
     }
+    // Only offer an idle opportunity after LOD gating. This keeps the
+    // authored GOAP system authoritative for urgent needs and in-flight plans.
+    const handled = this.externalIdleActivity?.(agent, critical) ?? false;
+    if (!critical && handled) return;
     this.startFreshCycle(agent, critical ? "critical-promotion" : "idle");
   }
 
