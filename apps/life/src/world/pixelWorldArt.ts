@@ -166,3 +166,19 @@ export function flowerMaterial(scene: Scene): StandardMaterial {
   }, true);
   return worldMaterial(scene, "pixel-flowers-mat", tex, true);
 }
+
+/** Readable pixel lamppost silhouettes for the town's six main intersections. */
+export function lampMaterial(scene: Scene): StandardMaterial {
+  const texture = paintTexture(scene, "pixel-street-lamps", 24, 48, (ctx) => {
+    ctx.clearRect(0, 0, 24, 48);
+    ctx.fillStyle = "#283945"; ctx.fillRect(10, 15, 5, 32);
+    ctx.fillStyle = "#42565d"; ctx.fillRect(11, 16, 2, 28);
+    ctx.fillStyle = "#283945"; ctx.fillRect(7, 8, 11, 13);
+    ctx.fillStyle = "#f1bf70"; ctx.fillRect(9, 11, 7, 7);
+    ctx.fillStyle = "#ffdd91"; ctx.fillRect(11, 12, 4, 5);
+    ctx.fillStyle = "#384752"; ctx.fillRect(5, 7, 15, 3);
+    ctx.fillStyle = "#57656a"; ctx.fillRect(7, 6, 11, 1);
+    ctx.fillStyle = "#273b44"; ctx.fillRect(8, 45, 10, 2);
+  }, true);
+  return worldMaterial(scene, "pixel-lamps-mat", texture, true);
+}
