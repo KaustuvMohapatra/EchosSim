@@ -32,6 +32,7 @@ export interface LifeApp {
   build: BuildController;
   worldView: boolean;
   setWorldView(on: boolean): void;
+  saveWorld(): boolean;
   buildMode: boolean;
   setBuildMode(on: boolean): void;
   buildSelection: BuildKind | null;
@@ -55,7 +56,39 @@ export function createLifeApp(canvas: HTMLCanvasElement,
   sun.intensity = 1.05;
   sun.diffuse = new Color3(1, 0.96, 0.88);
 
-  const adapter = new LifeModeAdapter({ seed: 7001n });
+  const WORLD_SAVE_KEY = "echosim-life-world-v1";
+  let previousWorld: string | null = null;
+  try { previousWorld = window.localStorage.getItem(WORLD_SAVE_KEY); }
+  catch { /* storage may be blocked */ }
+
+  let adapter: LifeModeAdapter;
+  try {
+    adapter = new LifeModeAdapter({
+      seed: 7001n,
+      ...(previousWorld ? { savedWorld: previousWorld } : {}),
+    });
+  } catch (error) {
+    console.warn("EchoSim could not restore the saved world; starting a new town.", error);
+    adapter = new LifeModeAdapter({ seed: 7001n });
+  }
+  let savedAtMinute = adapter.town.clock.currentTime.totalMinutes;
+  const persistWorld = (): boolean => {
+    try {
+      window.localStorage.setItem(WORLD_SAVE_KEY, adapter.saveWorld());
+      savedAtMinute = adapter.town.clock.currentTime.totalMinutes;
+      return true;
+    } catch (error) {
+      console.warn("EchoSim could not save the world.", error);
+      return false;
+    }
+  };
+  // Sim-time throttling keeps serialisation off the render loop.
+  const unsubscribeAutosave = adapter.subscribe(() => {
+    const now = adapter.town.clock.currentTime.totalMinutes;
+    if (now - savedAtMinute >= 60) persistWorld();
+  });
+  const onPageHide = (): void => { persistWorld(); };
+  window.addEventListener("pagehide", onPageHide);
   const camera = createLifeCamera(scene, canvas);
   scene.activeCamera = camera;
 
@@ -215,6 +248,7 @@ export function createLifeApp(canvas: HTMLCanvasElement,
     interactions,
     player,
     build,
+    saveWorld(): boolean { return persistWorld(); },
     get worldView(): boolean { return worldView; },
     setWorldView(on: boolean): void {
       if (worldView === on) return;
@@ -245,6 +279,9 @@ export function createLifeApp(canvas: HTMLCanvasElement,
     start(): void { adapter.play(); },
     dispose(): void {
       window.removeEventListener("resize", onResize);
+      persistWorld();
+      window.removeEventListener("pagehide", onPageHide);
+      unsubscribeAutosave();
       unsubscribeAgentSync();
       player.dispose();
       interactions.dispose();
