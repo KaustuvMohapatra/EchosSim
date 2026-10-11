@@ -87,6 +87,21 @@ describe("S38: interaction flow", () => {
     ic.dispose(); a.dispose();
   });
 
+  it("performs a queued venue activity exactly once after travel", () => {
+    const a = new LifeModeAdapter({ seed: 7001 });
+    const ic = new InteractionController(a);
+    for (let i = 0; i < 60; i++) a.stepOnce(); // library is open
+    const before = a.town.residents.mind(a.playerId).skills.get("Knowledge").xp;
+    expect(ic.use("library_shelf_a", "read").ok).toBe(true);
+    for (let i = 0; i < 30; i++) a.stepOnce();
+    expect(a.playerLocationId()).toBe("library");
+    const after = a.town.residents.mind(a.playerId).skills.get("Knowledge").xp;
+    expect(after).toBeGreaterThan(before);
+    a.touch();
+    expect(a.town.residents.mind(a.playerId).skills.get("Knowledge").xp).toBe(after);
+    ic.dispose(); a.dispose();
+  });
+
   it("non-seat affordances route their command without seating side effects", () => {
     const a = new LifeModeAdapter({ seed: 7001 });
     const ic = new InteractionController(a);
