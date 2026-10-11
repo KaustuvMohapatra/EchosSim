@@ -73,3 +73,8 @@
   .controlled-card .resident-avatar--pixel-large{width:36px;height:54px}
   .resident-details .resident-avatar--pixel-large{width:42px;height:63px}
 }
+
+.resident-creator__look-controls{display:flex;gap:8px;margin-top:8px}
+.resident-creator__look-controls button{min-width:39px;min-height:36px;border:1px solid var(--life-border-strong);border-radius:9px;background:rgba(112,200,173,.09);color:var(--life-text);font-size:24px;line-height:1;cursor:pointer}
+.resident-creator__look-controls button:hover{background:rgba(112,200,173,.2);border-color:var(--life-teal)}
+.resident-creator__hero>div>small{display:block;color:var(--life-amber);margin-top:4px;font-size:10px}
