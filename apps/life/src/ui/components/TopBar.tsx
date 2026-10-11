@@ -9,11 +9,12 @@ interface TopBarProps {
   phoneBadge?: number;
   onPhone(): void;
   onCreate(): void;
+  onSave(): void;
   onTown(): void;
   onMap(): void;
 }
 
-export function TopBar({ app, time, phoneBadge = 0, onPhone, onCreate, onTown, onMap }: TopBarProps) {
+export function TopBar({ app, time, phoneBadge = 0, onPhone, onCreate, onSave, onTown, onMap }: TopBarProps) {
   const speed = app?.adapter.speed ?? 1;
   const running = app?.adapter.running ?? false;
   const buildMode = app?.buildMode ?? false;
@@ -82,6 +83,8 @@ export function TopBar({ app, time, phoneBadge = 0, onPhone, onCreate, onTown, o
                 onClick={onTown} aria-label="Open Town Observer">Town</button>
               <button type="button" className="hud-tool hud-tool--map"
                 onClick={onMap} aria-label="Open town map">Map</button>
+              <button type="button" className="hud-tool hud-tool--save"
+                onClick={onSave} aria-label="Save world now">Save</button>
               <button type="button" className="hud-tool hud-tool--build"
                 onClick={() => app?.setBuildMode(true)} aria-label="Enter build mode">Build</button>
             </div>
