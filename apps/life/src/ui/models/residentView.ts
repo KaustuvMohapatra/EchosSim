@@ -216,7 +216,11 @@ export function residentRailItemFromPresence(
 }
 
 export function relativePresenceAge(nowMinutes: number, atMinutes: number): string {
+  // Last-known observations may come from older or malformed saved inspector
+  // snapshots. Never render NaN/Infinity in a resident's last-seen label.
+  if (!Number.isFinite(nowMinutes) || !Number.isFinite(atMinutes)) return "at an unknown time";
   const delta = Math.max(0, Math.floor(nowMinutes - atMinutes));
+  if (!Number.isFinite(delta)) return "at an unknown time";
   if (delta < 20) return "just now";
   if (delta < 60) return `${delta} min ago`;
   if (delta < 1440) return `${Math.floor(delta / 60)}h ago`;
