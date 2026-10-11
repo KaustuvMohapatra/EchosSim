@@ -42,6 +42,18 @@ export function relativeSimulationTime(nowMinutes: number, atMinutes: number): s
 function eventActorIds(event: SimEventEntry): string[] {
   const ids = new Set<string>();
   if (event.agent) ids.add(event.agent);
+  if (event.type === "sim:world-object-trip-started" && event.agent && event.location) {
+    return {
+      id: `event-${event.seq}`,
+      text: `${lookup(event.agent, names)} headed to ${lookup(event.location, locations)} for ${humanizeToken(event.text)}.`,
+      when: relativeSimulationTime(nowMinutes, event.atMinutes),
+      participants,
+      tone: "quiet",
+      category: "town",
+      kind: "live",
+    };
+  }
+
   if (event.kind === "conversation") {
     const match = event.text.match(/\]\s*([^→]+)→([^:]+):/);
     if (match?.[1]) ids.add(match[1].trim());
