@@ -17,6 +17,7 @@ import {
 } from "@echosim/simulation";
 import { xpForLevel, type SkillName } from "@echosim/social";
 import { promotionRequirementFor } from "@echosim/world";
+import { nextResidentId, personalityForPreset, validateResidentName, type ResidentPreset } from "./residentCreator.js";
 
 export interface LifeLocationSummary {
   id: string;
@@ -236,6 +237,32 @@ export class LifeModeAdapter {
     if (spec.pronouns) (mind as unknown as { pronouns?: string }).pronouns = spec.pronouns;
     this.lastCommandFeedback = `${spec.name} moved into the neighbourhood.`;
     this.emit();
+  }
+
+  /** Player-facing creation command, invoked by the Creator UI. */
+  createResidentFromPreset(request: {
+    name: string;
+    preset: ResidentPreset;
+    homeLocationId: string;
+    id?: string;
+  }): { ok: boolean; id?: string; feedback: string } {
+    const invalidName = validateResidentName(request.name);
+    if (invalidName) return { ok: false, feedback: invalidName };
+    if (!this.town.locations.tryGet(request.homeLocationId as never) ||
+        !request.homeLocationId.startsWith("apt_")) {
+      return { ok: false, feedback: "Choose an existing residential home." };
+    }
+    const id = request.id ?? nextResidentId(this.town.residents.orderedIds());
+    if (!/^created_[0-9]{4,}$/.test(id) || this.town.residents.tryMind(id)) {
+      return { ok: false, feedback: "Resident ID already taken. Try creating them again." };
+    }
+    this.createResident({
+      id,
+      name: request.name.trim().replace(/\s+/g, " "),
+      personality: personalityForPreset(request.preset),
+      homeLocationId: request.homeLocationId,
+    });
+    return { ok: true, id, feedback: this.lastCommandFeedback };
   }
 
   /**
