@@ -27,6 +27,7 @@ export class InteractionController {
   private readonly unsubscribe: () => void;
   private build: BuildController | null = null;
   private pendingBuiltUse: { agentId: string; objectId: string } | null = null;
+  private pendingVenueUse: { agentId: string; lotId: string; activity: string } | null = null;
 
   constructor(
     private readonly adapter: LifeModeAdapter,
@@ -46,6 +47,7 @@ export class InteractionController {
 
   /** Built items are resolved from live inventory every time, never stale catalog data. */
   useBuiltObject(objectId: string): UseResult {
+    this.pendingVenueUse = null;
     const placement = this.build?.get(objectId);
     if (!placement) return { ok: false, feedback: "This object has been removed." };
     const agentId = this.controlledId();
@@ -76,15 +78,21 @@ export class InteractionController {
     const affordance = def?.affordances.find((item) => item.id === affordanceId);
     if (!def || !affordance) return { ok: false, feedback: "Nothing happens." };
     const actor = this.controlledId();
+    // A newly chosen interaction supersedes any earlier queued venue action.
+    this.pendingVenueUse = null;
 
     if (affordance.command.type === "activity") {
       if (this.adapter.playerLocationId(actor) !== def.lotId) {
         const moved = this.adapter.commandMoveTo(def.lotId, actor);
         if (!moved) return { ok: false, feedback: this.adapter.lastCommandFeedback };
+        this.pendingVenueUse = { agentId: actor, lotId: def.lotId, activity: affordance.command.activity };
         return { ok: true, feedback: `Heading to ${def.lotId.replace("loc_", "")}…` };
       }
-      return performVenueActivity(
+      const result = performVenueActivity(
         this.adapter.town, actor, affordance.command.activity as never);
+      this.adapter.lastCommandFeedback = result.feedback;
+      if (result.ok) this.adapter.touch();
+      return result;
     }
 
     if (affordance.command.type !== "move")
@@ -106,6 +114,14 @@ export class InteractionController {
   }
 
   private onTick(): void {
+    const venue = this.pendingVenueUse;
+    if (venue && this.adapter.playerLocationId(venue.agentId) === venue.lotId) {
+      // Clear before touch(): subscriptions run synchronously and can re-enter.
+      this.pendingVenueUse = null;
+      const result = performVenueActivity(this.adapter.town, venue.agentId, venue.activity as never);
+      this.adapter.lastCommandFeedback = result.feedback;
+      if (result.ok) this.adapter.touch();
+    }
     const built = this.pendingBuiltUse;
     if (built && this.build) {
       const placement = this.build.get(built.objectId);
@@ -137,5 +153,10 @@ export class InteractionController {
     }
   }
 
-  dispose(): void { this.unsubscribe(); }
+  dispose(): void {
+    this.pendingVenueUse = null;
+    this.pendingBuiltUse = null;
+    this.pendingSeat = null;
+    this.unsubscribe();
+  }
 }
