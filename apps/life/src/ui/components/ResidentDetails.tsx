@@ -14,6 +14,7 @@ import {
   relevantNeeds,
   residentInitials,
 } from "../models/residentView.js";
+import { ResidentPortrait } from "./ResidentPortrait.js";
 
 interface ResidentDetailsProps {
   agent?: AgentInspectorSnapshot;
@@ -56,9 +57,7 @@ export function ResidentDetails(props: ResidentDetailsProps) {
     <aside className="side-panel resident-details" aria-label={`${residentName} profile`}>
       <div className="side-panel__top">
         <div className="resident-details__identity">
-          <span className="resident-avatar resident-avatar--large" aria-hidden="true">
-            {residentInitials(residentName)}
-          </span>
+          <ResidentPortrait id={residentId} large />
           <span>
             <small>{props.controlled ? "Currently controlled" : "Resident"}</small>
             <strong>{residentName}</strong>
