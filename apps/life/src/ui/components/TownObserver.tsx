@@ -5,6 +5,8 @@ import type {
 import { groupTownStories, type StoryView } from "../models/storyView.js";
 import { residentInitials } from "../models/residentView.js";
 import { TownMiniMap } from "./TownMiniMap.js";
+import { activityForObject } from "@echosim/simulation";
+import type { BuildPlacement } from "../../build/BuildController.js";
 
 interface TownObserverProps {
   live: readonly StoryView[];
@@ -16,11 +18,13 @@ interface TownObserverProps {
   residents: readonly LifeResidentPresenceSummary[];
   currentLocationId?: string;
   selectedLocationId?: string;
+  attractions: readonly BuildPlacement[];
+  onVisitAttraction(locationId: string, locationName: string): void;
   onOpenMap(): void;
   onClose(): void;
 }
 
-type ObserverTab = "live" | "town" | "following" | "map";
+type ObserverTab = "live" | "town" | "following" | "objects" | "map";
 
 export function TownObserver(props: TownObserverProps) {
   const [tab, setTab] = useState<ObserverTab>("live");
@@ -34,7 +38,7 @@ export function TownObserver(props: TownObserverProps) {
           aria-label="Close Town Observer">×</button>
       </div>
       <nav className="panel-tabs" aria-label="Town Observer sections">
-        {(["live", "town", "following", "map"] as const).map((value) => (
+        {(["live", "town", "following", "objects", "map"] as const).map((value) => (
           <button type="button" key={value} className={tab === value ? "is-active" : ""}
             onClick={() => setTab(value)}>
             {value[0]!.toUpperCase() + value.slice(1)}
@@ -42,7 +46,33 @@ export function TownObserver(props: TownObserverProps) {
         ))}
       </nav>
       <div className="side-panel__scroll story-feed">
-        {tab === "map" ? (
+        {tab === "objects" ? (
+          <div className="town-attractions">
+            <p className="town-attractions__intro">Your town's installed objects can shape what residents do and where they choose to visit.</p>
+            {props.attractions.length === 0 ? (
+              <p className="empty-state">No built objects yet. Place an arcade, easel, garden or other activity in Build Mode to attract new visits.</p>
+            ) : [...props.attractions].sort((a, b) =>
+              a.lotId.localeCompare(b.lotId) || a.objectId.localeCompare(b.objectId)).map((item) => {
+              const location = props.locations.find((loc) => loc.id === item.lotId);
+              const action = activityForObject(item.kind);
+              return (
+                <article key={item.objectId} className="town-attraction">
+                  <div>
+                    <strong>{item.kind.replace(/_/g, " ")}</strong>
+                    <small>{location?.name ?? item.lotId}</small>
+                    <span>{action.label} · {action.skill?.name ?? "Comfort"} benefit</span>
+                  </div>
+                  <button type="button" className="secondary-button"
+                    disabled={location?.isOpen === false}
+                    onClick={() => props.onVisitAttraction(item.lotId,
+                      location?.name ?? item.lotId)}>
+                    {location?.isOpen === false ? "Closed" : "Visit"}
+                  </button>
+                </article>
+              );
+            })}
+          </div>
+        ) : tab === "map" ? (
           <div className="observer-map-callout">
             <TownMiniMap
               locations={props.locations}
