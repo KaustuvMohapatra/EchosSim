@@ -13,7 +13,7 @@ import {
   dayPeriod, residentCountsByLocation,
 } from "../../apps/life/src/ui/models/townView.js";
 import {
-  eventToStory, groupTownStories, liveStories, observerMomentStories, townStoryViews,
+  eventToStory, groupTownStories, liveStories, observerMomentStories, relativeSimulationTime, townStoryViews,
 } from "../../apps/life/src/ui/models/storyView.js";
 import {
   careerRequirementProgress, formatClockMinute, formatSimMoment, habitText,
@@ -147,6 +147,18 @@ describe("Life UI presentation models", () => {
     expect(autonomyView("autonomous")).toMatchObject({
       mode: "autonomous", label: "Autonomous",
     });
+  });
+
+  it("never exposes invalid or fractional ages in the observer chronicle", () => {
+    expect(relativeSimulationTime(120.8, 110.2)).toBe("Just now");
+    expect(relativeSimulationTime(120.8, 100.2)).toBe("20 min ago");
+    expect(relativeSimulationTime(90, 100)).toBe("Just now");
+    for (const invalid of [NaN, Infinity, -Infinity]) {
+      expect(relativeSimulationTime(invalid, 110)).toBe("Time unknown");
+      expect(relativeSimulationTime(120, invalid)).toBe("Time unknown");
+    }
+    expect(relativeSimulationTime(Number.MAX_VALUE, -Number.MAX_VALUE))
+      .toBe("Time unknown");
   });
 
   it("turns journal movement into readable town activity using read-model names", () => {
