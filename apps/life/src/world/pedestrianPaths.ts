@@ -36,20 +36,29 @@ export function routeBetweenLocations(
   toId: string,
   agentId: string,
 ): WalkPoint[] {
-  const from = lotOf(fromId), to = lotOf(toId);
   const fromPoint = standingPoint(fromId, agentId);
+  if (!fromPoint) return standingPoint(toId, agentId) ? [standingPoint(toId, agentId)!] : [];
+  if (fromId === toId) return [fromPoint];
+  return routeFromPosition(fromPoint, toId, agentId);
+}
+
+/** Build a fresh route from the actual sprite position, including mid-walk reroutes. */
+export function routeFromPosition(
+  current: WalkPoint, toId: string, agentId: string,
+): WalkPoint[] {
+  const to = lotOf(toId);
   const toPoint = standingPoint(toId, agentId);
-  if (!from || !to || !fromPoint || !toPoint) return toPoint ? [toPoint] : [];
-  if (fromId === toId) return [toPoint];
-  const startLane = laneOf(from);
+  if (!to || !toPoint) return [];
+  const startLane = STREET_LANES.reduce((best, lane) =>
+    Math.abs(current.x - lane) < Math.abs(current.x - best) ? lane : best);
   const finishLane = laneOf(to);
-  const points: WalkPoint[] = [{ ...fromPoint }, { x: startLane, z: fromPoint.z }];
+  const points: WalkPoint[] = [{ ...current }, { x: startLane, z: current.z }];
 
   if (startLane !== finishLane) {
     // Only cross between lanes on clear streets, not through buildings.
     const crossing = CROSS_STREETS.reduce((best, z) =>
-      Math.abs(fromPoint.z - z) + Math.abs(toPoint.z - z) <
-      Math.abs(fromPoint.z - best) + Math.abs(toPoint.z - best) ? z : best);
+      Math.abs(current.z - z) + Math.abs(toPoint.z - z) <
+      Math.abs(current.z - best) + Math.abs(toPoint.z - best) ? z : best);
     points.push({ x: startLane, z: crossing });
     points.push({ x: finishLane, z: crossing });
   }
