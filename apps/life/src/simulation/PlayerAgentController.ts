@@ -61,6 +61,7 @@ export class PlayerAgentController {
     const previous = this.controlled;
     this.cancelAllFor(previous);
     this.removeFinished();
+    this.adapter.lod.setLevel(previous, 0 /* Full: released from player control */);
     this.controlled = agentId;
     this.applyGate();
     this.emit();
@@ -92,7 +93,7 @@ export class PlayerAgentController {
   }
 
   cancel(id: number): void {
-    const item = this.queue.find((q) => q.id === id);
+    const item = this.queue.find((q) => q.id === id && q.agentId === this.controlled);
     if (!item || item.status === "done" || item.status === "failed" ||
         item.status === "cancelled") return;
 
@@ -119,7 +120,9 @@ export class PlayerAgentController {
     this.afterMutation();
   }
 
-  items(): readonly QueuedAction[] { return [...this.queue]; }
+  items(): readonly QueuedAction[] {
+    return this.queue.filter((item) => item.agentId === this.controlled);
+  }
   get busy(): boolean {
     return this.queue.some((q) => q.agentId === this.controlled &&
       (q.status === "pending" || q.status === "walking" || q.status === "active"));
