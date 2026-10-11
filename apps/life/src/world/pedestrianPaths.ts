@@ -122,7 +122,7 @@ export function advanceWalk(
   waypoints: readonly WalkPoint[],
   distance: number,
 ): { point: WalkPoint; remaining: WalkPoint[]; moving: boolean } {
-  let x = current.x, z = current.z, budget = Math.max(0, distance);
+  // Non-finite frame deltas (for example a paused tab resuming with an invalid\n  // clock sample) must never poison rendered sprite coordinates.\n  let x = current.x, z = current.z;\n  let budget = Number.isFinite(distance) ? Math.max(0, distance) : 0;
   const remaining = [...waypoints];
   // May consume several very short segments in a single render frame.
   while (remaining.length) {
