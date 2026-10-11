@@ -1,6 +1,6 @@
 /** Sprint 41 — HUD model: need shaping + mood derivation (pure). */
 import { describe, expect, it } from "vitest";
-import { characterCard, moodOf, needViews } from "../../apps/life/src/ui/hudModel.js";
+import { characterCard, moodOf, needViews, relevantNeeds } from "../../apps/life/src/ui/hudModel.js";
 import type { AgentInspectorSnapshot } from "@echosim/inspector";
 
 function fakeAgent(overrides: {
@@ -37,6 +37,41 @@ describe("S41: needs views", () => {
     const views = needViews(a);
     expect(views[0]).toEqual({ key: "Hunger", fill: 0.9, level: "critical" });
     expect(views[1]).toMatchObject({ key: "Energy", level: "good" });
+  });
+});
+
+describe("S41: malformed inspector need pressures", () => {
+  it("renders finite bounded bars and derives urgency from normalized pressure", () => {
+    const agent = fakeAgent({ needs: [
+      { kind: 0, name: "Hunger", value: Number.NaN },
+      { kind: 1, name: "Energy", value: Number.POSITIVE_INFINITY },
+      { kind: 2, name: "Social", value: Number.NEGATIVE_INFINITY },
+      { kind: 3, name: "Fun", value: 150 },
+      { kind: 4, name: "Comfort", value: 68 },
+      { kind: 5, name: "Hygiene", value: -50 },
+    ] });
+    expect(needViews(agent)).toEqual([
+      { key: "Hunger", fill: 0, level: "good" },
+      { key: "Energy", fill: 0, level: "good" },
+      { key: "Social", fill: 0, level: "good" },
+      { key: "Fun", fill: 1, level: "critical" },
+      { key: "Comfort", fill: 0.68, level: "warn" },
+      { key: "Hygiene", fill: 0, level: "good" },
+    ]);
+    expect(relevantNeeds(agent, 2).map((need) => need.key)).toEqual([
+      "Fun", "Comfort",
+    ]);
+  });
+
+  it("keeps ordinary urgency thresholds consistent with inspector state", () => {
+    const agent = fakeAgent({ needs: [
+      { kind: 0, name: "Hunger", value: 80 },
+      { kind: 1, name: "Energy", value: 55 },
+      { kind: 2, name: "Social", value: 56 },
+    ] });
+    expect(needViews(agent).map((need) => need.level)).toEqual([
+      "critical", "good", "warn",
+    ]);
   });
 });
 
