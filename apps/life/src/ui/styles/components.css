@@ -89,3 +89,17 @@
 .build-panel__description strong{color:var(--life-teal)}
 @media(max-width:780px){.build-catalog{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(max-width:520px){.build-catalog{grid-template-columns:repeat(3,minmax(0,1fr));max-height:155px}.build-panel{bottom:8px}}
+
+
+/* Phase 04: installed attractions are a navigable part of the living town. */
+.panel-tabs:has(button:nth-child(5)){gap:3px}
+.panel-tabs:has(button:nth-child(5)) button{min-width:0;padding-inline:5px;font-size:10px}
+.town-attractions{display:flex;flex-direction:column;gap:8px;padding:9px 12px 16px}
+.town-attractions__intro{margin:0 0 4px;color:var(--life-muted);font-size:11px;line-height:1.55}
+.town-attraction{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 11px;border:1px solid var(--life-border);border-radius:12px;background:rgba(112,200,173,.035)}
+.town-attraction>div{display:flex;min-width:0;flex-direction:column;gap:3px}
+.town-attraction strong{font-size:12px;color:var(--life-text);text-transform:capitalize}
+.town-attraction small{font-size:10px;color:var(--life-amber)}
+.town-attraction span{font-size:10px;color:var(--life-muted);line-height:1.4}
+.town-attraction button{flex:0 0 auto;font-size:10px;min-height:30px}
+@media(max-width:520px){.panel-tabs:has(button:nth-child(5)){gap:1px}.panel-tabs:has(button:nth-child(5)) button{font-size:9px;padding-inline:3px}}
