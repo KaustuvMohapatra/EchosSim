@@ -35,6 +35,10 @@ export class CameraController {
     const limits = MODE_LIMITS[mode];
     this.camera.lowerRadiusLimit = limits.minRadius;
     this.camera.upperRadiusLimit = limits.maxRadius;
+    // The initial wide life view is outside follow/shoulder zoom limits.
+    // Clamp immediately when switching rather than leaving an invalid radius
+    // until the following render frame eases it into range.
+    this.camera.radius = Math.max(limits.minRadius, Math.min(limits.maxRadius, this.camera.radius));
   }
 
   cycleMode(): void {
