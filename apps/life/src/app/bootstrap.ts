@@ -13,6 +13,7 @@ import { InteractionController } from "../interaction/InteractionController.js";
 import { PLACED_OBJECTS } from "../interaction/catalog.js";
 import { PlayerAgentController } from "../simulation/PlayerAgentController.js";
 import { BuildController, type BuildKind } from "../build/BuildController.js";
+import { loadVenueEdits } from "../build/venueEdits.js";
 import { WorldObjectDirector } from "../simulation/WorldObjectDirector.js";
 import { buildWorldObjectMesh } from "../world/builtObjectArt.js";
 import { lotOf, LOTS as LOTS_ALL } from "../world/layout.js";
@@ -165,15 +166,15 @@ export function createLifeApp(canvas: HTMLCanvasElement,
     if (saved) build.load(saved);
   } catch { /* private mode / malformed legacy saves */ }
 
-  // Venue edits (Sprint 46): persisted overrides re-applied at boot.
-  let venueEdits: Record<string, { displayName?: string; capacity?: number;
-    hours?: { openMinuteOfDay: number; closeMinuteOfDay: number } }> = {};
-  try {
-    const rawV = window.localStorage.getItem("echosim-life-venues");
-    if (rawV) venueEdits = JSON.parse(rawV) as typeof venueEdits;
-    for (const [locationId, edit] of Object.entries(venueEdits))
-      adapter.town.locations.updateDefinition(locationId as never, edit as never);
-  } catch { /* ignore */ }
+  // Only validated overrides reach the authoritative location definitions.
+  const venueEdits = loadVenueEdits(window.localStorage);
+  for (const [locationId, edit] of Object.entries(venueEdits)) {
+    try {
+      if (adapter.town.locations.get(locationId as never)) {
+        adapter.town.locations.updateDefinition(locationId as never, edit as never);
+      }
+    } catch { /* stale venue IDs must not prevent other overrides from loading */ }
+  }
 
   const persistBuild = (): void => {
     try { window.localStorage.setItem("echosim-life-build", build.serialize()); }
