@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { drawResident, paletteForResident } from "../../characters/pixelResident.js";
-import { residentAtlasUrl, residentAtlasIndex } from "../../characters/residentAssets.js";
+import {
+  residentAtlasUrl, residentAtlasIndex, nextResidentIdForAppearance,
+  RESIDENT_ATLAS_COUNT,
+} from "../../characters/residentAssets.js";
 import {
   nextResidentId, RESIDENT_PRESETS, validateResidentName,
   type ResidentPreset,
@@ -22,7 +25,10 @@ export function ResidentCreator(props: ResidentCreatorProps) {
     [props.locations],
   );
   const [homeId, setHomeId] = useState("apt_b");
-  const previewId = nextResidentId(props.residentIds);
+  const [appearance, setAppearance] = useState(
+    () => residentAtlasIndex(nextResidentId(props.residentIds)),
+  );
+  const previewId = nextResidentIdForAppearance(props.residentIds, appearance);
   const preview = useRef<HTMLCanvasElement | null>(null);
   const error = name.length > 0 ? validateResidentName(name) : null;
   const selected = RESIDENT_PRESETS.find((p) => p.id === preset)!;
@@ -69,7 +75,17 @@ export function ResidentCreator(props: ResidentCreatorProps) {
           </div>
           <div>
             <strong>A new story begins</strong>
-            <small>Sprite #{String(residentAtlasIndex(previewId) + 1).padStart(2, "0")} of 32</small>
+            <small>Look {String(appearance + 1).padStart(2, "0")} of {RESIDENT_ATLAS_COUNT}</small>
+            <div className="resident-creator__look-controls" aria-label="Resident appearance">
+              <button type="button" aria-label="Previous look"
+                onClick={() => setAppearance((n) => (n + RESIDENT_ATLAS_COUNT - 1) % RESIDENT_ATLAS_COUNT)}>
+                ‹
+              </button>
+              <button type="button" aria-label="Next look"
+                onClick={() => setAppearance((n) => (n + 1) % RESIDENT_ATLAS_COUNT)}>
+                ›
+              </button>
+            </div>
             <p>New residents join the same simulation as everyone else. They will
               develop their own needs, routines, relationships and memories.</p>
           </div>
