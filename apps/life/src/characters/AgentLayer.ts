@@ -243,6 +243,11 @@ export class AgentLayer {
       visual.elapsed += dt;
       const seated = this.adapter.seatedAt.get(id);
       if (seated) {
+        // Seating is an authoritative presentation placement. Drop stale
+        // walking/activity targets so standing up cannot resume an old route.
+        visual.waypoints = [];
+        visual.activity = undefined;
+        visual.badge.isVisible = false;
         visual.root.position.set(seated.x, 0.94, seated.z);
         this.setPose(visual, "seated", 0);
         continue;
