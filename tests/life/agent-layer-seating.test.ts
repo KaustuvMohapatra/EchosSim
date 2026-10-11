@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { NullEngine, Scene, Vector3 } from "@babylonjs/core";
 import { AgentLayer } from "../../apps/life/src/characters/AgentLayer.js";
 
@@ -22,11 +22,12 @@ describe("Babylon resident seating presentation", () => {
       elapsed: 0, facing: "front",
       poseRow: -1, poseFrame: -1,
       badge: { isVisible: true },
-      activity: { kind: "bench", timeLeft: 4, headedToObject: true, arrived: true },
+      activity: undefined as undefined | { kind: string; timeLeft: number; headedToObject: boolean; arrived: boolean },
     };
     // Inject a minimal visual to exercise the actual render loop without
     // allocating browser-only DynamicTextures in Babylon's NullEngine.
     (layer as unknown as { visuals: Map<string, unknown> }).visuals.set("npc", visual);
+    visual.activity = { kind: "bench", timeLeft: 4, headedToObject: true, arrived: true };
     seatedAt.set("npc", { x: 5, z: 7 });
     layer.renderFrame(1 / 60);
     expect(root.position).toEqual(new Vector3(5, 0.94, 7));
