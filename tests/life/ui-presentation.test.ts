@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { PersonalityProfile } from "@echosim/cognition";
+import { PersonalityProfile, PersonalityTrait } from "@echosim/cognition";
+import {
+  nextResidentId, personalityForPreset, validateResidentName,
+} from "../../apps/life/src/simulation/residentCreator.js";
 import type { AgentSummary, SimEventEntry } from "@echosim/inspector";
 import { LifeModeAdapter } from "../../apps/life/src/simulation/LifeModeAdapter.js";
 import {
@@ -381,6 +384,62 @@ describe("Life UI presentation models", () => {
     expect(adapter.townStoriesFor("npc_kofi").some((story) =>
       story.participants.includes("npc_kofi"))).toBe(true);
     expect(adapter.townStoriesFor("ui_outsider")).toHaveLength(0);
+    adapter.dispose();
+  });
+});
+
+
+describe("Life resident creator and world observation", () => {
+  it("generates collision-free IDs and validates player-entered names", () => {
+    expect(nextResidentId(["player", "created_0001", "created_0002"])).toBe("created_0003");
+    expect(nextResidentId(["player", "created_0002"])).toBe("created_0001");
+    expect(validateResidentName(" ")).not.toBeNull();
+    expect(validateResidentName("Aria")).toBeNull();
+    expect(validateResidentName("x".repeat(33))).not.toBeNull();
+  });
+
+  it("maps starting personality templates onto real cognition traits", () => {
+    const social = personalityForPreset("social");
+    const curious = personalityForPreset("explorer");
+    const balanced = personalityForPreset("balanced");
+    expect(social.get(PersonalityTrait.Sociability)).toBeGreaterThan(
+      balanced.get(PersonalityTrait.Sociability));
+    expect(curious.get(PersonalityTrait.Curiosity)).toBeGreaterThan(
+      balanced.get(PersonalityTrait.Curiosity));
+    expect(personalityForPreset("ambitious").get(PersonalityTrait.Ambition)).toBeGreaterThan(0.9);
+  });
+
+  it("creates an autonomous resident visible to World mode without leaking details to Live mode", () => {
+    const adapter = new LifeModeAdapter({ seed: 7001n });
+    const before = adapter.town.residents.orderedIds().length;
+    const rejected = adapter.createResidentFromPreset({
+      name: "A", preset: "social", homeLocationId: "apt_a",
+    });
+    expect(rejected.ok).toBe(false);
+    expect(adapter.town.residents.orderedIds()).toHaveLength(before);
+
+    const result = adapter.createResidentFromPreset({
+      name: "Aria Vale", preset: "explorer", homeLocationId: "apt_a",
+    });
+    expect(result.ok).toBe(true);
+    const id = result.id!;
+    expect(adapter.town.residents.orderedIds()).toHaveLength(before + 1);
+    expect(adapter.worldPresenceFor().find((resident) => resident.id === id)).toMatchObject({
+      name: "Aria Vale", visibility: "current",
+    });
+    expect(adapter.worldResidentDetailsFor(id)?.summary.name).toBe("Aria Vale");
+    expect(adapter.worldResidentKnowledgeFor(id)?.privateAccess).toBe(true);
+    expect(adapter.residentKnowledgeFor("player", id)?.privateAccess).toBe(false);
+    expect(adapter.privateResidentDetailsFor("player", id)).toBeUndefined();
+    const livePresence = adapter.residentPresenceFor("player").find((resident) => resident.id === id);
+    expect(livePresence?.visibility).toBe("unknown");
+    expect(livePresence?.current).toBeUndefined();
+
+    const duplicate = adapter.createResidentFromPreset({
+      id, name: "Another Aria", preset: "balanced", homeLocationId: "apt_a",
+    });
+    expect(duplicate.ok).toBe(false);
+    expect(adapter.town.residents.orderedIds()).toHaveLength(before + 1);
     adapter.dispose();
   });
 });
