@@ -41,6 +41,35 @@ describe("S57: ambience settings", () => {
     expect(s.volume).toBe(1);
   });
 
+  it("normalizes malformed persisted volume and non-finite runtime gain", () => {
+    const backing = new Map<string, string>();
+    const storage = {
+      getItem: (k: string) => backing.get(k) ?? null,
+      setItem: (k: string, v: string) => void backing.set(k, v),
+    };
+    for (const raw of ["NaN", "Infinity", "-Infinity"]) {
+      storage.setItem("echosim-life-ambience", JSON.stringify({ enabled: true, volume: Number(raw) }));
+      const loaded = loadSettings(storage);
+      expect(loaded.volume).toBe(DEFAULT_SETTINGS.volume);
+    }
+    storage.setItem("echosim-life-ambience", '{"enabled":true,"volume":"bad"}');
+    expect(loadSettings(storage).volume).toBe(DEFAULT_SETTINGS.volume);
+
+    saveSettings({ enabled: true, volume: Number.NaN }, storage);
+    expect(loadSettings(storage).volume).toBe(DEFAULT_SETTINGS.volume);
+    saveSettings({ enabled: true, volume: -4 }, storage);
+    expect(loadSettings(storage).volume).toBe(0);
+
+    for (const volume of [Number.NaN, Infinity, -Infinity, -2, 2]) {
+      for (const weather of [0, 3]) {
+        const gain = ambienceGain({ enabled: true, volume }, weather, false);
+        expect(Number.isFinite(gain)).toBe(true);
+        expect(gain).toBeGreaterThanOrEqual(0);
+        expect(gain).toBeLessThanOrEqual(0.45);
+      }
+    }
+  });
+
   it("gain is zero while disabled; rain raises gain when enabled", () => {
     const off = ambienceGain(DEFAULT_SETTINGS, 0, false);
     expect(off).toBe(0);
