@@ -60,6 +60,12 @@ export function TopBar({ app, time, phoneBadge = 0, onPhone, onCreate, onTown, o
               <button type="button" className="hud-tool hud-tool--camera"
                 onClick={() => app?.camera.cycleMode()}
                 title="Cycle camera (C)" aria-label="Cycle camera mode">Camera</button>
+              <button type="button" className="hud-tool hud-tool--world"
+                onClick={() => app?.setWorldView(!app.worldView)}
+                title={app?.worldView ? "Switch to resident perspective" : "Switch to world perspective"}
+                aria-label={app?.worldView ? "Use resident perspective" : "Use world perspective"}>
+                {app?.worldView ? "World" : "Resident"}
+              </button>
               <button type="button" className="hud-tool hud-tool--create"
                 onClick={onCreate} aria-label="Create new resident">+ Resident</button>
               <button type="button" className="hud-tool hud-tool--phone"
