@@ -57,6 +57,40 @@ describe("S39: action queue", () => {
     p.dispose(); a.dispose();
   });
 
+  it("recovers queued work after travel is cancelled outside the queue", { timeout: 60_000 }, () => {
+    const a = new LifeModeAdapter({ seed: 7001 });
+    const p = new PlayerAgentController(a);
+    steps(a, 40);
+    p.enqueueMove("cafe", "Corner Cafe");
+    p.enqueueMove("park", "Park");
+    expect(p.items()[0]!.status).toBe("walking");
+
+    // Simulate a competing world command interrupting the timed trip.
+    expect(a.town.navigation.cancel(p.controlled)).toBe(true);
+    a.stepOnce();
+
+    expect(p.items()[0]).toMatchObject({
+      status: "failed", detail: "Travel was interrupted before arrival.",
+    });
+    drain(a, p);
+    expect(p.items()[1]!.status).toBe("done");
+    expect(a.playerLocationId()).toBe("park");
+    p.dispose(); a.dispose();
+  });
+
+  it("does not mistake a still-active trip for an interruption", { timeout: 60_000 }, () => {
+    const a = new LifeModeAdapter({ seed: 7001 });
+    const p = new PlayerAgentController(a);
+    steps(a, 40);
+    p.enqueueMove("cafe", "Corner Cafe");
+    expect(p.items()[0]!.status).toBe("walking");
+    a.stepOnce();
+    expect(p.items()[0]!.status).toBe("walking");
+    drain(a, p);
+    expect(p.items()[0]!.status).toBe("done");
+    p.dispose(); a.dispose();
+  });
+
   it("cancelling a lone walking item cancels timed navigation too", () => {
     const a = new LifeModeAdapter({ seed: 7001 });
     const p = new PlayerAgentController(a);
