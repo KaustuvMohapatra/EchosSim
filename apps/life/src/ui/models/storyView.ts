@@ -32,7 +32,9 @@ export function relativeSimulationTime(nowMinutes: number, atMinutes: number): s
   // The observer timeline is displayed in whole minutes. Invalid clock values
   // must not leak NaN/Infinity into visible labels or compromise sorting.
   if (!Number.isFinite(nowMinutes) || !Number.isFinite(atMinutes)) return "Just now";
-  const delta = Math.max(0, Math.floor(nowMinutes - atMinutes));
+  const elapsed = nowMinutes - atMinutes;
+  if (!Number.isFinite(elapsed)) return "Just now";
+  const delta = Math.max(0, Math.floor(elapsed));
   if (delta < 20) return "Just now";
   if (delta < 60) return `${delta} min ago`;
   if (delta < 360) return `${Math.floor(delta / 60)}h ago`;
