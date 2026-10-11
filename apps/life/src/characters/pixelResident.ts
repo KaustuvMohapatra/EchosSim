@@ -83,7 +83,7 @@ export function makeResidentAtlas(scene: Scene, agentId: string): DynamicTexture
   return texture;
 }
 
-function drawResident(
+export function drawResident(
   ctx: CanvasRenderingContext2D,
   p: ResidentPalette,
   row: number,
