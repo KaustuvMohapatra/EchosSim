@@ -27,6 +27,7 @@ export class InteractionController {
   private readonly unsubscribe: () => void;
   private build: BuildController | null = null;
   private pendingBuiltUse: { agentId: string; objectId: string } | null = null;
+  private pendingActivity: { agentId: string; objectId: string; affordanceId: string } | null = null;
 
   constructor(
     private readonly adapter: LifeModeAdapter,
@@ -48,6 +49,8 @@ export class InteractionController {
   useBuiltObject(objectId: string): UseResult {
     const placement = this.build?.get(objectId);
     if (!placement) return { ok: false, feedback: "This object has been removed." };
+    this.pendingActivity = null;
+    this.pendingSeat = null;
     const agentId = this.controlledId();
     if (this.adapter.playerLocationId(agentId) !== placement.lotId) {
       const ok = this.adapter.commandMoveTo(placement.lotId, agentId);
@@ -76,11 +79,16 @@ export class InteractionController {
     const affordance = def?.affordances.find((item) => item.id === affordanceId);
     if (!def || !affordance) return { ok: false, feedback: "Nothing happens." };
     const actor = this.controlledId();
+    // An explicit new interaction supersedes unfinished arrival actions.
+    this.pendingActivity = null;
+    this.pendingBuiltUse = null;
+    this.pendingSeat = null;
 
     if (affordance.command.type === "activity") {
       if (this.adapter.playerLocationId(actor) !== def.lotId) {
         const moved = this.adapter.commandMoveTo(def.lotId, actor);
         if (!moved) return { ok: false, feedback: this.adapter.lastCommandFeedback };
+        this.pendingActivity = { agentId: actor, objectId, affordanceId };
         return { ok: true, feedback: `Heading to ${def.lotId.replace("loc_", "")}…` };
       }
       return performVenueActivity(
@@ -106,6 +114,20 @@ export class InteractionController {
   }
 
   private onTick(): void {
+    const pendingActivity = this.pendingActivity;
+    if (pendingActivity) {
+      const def = this.objectDef(pendingActivity.objectId);
+      const affordance = def?.affordances.find((item) => item.id === pendingActivity.affordanceId);
+      if (!def || affordance?.command.type !== "activity") this.pendingActivity = null;
+      else if (this.adapter.playerLocationId(pendingActivity.agentId) === def.lotId) {
+        // Clear before invoking the simulation: touch() may synchronously notify listeners.
+        this.pendingActivity = null;
+        const result = performVenueActivity(this.adapter.town, pendingActivity.agentId,
+          affordance.command.activity as never);
+        this.adapter.lastCommandFeedback = result.feedback;
+        if (result.ok) this.adapter.touch();
+      }
+    }
     const built = this.pendingBuiltUse;
     if (built && this.build) {
       const placement = this.build.get(built.objectId);
@@ -137,5 +159,10 @@ export class InteractionController {
     }
   }
 
-  dispose(): void { this.unsubscribe(); }
+  dispose(): void {
+    this.pendingActivity = null;
+    this.pendingBuiltUse = null;
+    this.pendingSeat = null;
+    this.unsubscribe();
+  }
 }
