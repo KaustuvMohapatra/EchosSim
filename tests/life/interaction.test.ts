@@ -87,6 +87,48 @@ describe("S38: interaction flow", () => {
     ic.dispose(); a.dispose();
   });
 
+  it("transfers an occupied visual seat when switching chairs in the same lot", () => {
+    const a = new LifeModeAdapter({ seed: 7001 });
+    const ic = new InteractionController(a);
+    for (let i = 0; i < 40; i++) a.stepOnce();
+
+    expect(ic.use("cafe_chair_0", "sit").ok).toBe(true);
+    for (let i = 0; i < 20; i++) a.stepOnce();
+    a.touch();
+    expect(ic.seats.holderOf("cafe_chair_0")).toBe(a.playerId);
+
+    expect(ic.use("cafe_chair_1", "sit").ok).toBe(true);
+    a.touch();
+    expect(ic.seats.holderOf("cafe_chair_0")).toBeUndefined();
+    expect(ic.seats.holderOf("cafe_chair_1")).toBe(a.playerId);
+    expect(ic.seats.size).toBe(1);
+    expect(a.playerSeatedAt).toMatchObject({
+      x: ic.anchors.get("cafe_chair_1")!.x,
+      z: ic.anchors.get("cafe_chair_1")!.z,
+    });
+    ic.dispose(); a.dispose();
+  });
+
+  it("does not claim a new occupied chair during a failed seat switch", () => {
+    const a = new LifeModeAdapter({ seed: 7001 });
+    const ic = new InteractionController(a);
+    for (let i = 0; i < 40; i++) a.stepOnce();
+    expect(ic.use("cafe_chair_0", "sit").ok).toBe(true);
+    for (let i = 0; i < 20; i++) a.stepOnce();
+    a.touch();
+
+    ic.seats.claim("cafe_chair_1", "npc_mira");
+    const denied = ic.use("cafe_chair_1", "sit");
+    expect(denied).toEqual({ ok: false, feedback: "Seat taken." });
+    expect(ic.seats.holderOf("cafe_chair_1")).toBe("npc_mira");
+    expect(ic.seats.holderOf("cafe_chair_0")).toBe(a.playerId);
+    expect(a.playerSeatedAt).toMatchObject({
+      x: ic.anchors.get("cafe_chair_0")!.x,
+      z: ic.anchors.get("cafe_chair_0")!.z,
+    });
+    ic.dispose(); a.dispose();
+  });
+
   it("non-seat affordances route their command without seating side effects", () => {
     const a = new LifeModeAdapter({ seed: 7001 });
     const ic = new InteractionController(a);

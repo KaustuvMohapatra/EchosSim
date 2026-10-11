@@ -91,6 +91,13 @@ export class InteractionController {
       return { ok: false, feedback: `${affordance.label}: not available yet.` };
 
     if (SEAT_KINDS.has(def.kind)) {
+      // Reject an already occupied seat at the current venue before losing
+      // the resident's existing seat or issuing an unnecessary move command.
+      if (this.adapter.playerLocationId(actor) === def.lotId) {
+        const holder = this.seats.holderOf(def.objectId);
+        if (holder !== undefined && holder !== actor)
+          return { ok: false, feedback: "Seat taken." };
+      }
       this.standUp(actor);
       this.pendingSeat = { agentId: actor, objectId: def.objectId };
     }
