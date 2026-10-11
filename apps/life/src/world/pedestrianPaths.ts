@@ -49,6 +49,9 @@ export function routeFromPosition(
   const to = lotOf(toId);
   const toPoint = standingPoint(toId, agentId);
   if (!to || !toPoint) return [];
+  // A renderer can briefly supply an invalid pose during initialization or teardown.
+  // Refuse to turn that pose into a persistent waypoint chain.
+  if (!Number.isFinite(current.x) || !Number.isFinite(current.z)) return [];
   const startLane = STREET_LANES.reduce((best, lane) =>
     Math.abs(current.x - lane) < Math.abs(current.x - best) ? lane : best);
   const finishLane = laneOf(to);
@@ -71,6 +74,7 @@ export function routeFromPosition(
 export function collapseCollinear(points: readonly WalkPoint[]): WalkPoint[] {
   const out: WalkPoint[] = [];
   for (const p of points) {
+    if (!Number.isFinite(p.x) || !Number.isFinite(p.z)) continue;
     const prev = out[out.length - 1];
     if (prev && Math.hypot(prev.x - p.x, prev.z - p.z) < 0.01) continue;
     if (out.length >= 2) {
@@ -122,8 +126,17 @@ export function advanceWalk(
   waypoints: readonly WalkPoint[],
   distance: number,
 ): { point: WalkPoint; remaining: WalkPoint[]; moving: boolean } {
-  let x = current.x, z = current.z, budget = Math.max(0, distance);
-  const remaining = [...waypoints];
+  // Recover to the first valid destination if the current presentation pose
+  // was corrupted, rather than returning an invalid coordinate indefinitely.
+  if (!Number.isFinite(current.x) || !Number.isFinite(current.z)) {
+    const recovery = waypoints.find((point) =>
+      Number.isFinite(point.x) && Number.isFinite(point.z));
+    return { point: recovery ? { ...recovery } : { x: 0, z: 0 }, remaining: [], moving: false };
+  }
+  let x = current.x, z = current.z;
+  let budget = Number.isFinite(distance) ? Math.max(0, distance) : 0;
+  const remaining = waypoints.filter((point) =>
+    Number.isFinite(point.x) && Number.isFinite(point.z));
   // May consume several very short segments in a single render frame.
   while (remaining.length) {
     const target = remaining[0]!;
