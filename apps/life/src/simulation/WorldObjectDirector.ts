@@ -10,7 +10,7 @@
  * no Math.random, per-render-frame decisions or independent NPC brains.
  */
 import { NeedKind, PersonalityTrait } from "@echosim/cognition";
-import { computeJobPressure } from "@echosim/world";
+import { computeJobPressure, NavigationPathStatus } from "@echosim/world";
 import {
   activityForObject, objectActivityAvailable, performWorldObjectActivity,
 } from "@echosim/simulation";
@@ -141,7 +141,7 @@ export class WorldObjectDirector {
       const stillThere = this.build.get(pending.objectId);
       const travelling = town.navigation.getState(agentId);
       if (!stillThere || stillThere.lotId !== pending.lotId ||
-          travelling.status !== 1 /* EnRoute */ ||
+          travelling.status !== NavigationPathStatus.EnRoute ||
           town.clock.currentTime.totalMinutes - pending.startedAt > 90) {
         this.abandon(agentId);
         return false;
@@ -149,7 +149,7 @@ export class WorldObjectDirector {
       return true;
     }
     if (agentId === this.controlledId() ||
-      town.navigation.getState(agentId).status === 1 /* EnRoute */) return false;
+      town.navigation.getState(agentId).status === NavigationPathStatus.EnRoute) return false;
 
     const now = town.clock.currentTime.totalMinutes;
     const slot = Math.floor(now / 120);
