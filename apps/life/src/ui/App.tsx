@@ -14,6 +14,7 @@ import { ActionQueue } from "./components/ActionQueue.js";
 import { ContextMenu } from "./components/ContextMenu.js";
 import { TownObserver } from "./components/TownObserver.js";
 import { PhonePanel } from "./components/PhonePanel.js";
+import { ResidentCreator } from "./components/ResidentCreator.js";
 import { WorldMap } from "./components/WorldMap.js";
 import { BuildPanel } from "./components/BuildPanel.js";
 import { ToastLayer } from "./components/ToastLayer.js";
@@ -21,7 +22,7 @@ import "./styles/tokens.css";
 import "./styles/life.css";
 import "./styles/components.css";
 
-type SidePanel = "town" | "resident" | "phone" | null;
+type SidePanel = "town" | "resident" | "phone" | "creator" | null;
 
 export function App() {
   const life = useLife();
@@ -178,6 +179,7 @@ export function App() {
 
       <TopBar app={app} time={snap?.time} phoneBadge={pendingInvitationCount}
         onPhone={() => setPanel((value) => value === "phone" ? null : "phone")}
+        onCreate={() => setPanel((value) => value === "creator" ? null : "creator")}
         onTown={() => setPanel((value) => value === "town" ? null : "town")}
         onMap={() => setShowMap(true)} />
 
@@ -190,6 +192,18 @@ export function App() {
               setPanel("resident");
             }} />
           <ActionQueue app={app} />
+
+          {panel === "creator" && app && snap && (
+            <ResidentCreator
+              residentIds={snap.agents.map((resident) => resident.id)}
+              locations={snap.locations}
+              onCreate={(request) => {
+                const result = app.adapter.createResidentFromPreset(request);
+                setFlash(result.feedback);
+                if (result.ok) setPanel(null);
+              }}
+              onClose={() => setPanel(null)} />
+          )}
 
           {panel === "phone" && controlledLife && snap && controlledId && (
             <PhonePanel
