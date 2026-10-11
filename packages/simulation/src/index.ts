@@ -8,3 +8,4 @@ export * from "./activities.js";
 export * from "./realism.js";
 export * from "./phone.js";
 export * from "./stories.js";
+export * from "./worldObjects.js";
