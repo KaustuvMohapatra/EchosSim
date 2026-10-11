@@ -24,11 +24,15 @@ export function PhonePanel(props: PhonePanelProps) {
   const [tab, setTab] = useState<PhoneTab>("messages");
   const [contactId, setContactId] = useState(contacts[0]?.id ?? "");
   // Keep unsent messages scoped to their intended recipient.
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [draftsByResident, setDraftsByResident] = useState<Record<string, Record<string, string>>>({});
+  const drafts = draftsByResident[props.life.agentId] ?? {};
   const draft = drafts[contactId] ?? "";
   const setDraft = (value: string) => {
     if (!contactId) return;
-    setDrafts((current) => ({ ...current, [contactId]: value }));
+    setDraftsByResident((current) => ({
+      ...current,
+      [props.life.agentId]: { ...current[props.life.agentId], [contactId]: value },
+    }));
   };
 
   useEffect(() => {
@@ -44,7 +48,10 @@ export function PhonePanel(props: PhonePanelProps) {
     if (!contactId) return;
     if (props.onSend(contactId, draft)) {
       const sentTo = contactId;
-      setDrafts((current) => ({ ...current, [sentTo]: "" }));
+      setDraftsByResident((current) => ({
+        ...current,
+        [props.life.agentId]: { ...current[props.life.agentId], [sentTo]: "" },
+      }));
     }
   };
 
