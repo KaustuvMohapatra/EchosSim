@@ -1,7 +1,7 @@
 /** Sprint 42 — interiors: rings with door gaps, rooms, cutaway selection. */
 import { describe, expect, it } from "vitest";
 import {
-  buildInteriors, pointInRoom, wallsToHide,
+  buildInteriors, pointInRoom, ring, wallsToHide,
 } from "../../apps/life/src/world/interiors.js";
 import { lotOf } from "../../apps/life/src/world/layout.js";
 
@@ -28,6 +28,20 @@ describe("S42: interior construction", () => {
                            (w.x1 === w.x2 && Math.abs(w.x1 - door.x) < 0.3);
       expect(coversX && coversZ && isOnSameLine).toBe(false);
     }
+  });
+
+  it("unions overlapping and nested door gaps without restoring walls across an opening", () => {
+    const result = ring("test", { x1: -5, z1: -4, x2: 5, z2: 4 }, 0.3, [
+      { x: -5, z: -1, width: 5 }, // opening from -3.5 to 1.5
+      { x: -5, z: 0, width: 1 }, // nested opening must not rewind the cursor
+      { x: -5, z: 2, width: 1 }, // overlapping continuation to +2.5
+    ], "test");
+    const west = result.walls.filter((w) => w.x1 < -4.9 && w.x2 > -5.1);
+    expect(west).toHaveLength(2);
+    expect(west.map((w) => [w.z1, w.z2])).toEqual([
+      [-4, -3.5],
+      [2.5, 4],
+    ]);
   });
 
   it("divider walls create distinct rooms with privacy levels", () => {
