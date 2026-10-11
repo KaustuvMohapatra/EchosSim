@@ -159,8 +159,11 @@ export class AgentLayer {
           summary.locationId, summary.id,
         ).slice(1);
         visual.locationId = summary.locationId;
-        // A new destination interrupts any previous cosmetic activity.
-        if (visual.activity?.arrived) visual.activity = undefined;
+        // Any destination change interrupts the old cosmetic activity, even
+        // while walking toward an object. Otherwise its stale anchor can be
+        // enqueued when the new location's sidewalk route completes.
+        visual.activity = undefined;
+        visual.badge.isVisible = false;
         // A new journey invalidates an old presentation-only sitting pose.
         this.adapter.seatedAt.delete(summary.id);
       }
