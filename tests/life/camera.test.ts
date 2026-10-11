@@ -47,6 +47,27 @@ describe("S37: camera rig", () => {
   });
 });
 
+describe("S37: Babylon camera integration", () => {
+  it("keeps the tracked height and limits camera zoom when modes change", async () => {
+    const { NullEngine, Scene, ArcRotateCamera, Vector3 } = await import("@babylonjs/core");
+    const { CameraController } = await import("../../apps/life/src/camera/CameraController.js");
+    const engine = new NullEngine();
+    const scene = new Scene(engine);
+    const camera = new ArcRotateCamera("test", 0, 0.95, 95, Vector3.Zero(), scene);
+    const controller = new CameraController(camera, scene, () => ({ x: 7, z: -4 }));
+    controller.setMode("follow");
+    expect(camera.radius).toBeLessThanOrEqual(MODE_LIMITS.follow.maxRadius);
+    for (let i = 0; i < 100; i++) controller.update();
+    expect(camera.target.y).toBeCloseTo(1.2, 2);
+    controller.setMode("shoulder");
+    expect(camera.radius).toBeLessThanOrEqual(MODE_LIMITS.shoulder.maxRadius);
+    for (let i = 0; i < 100; i++) controller.update();
+    expect(camera.target.y).toBeCloseTo(1.5, 2);
+    scene.dispose();
+    engine.dispose();
+  });
+});
+
 describe("S37: player actor + travel commands", () => {
   it("player exists as a full resident through the normal pipeline", () => {
     const a = new LifeModeAdapter({ seed: 7001 });
