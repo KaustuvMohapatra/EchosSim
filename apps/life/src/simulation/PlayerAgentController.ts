@@ -6,6 +6,8 @@ import { SocialActionType } from "@echosim/social";
 
 export interface QueuedAction {
   id: number;
+  /** Resident who submitted this action; never inferred from later household switches. */
+  agentId: string;
   label: string;
   status: "pending" | "walking" | "active" | "done" | "failed" | "cancelled";
   /** Human-readable outcome detail from the real command path. */
@@ -70,6 +72,7 @@ export class PlayerAgentController {
   enqueueMove(locationId: string, locationName: string): void {
     this.queue.push({
       id: NEXT_ID++,
+      agentId: this.controlled,
       label: `Go to ${locationName}`,
       status: "pending",
       command: { type: "move", locationId, locationName },
@@ -82,7 +85,7 @@ export class PlayerAgentController {
       : action === SocialActionType.Chat ? `Talk to ${targetName}`
       : `${SocialActionType[action]} ${targetName}`;
     this.queue.push({
-      id: NEXT_ID++, label, status: "pending",
+      id: NEXT_ID++, agentId: this.controlled, label, status: "pending",
       command: { type: "social", targetId, targetName, action },
     });
     this.afterMutation();
@@ -94,9 +97,9 @@ export class PlayerAgentController {
         item.status === "cancelled") return;
 
     if (item.status === "walking")
-      this.adapter.town.navigation.cancel(this.controlled);
+      this.adapter.town.navigation.cancel(item.agentId);
     if (item.status === "walking" || item.status === "active")
-      this.adapter.interactionsStandUp(this.controlled);
+      this.adapter.interactionsStandUp(item.agentId);
 
     item.status = "cancelled";
     item.detail = "Cancelled by player.";
@@ -118,8 +121,8 @@ export class PlayerAgentController {
 
   items(): readonly QueuedAction[] { return [...this.queue]; }
   get busy(): boolean {
-    return this.queue.some((q) =>
-      q.status === "pending" || q.status === "walking" || q.status === "active");
+    return this.queue.some((q) => q.agentId === this.controlled &&
+      (q.status === "pending" || q.status === "walking" || q.status === "active"));
   }
 
   enqueueVisitAndSocial(targetId: string, targetName: string,
@@ -158,8 +161,8 @@ export class PlayerAgentController {
   private emit(): void { this.adapter.touch(); }
 
   private pump(): void {
-    const head = this.queue.find((q) =>
-      q.status === "pending" || q.status === "walking" || q.status === "active");
+    const head = this.queue.find((q) => q.agentId === this.controlled &&
+      (q.status === "pending" || q.status === "walking" || q.status === "active"));
     if (!head) {
       this.applyGate();
       return;
@@ -167,7 +170,7 @@ export class PlayerAgentController {
 
     if (head.command.type === "move") {
       const command = head.command;
-      const state = this.adapter.town.agentsById.get(this.controlled);
+      const state = this.adapter.town.agentsById.get(head.agentId);
       const here = state?.hasLocation ? state.currentLocationId : undefined;
       if (here === command.locationId) {
         head.status = "done";
@@ -177,7 +180,7 @@ export class PlayerAgentController {
       }
       if (head.status === "pending") {
         head.status = "walking";
-        const accepted = this.adapter.commandMoveTo(command.locationId, this.controlled);
+        const accepted = this.adapter.commandMoveTo(command.locationId, head.agentId);
         if (!accepted) {
           head.status = "failed";
           head.detail = this.adapter.lastCommandFeedback || "Travel could not be started.";
@@ -190,7 +193,7 @@ export class PlayerAgentController {
       head.status = "active";
       const command = head.command;
       const result = this.adapter.town.social.attempt(
-        this.controlled, command.targetId as never, command.action);
+        head.agentId, command.targetId as never, command.action);
       head.status = result.accepted ? "done" : "failed";
       head.detail = result.accepted ? undefined : result.reason;
       this.applyGate();
@@ -199,10 +202,11 @@ export class PlayerAgentController {
   }
 
   private cancelAllForAgent(agentId: string): void {
-    if (this.queue.some((item) => item.status === "walking"))
+    if (this.queue.some((item) => item.agentId === agentId && item.status === "walking"))
       this.adapter.town.navigation.cancel(agentId);
     this.adapter.interactionsStandUp(agentId);
     for (const item of this.queue) {
+      if (item.agentId !== agentId) continue;
       if (item.status === "done" || item.status === "failed" || item.status === "cancelled")
         continue;
       item.status = "cancelled";
