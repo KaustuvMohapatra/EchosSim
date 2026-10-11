@@ -1,4 +1,5 @@
 import type { ResidentRailItem } from "../models/residentView.js";
+import { ResidentPortrait } from "./ResidentPortrait.js";
 
 interface ResidentRailProps {
   residents: readonly ResidentRailItem[];
@@ -24,7 +25,7 @@ export function ResidentRail({ residents, onSelect, onControl }: ResidentRailPro
             ].filter(Boolean).join(" ")}>
             <button type="button" className="resident-chip__main"
               onClick={() => onSelect(resident.id)} aria-pressed={resident.selected}>
-              <span className="resident-avatar" aria-hidden="true">{resident.initials}</span>
+              <ResidentPortrait id={resident.id} />
               <span className="resident-chip__copy">
                 <strong>{resident.name}</strong>
                 {resident.mood ? (
