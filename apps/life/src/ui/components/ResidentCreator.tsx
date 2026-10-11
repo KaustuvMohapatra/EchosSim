@@ -24,7 +24,13 @@ export function ResidentCreator(props: ResidentCreatorProps) {
     () => props.locations.filter((location) => location.id.startsWith("apt_")),
     [props.locations],
   );
-  const [homeId, setHomeId] = useState("apt_b");
+  const [homeId, setHomeId] = useState(() =>
+    homes.some((home) => home.id === "apt_b") ? "apt_b" : homes[0]?.id ?? "",
+  );
+  // Location availability can change while the panel is mounted. Never keep an
+  // invisible, stale selection that silently prevents a valid submission.
+  const selectedHomeId = homes.some((home) => home.id === homeId)
+    ? homeId : homes[0]?.id ?? "";
   const [appearance, setAppearance] = useState(
     () => residentAtlasIndex(nextResidentId(props.residentIds)),
   );
@@ -65,8 +71,8 @@ export function ResidentCreator(props: ResidentCreatorProps) {
       </div>
       <form className="side-panel__scroll resident-creator__form" onSubmit={(event) => {
         event.preventDefault();
-        if (validateResidentName(name) || !homes.some((home) => home.id === homeId)) return;
-        props.onCreate({ id: previewId, name: name.trim(), preset, homeLocationId: homeId });
+        if (validateResidentName(name) || !selectedHomeId) return;
+        props.onCreate({ id: previewId, name: name.trim(), preset, homeLocationId: selectedHomeId });
       }}>
         <div className="resident-creator__hero">
           <div className="resident-creator__portrait" aria-label="Pixel art resident preview">
@@ -112,7 +118,7 @@ export function ResidentCreator(props: ResidentCreatorProps) {
         </fieldset>
         <label className="creator-field">
           <span>Move into</span>
-          <select value={homeId} onChange={(event) => setHomeId(event.target.value)}>
+          <select value={selectedHomeId} onChange={(event) => setHomeId(event.target.value)}>
             {homes.map((home) => <option key={home.id} value={home.id}>{home.name}</option>)}
           </select>
         </label>
