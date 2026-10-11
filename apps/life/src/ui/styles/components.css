@@ -78,3 +78,14 @@
 .resident-creator__look-controls button{min-width:39px;min-height:36px;border:1px solid var(--life-border-strong);border-radius:9px;background:rgba(112,200,173,.09);color:var(--life-text);font-size:24px;line-height:1;cursor:pointer}
 .resident-creator__look-controls button:hover{background:rgba(112,200,173,.2);border-color:var(--life-teal)}
 .resident-creator__hero>div>small{display:block;color:var(--life-amber);margin-top:4px;font-size:10px}
+
+
+/* Living World Phase 03: effects are discoverable, and 12 items fit without
+   consuming the whole viewport on desktop or mobile. */
+.build-catalog{grid-template-columns:repeat(6,minmax(0,1fr));max-height:192px;overflow-y:auto;scrollbar-width:thin}
+.build-catalog button{min-height:54px;justify-content:center;text-align:center;line-height:1.3}
+.build-catalog button:nth-last-child(-n+4) i{background:rgba(112,200,173,.22);border-color:rgba(112,200,173,.34)}
+.build-panel__description{min-height:39px;display:flex;flex-wrap:wrap;align-items:baseline;gap:5px;margin-top:9px;padding:8px 10px;border:1px solid rgba(112,200,173,.18);border-radius:9px;background:rgba(112,200,173,.045);color:var(--life-muted);font-size:11px;line-height:1.4}
+.build-panel__description strong{color:var(--life-teal)}
+@media(max-width:780px){.build-catalog{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:520px){.build-catalog{grid-template-columns:repeat(3,minmax(0,1fr));max-height:155px}.build-panel{bottom:8px}}
