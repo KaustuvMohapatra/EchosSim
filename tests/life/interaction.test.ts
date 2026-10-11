@@ -99,4 +99,42 @@ describe("S38: interaction flow", () => {
     expect(a.playerSeatedAt).toBeUndefined();
     ic.dispose(); a.dispose();
   });
+  it("performs a queued venue activity once after arriving, not merely traveling", () => {
+    const a = new LifeModeAdapter({ seed: 7001 });
+    const ic = new InteractionController(a);
+    for (let i = 0; i < 60; i++) a.stepOnce(); // library is open
+    const actor = a.playerId;
+    const before = a.town.skills.stateOf(actor, "Knowledge").xp;
+    expect(a.playerLocationId()).not.toBe("library");
+
+    const result = ic.use("library_shelf_a", "read");
+    expect(result.ok).toBe(true);
+    expect(a.town.skills.stateOf(actor, "Knowledge").xp).toBe(before);
+    for (let i = 0; i < 30; i++) a.stepOnce();
+    expect(a.playerLocationId()).toBe("library");
+    const gained = a.town.skills.stateOf(actor, "Knowledge").xp;
+    expect(gained).toBeGreaterThan(before);
+    a.touch();
+    a.touch();
+    expect(a.town.skills.stateOf(actor, "Knowledge").xp).toBe(gained);
+
+    ic.dispose(); a.dispose();
+  });
+
+  it("reports activity feedback when using an affordance in the current venue", () => {
+    const a = new LifeModeAdapter({ seed: 7001 });
+    const ic = new InteractionController(a);
+    for (let i = 0; i < 60; i++) a.stepOnce();
+    expect(a.commandMoveTo("library")).toBe(true);
+    for (let i = 0; i < 30; i++) a.stepOnce();
+    expect(a.playerLocationId()).toBe("library");
+
+    const before = a.town.skills.stateOf(a.playerId, "Knowledge").xp;
+    const result = ic.use("library_shelf_a", "read");
+    expect(result.ok).toBe(true);
+    expect(a.lastCommandFeedback).toBe(result.feedback);
+    expect(a.town.skills.stateOf(a.playerId, "Knowledge").xp).toBeGreaterThan(before);
+    ic.dispose(); a.dispose();
+  });
+
 });
