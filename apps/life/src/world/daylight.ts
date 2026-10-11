@@ -31,6 +31,7 @@ export function daylightParams(minuteOfDay: number): DaylightParams {
     sunIntensity: night ? 0.12 : 0.35 + 0.8 * elevation,
     hemiIntensity: night ? 0.28 : 0.55 + 0.3 * elevation,
     sunColor: [r, g, b],
-    nightFactor: night ? 1 : 1 - elevation,
+    // Night-only factor: don't mark sunrise/sunset as fully night.
+    nightFactor: night ? 1 : 0,
   };
 }
