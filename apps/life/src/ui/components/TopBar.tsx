@@ -8,11 +8,12 @@ interface TopBarProps {
   time?: TimeInfo;
   phoneBadge?: number;
   onPhone(): void;
+  onCreate(): void;
   onTown(): void;
   onMap(): void;
 }
 
-export function TopBar({ app, time, phoneBadge = 0, onPhone, onTown, onMap }: TopBarProps) {
+export function TopBar({ app, time, phoneBadge = 0, onPhone, onCreate, onTown, onMap }: TopBarProps) {
   const speed = app?.adapter.speed ?? 1;
   const running = app?.adapter.running ?? false;
   const buildMode = app?.buildMode ?? false;
@@ -59,6 +60,8 @@ export function TopBar({ app, time, phoneBadge = 0, onPhone, onTown, onMap }: To
               <button type="button" className="hud-tool hud-tool--camera"
                 onClick={() => app?.camera.cycleMode()}
                 title="Cycle camera (C)" aria-label="Cycle camera mode">Camera</button>
+              <button type="button" className="hud-tool hud-tool--create"
+                onClick={onCreate} aria-label="Create new resident">+ Resident</button>
               <button type="button" className="hud-tool hud-tool--phone"
                 onClick={onPhone}
                 aria-label={phoneBadge > 0 ? `Open phone, ${phoneBadge} pending invitations` : "Open phone"}>
