@@ -54,16 +54,20 @@ export function App() {
   const controlled = controlledId && app
     ? app.adapter.privateResidentDetailsFor(controlledId, controlledId) : undefined;
   const selectedPrivateAgent = selected && controlledId && app
-    ? app.adapter.privateResidentDetailsFor(controlledId, selected) : undefined;
+    ? app.worldView
+      ? app.adapter.worldResidentDetailsFor(selected)
+      : app.adapter.privateResidentDetailsFor(controlledId, selected) : undefined;
   const selectedKnowledge = useMemo(() =>
     app && snap && selected && controlledId
-      ? app.adapter.residentKnowledgeFor(controlledId, selected) : undefined,
+      ? app.worldView
+        ? app.adapter.worldResidentKnowledgeFor(selected)
+        : app.adapter.residentKnowledgeFor(controlledId, selected) : undefined,
   [app, snap, selected, controlledId]);
   const controlledLife = useMemo(() =>
     app && snap && controlledId ? app.adapter.personalLifeFor(controlledId) : undefined,
   [app, snap, controlledId]);
   const selectedLife = useMemo(() =>
-    app && snap && selected && app.player.canSwitchTo(selected)
+    app && snap && selected && (app.worldView || app.player.canSwitchTo(selected))
       ? app.adapter.personalLifeFor(selected) : undefined,
   [app, snap, selected, controlledId]);
   const pendingInvitationCount = controlledLife?.invitations.filter((invitation) =>
@@ -71,7 +75,9 @@ export function App() {
 
   const household = useMemo(() => new Set(app?.player.householdMembers() ?? []), [app, snap, controlledId]);
   const residentPresence = useMemo(() =>
-    app && snap && controlledId ? app.adapter.residentPresenceFor(controlledId) : [],
+    app && snap && controlledId
+      ? app.worldView ? app.adapter.worldPresenceFor() : app.adapter.residentPresenceFor(controlledId)
+      : [],
   [app, snap, controlledId]);
   const selectedPresence = useMemo(() =>
     selected ? residentPresence.find((presence) => presence.id === selected) : undefined,
@@ -200,7 +206,10 @@ export function App() {
               onCreate={(request) => {
                 const result = app.adapter.createResidentFromPreset(request);
                 setFlash(result.feedback);
-                if (result.ok) setPanel(null);
+                if (result.ok && result.id) {
+                  life.select(result.id);
+                  setPanel("resident");
+                }
               }}
               onClose={() => setPanel(null)} />
           )}
