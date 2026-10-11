@@ -6,6 +6,8 @@ const ITEMS: readonly { kind: BuildKind; label: string }[] = [
   { kind: "table", label: "Table" }, { kind: "bookshelf", label: "Bookshelf" },
   { kind: "bench", label: "Bench" }, { kind: "bed", label: "Bed" },
   { kind: "desk", label: "Desk" }, { kind: "counter", label: "Counter" },
+  { kind: "arcade", label: "Arcade Machine" }, { kind: "easel", label: "Art Easel" },
+  { kind: "garden", label: "Garden Plot" }, { kind: "noticeboard", label: "Noticeboard" },
 ];
 
 export function BuildPanel({ app, feedback }: { app: LifeApp; feedback?: string }) {
@@ -15,7 +17,7 @@ export function BuildPanel({ app, feedback }: { app: LifeApp; feedback?: string 
         <span><small>Simulation paused</small><strong>Build Mode</strong></span>
         <button type="button" className="secondary-button" onClick={() => app.setBuildMode(false)}>Done</button>
       </header>
-      <p>Pick furniture, then click inside a lot to place it.</p>
+      <p>Pick furniture or activities, then click inside a lot. Residents can use the objects you place.</p>
       <div className="build-catalog">
         {ITEMS.map((item) => (
           <button type="button" key={item.kind}
