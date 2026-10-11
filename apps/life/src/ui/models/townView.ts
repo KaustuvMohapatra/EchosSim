@@ -6,6 +6,8 @@ export interface DayPeriodView {
   name: DayPeriodName;
   tagline: string;
   active: boolean;
+  /** Width of this period relative to a full simulated day. */
+  widthPercent: number;
 }
 
 export interface DayCycleView {
@@ -16,16 +18,23 @@ export interface DayCycleView {
   periods: readonly DayPeriodView[];
 }
 
-const PERIODS: readonly { name: DayPeriodName; start: number; end: number; tagline: string }[] = [
-  { name: "Morning", start: 360, end: 720, tagline: "Things begin" },
-  { name: "Afternoon", start: 720, end: 1020, tagline: "Lives unfold" },
-  { name: "Evening", start: 1020, end: 1260, tagline: "Town comes together" },
-  { name: "Night", start: 1260, end: 1800, tagline: "Stories continue" },
+/**
+ * The visual timeline begins at 06:00, the start of Morning, instead of
+ * midnight. This keeps Night continuous across 00:00 until the next sunrise.
+ * Durations sum to exactly one simulated day.
+ */
+const PERIODS: readonly { name: DayPeriodName; minutes: number; tagline: string }[] = [
+  { name: "Morning", minutes: 360, tagline: "Things begin" },
+  { name: "Afternoon", minutes: 300, tagline: "Lives unfold" },
+  { name: "Evening", minutes: 240, tagline: "Town comes together" },
+  { name: "Night", minutes: 540, tagline: "Stories continue" },
 ];
+const MINUTES_PER_DAY = 1440;
+const TIMELINE_START_MINUTE = 360;
 
 export function minuteOfDay(totalMinutes: number): number {
   if (!Number.isFinite(totalMinutes)) return 0;
-  return ((totalMinutes % 1440) + 1440) % 1440;
+  return ((totalMinutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
 }
 
 export function dayPeriod(totalMinutes: number): DayPeriodName {
@@ -40,15 +49,18 @@ export function dayCycleView(time: TimeInfo): DayCycleView {
   const minute = minuteOfDay(time.totalMinutes);
   const current = dayPeriod(time.totalMinutes);
   const period = PERIODS.find((p) => p.name === current)!;
+  const validTime = Number.isFinite(time.totalMinutes);
   return {
     current,
     tagline: period.tagline,
     minuteOfDay: minute,
-    dayProgress: minute / 1440,
+    // Dawn-to-dawn timeline: a single Night segment spans midnight.
+    dayProgress: validTime ? minuteOfDay(minute - TIMELINE_START_MINUTE) / MINUTES_PER_DAY : 0,
     periods: PERIODS.map((p) => ({
       name: p.name,
       tagline: p.tagline,
       active: p.name === current,
+      widthPercent: p.minutes / MINUTES_PER_DAY * 100,
     })),
   };
 }
@@ -62,7 +74,6 @@ export function weatherLabel(weather: string): string {
     default: return weather;
   }
 }
-
 
 export function residentCountsByLocation(
   agents: readonly Pick<AgentSummary, "locationId">[],

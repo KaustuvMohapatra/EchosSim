@@ -15,10 +15,10 @@ describe("life clock presentation", () => {
     }
   });
 
-  it("preserves the existing midnight wraparound for finite clocks", () => {
+  it("preserves finite clock wraparound while aligning the dawn-first UI timeline", () => {
     expect(minuteOfDay(-1)).toBe(1439);
     expect(minuteOfDay(1440)).toBe(0);
-    expect(dayCycleView({ totalMinutes: 720 } as TimeInfo).dayProgress).toBe(0.5);
+    expect(dayCycleView({ totalMinutes: 720 } as TimeInfo).dayProgress).toBe(0.25);
   });
 
   it("keeps personal-life message/calendar times readable when timestamps are invalid", () => {

@@ -14,6 +14,7 @@ export function DayCycle({ time }: { time?: TimeInfo }) {
       <div className="day-cycle__segments" aria-hidden="true">
         {view.periods.map((period) => (
           <div key={period.name}
+            style={{ flex: `0 0 ${period.widthPercent}%` }}
             className={`day-cycle__segment${period.active ? " is-active" : ""}`}>
             <span>{period.name}</span>
             <small>{period.tagline}</small>
