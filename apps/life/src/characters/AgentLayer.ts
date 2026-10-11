@@ -134,6 +134,7 @@ export class AgentLayer {
     if (visual.activity?.headedToObject && !visual.activity.arrived) {
       visual.waypoints = [];
     }
+    visual.badge.isVisible = false;
     const presentation = activityPresentation(kind);
     visual.activity = {
       kind, timeLeft: presentation.seconds,
