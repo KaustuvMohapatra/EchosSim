@@ -196,6 +196,12 @@ export function createLifeApp(canvas: HTMLCanvasElement,
     adapter.touch();
   });
   rebuildBuildMeshes();
+  // Optional visual use-anchors are derived from the actual Babylon prop
+  // positions; simulation object ownership remains BuildController state.
+  agents.setActivityAnchorResolver((objectId) => {
+    const position = buildMeshes.get(objectId)?.position;
+    return position ? { x: position.x, z: position.z - 0.9 } : undefined;
+  });
   const worldObjectDirector = new WorldObjectDirector(adapter, build, () => player.controlled);
 
   placeFurniture(buildFurniture(scene), (id) => {
