@@ -56,6 +56,14 @@ export class EventJournal {
       agent: c.initiator, text: `[${c.intent}] ${c.initiator}→${c.listener}: ${c.utterances.join(" / ")}`,
     }));
 
+    town.events.subscribe<{
+      agent: string; kind: string; locationId: string; objectId: string;
+    }>("sim:world-object-trip-started", (event) => this.push({
+      seq: 0, atMinutes: at(), kind: "other", type: "sim:world-object-trip-started",
+      agent: event.agent, location: event.locationId,
+      text: event.kind,
+    }));
+
     // Social events surfaced by perception (insults, help, ...) for timeline.
     town.events.subscribe<{
       observer: string; eventType: string; actors: readonly string[];
