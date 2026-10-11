@@ -27,7 +27,6 @@ export function ResidentRail({ residents, onSelect, onControl }: ResidentRailPro
             <button type="button" className="resident-chip__main"
               onClick={() => onSelect(resident.id)} aria-pressed={resident.selected}
               aria-label={`View ${resident.name} · ${resident.visibility === "current" ? "Currently observed" : resident.visibility === "last-known" ? "Last known location" : "Whereabouts unknown"}`}>
-              
               <ResidentPortrait id={resident.id} />
               <span className="resident-chip__copy">
                 <strong>{resident.name}</strong>
