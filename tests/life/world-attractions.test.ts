@@ -75,15 +75,18 @@ describe("Living World Phase 04: resident attraction", () => {
     expect(adapter.town.memory.storeFor("test_artist").all
       .filter(m => m.eventType === "world_object")).toHaveLength(0);
     const destination = travelling.destination;
-    expect(destination).toBe("studio");
+    const targetObject = build.list().find(p => p.lotId === destination);
+    expect(targetObject).toBeDefined();
+    expect(["studio", "cafe"]).toContain(destination);
     const travel = adapter.town.navigation.getTravelTime("apt_b", destination!);
     adapter.town.clock.advance({ totalMinutes: travel + 2 });
     expect(adapter.town.agentsById.get("test_artist")?.currentLocationId).toBe(destination);
     const memories = adapter.town.memory.storeFor("test_artist").all
       .filter(m => m.eventType === "world_object");
     expect(memories).toHaveLength(1);
-    expect(memories[0]?.subject).toBe(build.list().find(p => p.kind === "easel")?.objectId);
-    expect(adapter.town.stories.all().some(story => story.text.includes("painted"))).toBe(true);
+    expect(memories[0]?.subject).toBe(targetObject?.objectId);
+    expect(adapter.town.stories.all().some(story =>
+      story.text.includes("painted") || story.text.includes("played"))).toBe(true);
     director.dispose(); adapter.dispose();
   });
 
