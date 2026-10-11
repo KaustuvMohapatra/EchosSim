@@ -250,6 +250,12 @@ export function App() {
               currentLocationId={controlled?.summary.locationId}
               selectedLocationId={selectedPresence?.current?.locationId ??
                 selectedPresence?.lastKnownLocationId}
+              attractions={app?.build.list() ?? []}
+              onVisitAttraction={(locationId, locationName) => {
+                app?.player.enqueueMove(locationId, locationName);
+                setFlash(`Travel queued: ${locationName}.`);
+                setPanel(null);
+              }}
               onOpenMap={() => setShowMap(true)}
               onClose={() => setPanel(null)} />
           )}
@@ -282,6 +288,7 @@ export function App() {
         <WorldMap
           locations={snap.locations}
           residents={residentPresence}
+          attractions={app?.build.list() ?? []}
           controlledId={controlledId}
           selectedId={selected ?? undefined}
           destinationId={destinationId}
