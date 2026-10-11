@@ -29,7 +29,11 @@ function lookup(id: string | undefined, values: ReadonlyMap<string, string>): st
 }
 
 export function relativeSimulationTime(nowMinutes: number, atMinutes: number): string {
-  const delta = Math.max(0, nowMinutes - atMinutes);
+  // Observer feeds may include imperfect imported snapshots. Keep displayed
+  // elapsed times finite and whole-minute, without changing event ordering.
+  if (!Number.isFinite(nowMinutes) || !Number.isFinite(atMinutes)) return "Time unknown";
+  const delta = Math.max(0, Math.floor(nowMinutes - atMinutes));
+  if (!Number.isFinite(delta)) return "Time unknown";
   if (delta < 20) return "Just now";
   if (delta < 60) return `${delta} min ago`;
   if (delta < 360) return `${Math.floor(delta / 60)}h ago`;
