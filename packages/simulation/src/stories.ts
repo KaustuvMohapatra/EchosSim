@@ -28,6 +28,13 @@ export class TownStories {
   private seenFriendPairs = new Set<string>();
 
   constructor(private readonly town: Town) {
+    town.events.subscribe<{
+      agent: string; kind: string; locationId: string; verb: string;
+    }>("sim:world-object-used", (event) => this.add(
+      [event.agent],
+      `${nameOf(town, event.agent)} ${event.verb} at ${town.locations.tryGet(event.locationId as never)?.definition.displayName ?? event.locationId}.`,
+      "town"));
+
     town.events.subscribe<{ agent: string; toTitle: string }>(
       "sim:promoted", (e) => this.add(
         [e.agent],
