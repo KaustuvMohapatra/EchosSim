@@ -30,17 +30,30 @@ describe("S42: interior construction", () => {
     }
   });
 
-  it("unions nested and overlapping door intervals without rewinding", () => {
-    const result = ring("test", { x1: -5, z1: -4, x2: 5, z2: 4 }, 0.3, [
+  it("keeps nested and overlapping door intervals unioned", () => {
+    const bounds = { x1: -5, z1: -4, x2: 5, z2: 4 };
+    const nested = ring("nested", bounds, 0.3, [
+      { x: -5, z: -1, width: 5 },
+      { x: -5, z: 0, width: 1 },
+    ], "nested");
+    const overlapping = ring("overlap", bounds, 0.3, [
       { x: -5, z: -1, width: 5 },
       { x: -5, z: 0, width: 1 },
       { x: -5, z: 1.5, width: 2 },
-    ], "test");
-    const westWalls = result.walls.filter((wall) => wall.id.startsWith("test-v"));
-    // The original implementation returns 2 segments per side plus extra
-    // overlaps on the west; merged intervals preserve exactly 4 per two sides.
-    expect(westWalls).toHaveLength(4);
-    expect(result.doors).toHaveLength(3);
+    ], "overlap");
+
+    // Two west-side wall segments plus one uninterrupted east-side segment.
+    // Before the fix, a nested second opening rewinds the cursor and
+    // restores an extra wall across the original larger doorway.
+    const verticalIntervals = (result: ReturnType<typeof ring>) =>
+      result.walls.filter((wall) => wall.id.includes("-v")).map((wall) => [wall.z1, wall.z2]);
+
+    expect(verticalIntervals(nested)).toEqual([
+      [-4, -3.5], [1.5, 4], [-4, 4],
+    ]);
+    expect(verticalIntervals(overlapping)).toEqual([
+      [-4, -3.5], [2.5, 4], [-4, 4],
+    ]);
   });
 
   it("divider walls create distinct rooms with privacy levels", () => {
