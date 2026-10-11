@@ -17,6 +17,7 @@ import {
 } from "@echosim/simulation";
 import { xpForLevel, type SkillName } from "@echosim/social";
 import { promotionRequirementFor } from "@echosim/world";
+import { restoreFromJson, saveToJson } from "@echosim/persistence";
 import { nextResidentId, personalityForPreset, validateResidentName, type ResidentPreset } from "./residentCreator.js";
 
 export interface LifeLocationSummary {
@@ -161,6 +162,8 @@ export interface AdapterOptions {
   beatMs?: number;
   /** Sim minutes advanced per beat at 1× speed. */
   stepMinutes?: number;
+  /** Full deterministic core save, when reopening a local world. */
+  savedWorld?: string;
 }
 
 const SPEEDS = [0, 1, 2, 4, 8] as const;
@@ -186,7 +189,9 @@ export class LifeModeAdapter {
   private _speedIndex = 1; // 1×
 
   constructor(options: AdapterOptions = {}) {
-    const demo = createAuthoredTown(options.seed ?? 7001n);
+    const demo = options.savedWorld
+      ? restoreFromJson(options.savedWorld)
+      : createAuthoredTown(options.seed ?? 7001n);
     this.town = demo.town;
     this.director = demo.director;
     this.inspector = new SimulationInspector(this.town, this.director);
@@ -205,6 +210,11 @@ export class LifeModeAdapter {
       if (this.town.groups.definitionOf("fam_birch"))
         this.town.groups.addMember("fam_birch", this.playerId);
     }
+  }
+
+  /** Exact living-world snapshot including resident memories, habits and relationships. */
+  saveWorld(): string {
+    return saveToJson(this.town, this.director);
   }
 
   // ---------------- player commands ----------------
