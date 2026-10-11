@@ -91,14 +91,14 @@ describe("S38: interaction flow", () => {
     const a = new LifeModeAdapter({ seed: 7001 });
     const ic = new InteractionController(a);
     for (let i = 0; i < 60; i++) a.stepOnce(); // library is open
-    const before = a.town.residents.mind(a.playerId).skills.get("Knowledge").xp;
+    const before = a.town.skills.stateOf(a.playerId, "Knowledge").xp;
     expect(ic.use("library_shelf_a", "read").ok).toBe(true);
     for (let i = 0; i < 30; i++) a.stepOnce();
     expect(a.playerLocationId()).toBe("library");
-    const after = a.town.residents.mind(a.playerId).skills.get("Knowledge").xp;
+    const after = a.town.skills.stateOf(a.playerId, "Knowledge").xp;
     expect(after).toBeGreaterThan(before);
     a.touch();
-    expect(a.town.residents.mind(a.playerId).skills.get("Knowledge").xp).toBe(after);
+    expect(a.town.skills.stateOf(a.playerId, "Knowledge").xp).toBe(after);
     ic.dispose(); a.dispose();
   });
 
