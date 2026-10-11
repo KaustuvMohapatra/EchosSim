@@ -133,6 +133,9 @@ importers:
       '@babylonjs/core':
         specifier: ^9.22.1
         version: 9.22.1
+      '@echosim/persistence':
+        specifier: workspace:*
+        version: link:../../packages/persistence
       '@echosim/content':
         specifier: workspace:*
         version: link:../../packages/content
