@@ -13,6 +13,7 @@ import { InteractionController } from "../interaction/InteractionController.js";
 import { PLACED_OBJECTS } from "../interaction/catalog.js";
 import { PlayerAgentController } from "../simulation/PlayerAgentController.js";
 import { BuildController, type BuildKind } from "../build/BuildController.js";
+import { WorldObjectDirector } from "../simulation/WorldObjectDirector.js";
 import { lotOf, LOTS as LOTS_ALL } from "../world/layout.js";
 
 export interface LifeHandlers {
@@ -157,6 +158,7 @@ export function createLifeApp(canvas: HTMLCanvasElement,
     rot: ((((Math.round(object.rotationY / (Math.PI / 2)) % 4) + 4) % 4) as 0 | 1 | 2 | 3),
   }));
   const build = new BuildController(lotBoundsOf, authoredFixtures);
+  interactions.attachBuildController(build);
   try {
     const saved = window.localStorage.getItem("echosim-life-build");
     if (saved) build.load(saved);
@@ -205,6 +207,7 @@ export function createLifeApp(canvas: HTMLCanvasElement,
     adapter.touch();
   });
   rebuildBuildMeshes();
+  const worldObjectDirector = new WorldObjectDirector(adapter, build, () => player.controlled);
 
   placeFurniture(buildFurniture(scene), (id) => {
     const lot = lotOf(id);
@@ -306,6 +309,7 @@ export function createLifeApp(canvas: HTMLCanvasElement,
       unsubscribeLighting();
       unsubscribeAgentSync();
       player.dispose();
+      worldObjectDirector.dispose();
       interactions.dispose();
       for (const mesh of buildMeshes.values()) mesh.dispose();
       adapter.dispose();
