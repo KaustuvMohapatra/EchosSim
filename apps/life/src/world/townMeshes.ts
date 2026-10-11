@@ -6,7 +6,7 @@ import { LOTS, WORLD_BOUNDS } from "./layout.js";
 import { STREET_LANES, CROSS_STREETS, laneOf } from "./pedestrianPaths.js";
 import {
   grassMaterial, pavementMaterial, roofMaterial, facadeMaterial,
-  flowerMaterial, treeMaterial,
+  flowerMaterial, treeMaterial, lampMaterial,
 } from "./pixelWorldArt.js";
 import type { Town } from "@echosim/simulation";
 
@@ -16,7 +16,9 @@ function smallHash(x: number, z: number): number {
   return (v ^ (v >>> 16)) >>> 0;
 }
 
-export function buildTownMeshes(scene: Scene, town: Town): void {
+export interface TownScenery { update(deltaSeconds: number): void }
+
+export function buildTownMeshes(scene: Scene, town: Town): TownScenery {
   const ground = MeshBuilder.CreateGround("pixel-grassland", {
     width: WORLD_BOUNDS.maxX - WORLD_BOUNDS.minX + 36,
     height: WORLD_BOUNDS.maxZ - WORLD_BOUNDS.minZ + 36,
@@ -101,11 +103,23 @@ export function buildTownMeshes(scene: Scene, town: Town): void {
     makeLabel(scene, name, new Vector3(lot.x, lot.height + 2.2, lot.z), 8);
   }
 
-  populateFoliage(scene);
+  const foliage = populateFoliage(scene);
+  populateLamps(scene);
+  let elapsed = 0;
+  return {
+    update(deltaSeconds: number): void {
+      elapsed += Math.max(0, Math.min(0.1, deltaSeconds));
+      foliage.forEach((tree, i) => {
+        // Soft breeze, intentionally subtle and independent of sim decisions.
+        tree.scaling.x = 1 + 0.025 * Math.sin(elapsed * 1.1 + i * 1.7);
+      });
+    },
+  };
 }
 
 /** Pixel billboard vegetation, placed away from sidewalks and solid buildings. */
-function populateFoliage(scene: Scene): void {
+function populateFoliage(scene: Scene): Mesh[] {
+  const foliage: Mesh[] = [];
   const trees = [treeMaterial(scene, 0), treeMaterial(scene, 1), treeMaterial(scene, 2)];
   const flowers = flowerMaterial(scene);
   let index = 0;
@@ -127,6 +141,7 @@ function populateFoliage(scene: Scene): void {
       tree.billboardMode = Mesh.BILLBOARDMODE_Y;
       tree.material = trees[random % 3]!;
       tree.isPickable = false;
+      foliage.push(tree);
 
       if (random % 3 === 0) {
         const flower = MeshBuilder.CreatePlane(`pixel-flowers-${index}`, {
@@ -138,6 +153,20 @@ function populateFoliage(scene: Scene): void {
         flower.isPickable = false;
       }
     }
+  }
+  return foliage;
+}
+
+function populateLamps(scene: Scene): void {
+  const material = lampMaterial(scene);
+  for (const x of STREET_LANES) for (const z of CROSS_STREETS) {
+    const lamp = MeshBuilder.CreatePlane(`pixel-streetlamp-${x}-${z}`, {
+      width: 2.1, height: 4.3,
+    }, scene);
+    lamp.position.set(x + 2.9, 2.16, z + 2.8);
+    lamp.billboardMode = Mesh.BILLBOARDMODE_Y;
+    lamp.material = material;
+    lamp.isPickable = false;
   }
 }
 
