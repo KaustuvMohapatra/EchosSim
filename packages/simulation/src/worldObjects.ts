@@ -112,5 +112,9 @@ export function performWorldObjectActivity(
   // can witness this, never a telepathic update for the whole town.
   town.perception.publish("world_object_activity", [agentId], object.lotId,
     ObservationReach.SameLocation);
+  town.events.publish("sim:world-object-used", {
+    agent: agentId, objectId: object.objectId, kind: object.kind,
+    locationId: object.lotId, verb: spec.verb,
+  });
   return { ok: true, feedback: spec.label + " completed." };
 }
