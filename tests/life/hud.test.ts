@@ -1,6 +1,7 @@
 /** Sprint 41 — HUD model: need shaping + mood derivation (pure). */
 import { describe, expect, it } from "vitest";
-import { characterCard, moodOf, needViews, relevantNeeds } from "../../apps/life/src/ui/hudModel.js";
+import { characterCard, moodOf, needViews } from "../../apps/life/src/ui/hudModel.js";
+import { relevantNeeds } from "../../apps/life/src/ui/models/residentView.js";
 import type { AgentInspectorSnapshot } from "@echosim/inspector";
 
 function fakeAgent(overrides: {
