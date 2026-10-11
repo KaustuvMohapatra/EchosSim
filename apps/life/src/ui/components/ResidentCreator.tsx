@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { drawResident, paletteForResident } from "../../characters/pixelResident.js";
+import { residentAtlasUrl, residentAtlasIndex } from "../../characters/residentAssets.js";
 import {
   nextResidentId, RESIDENT_PRESETS, validateResidentName,
   type ResidentPreset,
@@ -32,7 +33,21 @@ export function ResidentCreator(props: ResidentCreatorProps) {
     if (!context) return;
     context.clearRect(0, 0, 32, 48);
     context.imageSmoothingEnabled = false;
-    drawResident(context, paletteForResident(previewId), 0, 0);
+    const image = new Image();
+    image.onload = () => {
+      context.clearRect(0, 0, 32, 48);
+      // Precisely the same front-facing frame from the checked-in world atlas.
+      context.drawImage(image, 0, 0, 32, 48, 0, 0, 32, 48);
+    };
+    image.onerror = () => {
+      context.clearRect(0, 0, 32, 48);
+      drawResident(context, paletteForResident(previewId), 0, 0);
+    };
+    image.src = residentAtlasUrl(previewId);
+    return () => {
+      image.onload = null;
+      image.onerror = null;
+    };
   }, [previewId]);
 
   return (
@@ -54,6 +69,7 @@ export function ResidentCreator(props: ResidentCreatorProps) {
           </div>
           <div>
             <strong>A new story begins</strong>
+            <small>Sprite #{String(residentAtlasIndex(previewId) + 1).padStart(2, "0")} of 32</small>
             <p>New residents join the same simulation as everyone else. They will
               develop their own needs, routines, relationships and memories.</p>
           </div>
