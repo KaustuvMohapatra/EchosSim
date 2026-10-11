@@ -129,6 +129,11 @@ export class AgentLayer {
   private showObjectUse(agentId: string, objectId: string, kind: WorldObjectKind): void {
     const visual = this.visuals.get(agentId);
     if (!visual) return;
+    // A new activity supersedes an earlier object approach. Without this,
+    // the previous object's waypoint stays ahead of the new object's target.
+    if (visual.activity?.headedToObject && !visual.activity.arrived) {
+      visual.waypoints = [];
+    }
     const presentation = activityPresentation(kind);
     visual.activity = {
       kind, timeLeft: presentation.seconds,
