@@ -22,6 +22,21 @@ describe("S56: daylight", () => {
     expect(night.sunColor[2]).toBeGreaterThan(night.sunColor[0]);
   });
 
+  it("keeps renderer lighting finite for corrupt clock values", () => {
+    const midnight = daylightParams(0);
+    for (const value of [NaN, Infinity, -Infinity]) {
+      expect(daylightParams(value)).toEqual(midnight);
+      const params = daylightParams(value);
+      expect([params.elevation, params.sunIntensity, params.hemiIntensity,
+        params.nightFactor, ...params.sunColor].every(Number.isFinite)).toBe(true);
+    }
+  });
+
+  it("wraps valid negative and oversized clock readings", () => {
+    expect(daylightParams(-720)).toEqual(daylightParams(720));
+    expect(daylightParams(2160)).toEqual(daylightParams(720));
+  });
+
   it("golden hours are warm (red >= blue)", () => {
     const dawn = daylightParams(420); // 07:00
     expect(dawn.sunColor[0]).toBeGreaterThanOrEqual(dawn.sunColor[2]);
