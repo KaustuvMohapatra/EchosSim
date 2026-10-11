@@ -10,7 +10,8 @@
 
 export type BuildKind =
   | "chair" | "sofa" | "table" | "bookshelf"
-  | "bench" | "bed" | "desk" | "counter";
+  | "bench" | "bed" | "desk" | "counter"
+  | "arcade" | "easel" | "garden" | "noticeboard";
 
 export interface LotBounds { x1: number; z1: number; x2: number; z2: number }
 
@@ -74,6 +75,10 @@ const FOOTPRINT: Readonly<Record<BuildKind, { w: number; d: number }>> = {
   bed: { w: 2.0, d: 1.4 },
   desk: { w: 1.4, d: 0.75 },
   counter: { w: 1.3, d: 0.7 },
+  arcade: { w: 1.0, d: 0.8 },
+  easel: { w: 1.0, d: 0.9 },
+  garden: { w: 2.0, d: 1.3 },
+  noticeboard: { w: 1.3, d: 0.5 },
 };
 
 let nextObjectId = 1;
