@@ -18,6 +18,16 @@ function smallHash(x: number, z: number): number {
 
 export interface TownScenery { update(deltaSeconds: number): void }
 
+/**
+ * Ignore malformed animation frame times before they can poison scene mesh
+ * transforms. A skipped frame is safer than a NaN-scale tree; finite hitches
+ * remain capped to preserve the original gentle breeze speed.
+ */
+export function sceneryFrameSeconds(deltaSeconds: number): number {
+  if (!Number.isFinite(deltaSeconds)) return 0;
+  return Math.max(0, Math.min(0.1, deltaSeconds));
+}
+
 export function buildTownMeshes(scene: Scene, town: Town): TownScenery {
   const ground = MeshBuilder.CreateGround("pixel-grassland", {
     width: WORLD_BOUNDS.maxX - WORLD_BOUNDS.minX + 36,
@@ -108,7 +118,7 @@ export function buildTownMeshes(scene: Scene, town: Town): TownScenery {
   let elapsed = 0;
   return {
     update(deltaSeconds: number): void {
-      elapsed += Math.max(0, Math.min(0.1, deltaSeconds));
+      elapsed += sceneryFrameSeconds(deltaSeconds);
       foliage.forEach((tree, i) => {
         // Soft breeze, intentionally subtle and independent of sim decisions.
         tree.scaling.x = 1 + 0.025 * Math.sin(elapsed * 1.1 + i * 1.7);
