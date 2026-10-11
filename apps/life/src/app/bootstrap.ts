@@ -14,6 +14,7 @@ import { PLACED_OBJECTS } from "../interaction/catalog.js";
 import { PlayerAgentController } from "../simulation/PlayerAgentController.js";
 import { BuildController, type BuildKind } from "../build/BuildController.js";
 import { WorldObjectDirector } from "../simulation/WorldObjectDirector.js";
+import { buildWorldObjectMesh } from "../world/builtObjectArt.js";
 import { lotOf, LOTS as LOTS_ALL } from "../world/layout.js";
 
 export interface LifeHandlers {
@@ -185,19 +186,7 @@ export function createLifeApp(canvas: HTMLCanvasElement,
     for (const placement of build.list()) {
       const lot = lotOf(placement.lotId);
       if (!lot) continue;
-      const mesh = MeshBuilder.CreateBox(`built-${placement.objectId}`, {
-        width: placement.kind === "table" ? 1.1 : placement.rot % 2 ? 0.8 : 1.1,
-        height: 0.7,
-        depth: placement.kind === "table" ? 1.1 : placement.rot % 2 ? 1.1 : 0.8,
-      }, scene);
-      mesh.position.set(lot.x + placement.dx, 0.35, lot.z + placement.dz);
-      mesh.rotation.y = placement.rot * Math.PI / 2;
-      const material = new StandardMaterial(`bmat-${placement.objectId}`, scene);
-      material.diffuseColor = new Color3(0.55, 0.45, 0.3);
-      material.specularColor = new Color3(0.05, 0.05, 0.05);
-      mesh.material = material;
-      mesh.isPickable = true;
-      mesh.metadata = { kind: "built", objectId: placement.objectId };
+      const mesh = buildWorldObjectMesh(scene, placement);
       buildMeshes.set(placement.objectId, mesh);
     }
   }
@@ -311,7 +300,7 @@ export function createLifeApp(canvas: HTMLCanvasElement,
       player.dispose();
       worldObjectDirector.dispose();
       interactions.dispose();
-      for (const mesh of buildMeshes.values()) mesh.dispose();
+      for (const mesh of buildMeshes.values()) mesh.dispose(false, true);
       adapter.dispose();
       agents.dispose();
       engine.stopRenderLoop();
