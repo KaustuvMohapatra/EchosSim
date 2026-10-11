@@ -186,6 +186,7 @@ export function App() {
       <TopBar app={app} time={snap?.time} phoneBadge={pendingInvitationCount}
         onPhone={() => setPanel((value) => value === "phone" ? null : "phone")}
         onCreate={() => setPanel((value) => value === "creator" ? null : "creator")}
+        onSave={() => setFlash(app?.saveWorld() ? "World saved." : "Could not save this world. Check browser storage.")}
         onTown={() => setPanel((value) => value === "town" ? null : "town")}
         onMap={() => setShowMap(true)} />
 
@@ -209,6 +210,7 @@ export function App() {
                 if (result.ok && result.id) {
                   life.select(result.id);
                   setPanel("resident");
+                  if (!app.saveWorld()) setFlash("Resident created, but browser storage could not save the world.");
                 }
               }}
               onClose={() => setPanel(null)} />
