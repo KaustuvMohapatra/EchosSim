@@ -9,28 +9,47 @@ export interface DaylightParams {
   nightFactor: number;
 }
 
-/** minuteOfDay in [0,1440). Deterministic and continuous-ish. */
+const DAY_START = 360;
+const DAY_END = 1200;
+const TWILIGHT_MINUTES = 30;
+
+/** Interpolate smoothly without introducing frame- or wall-clock state. */
+function smoothstep(start: number, end: number, value: number): number {
+  const t = Math.max(0, Math.min(1, (value - start) / (end - start)));
+  return t * t * (3 - 2 * t);
+}
+
+function lerp(from: number, to: number, t: number): number {
+  return from + (to - from) * t;
+}
+
+/** Deterministic, periodic lighting with continuous sunrise/sunset transitions. */
 export function daylightParams(minuteOfDay: number): DaylightParams {
   const m = ((minuteOfDay % 1440) + 1440) % 1440;
-  // Solar phase: sunrise 06:00, sunset 20:00.
-  const t = (m - 360) / (840); // 0..1 across daytime
-  const day = m >= 360 && m <= 1200;
-  const elevation = day
-    ? Math.max(0, Math.sin(Math.PI * Math.min(1, Math.max(0, t))))
-    : 0;
+  const daytime = m >= DAY_START && m <= DAY_END;
+  const t = (m - DAY_START) / (DAY_END - DAY_START);
+  const elevation = daytime ? Math.max(0, Math.sin(Math.PI * t)) : 0;
 
-  const golden = day && (m < 480 || m > 1080);
-  const night = !day;
+  // Fade artificial night illumination into daylight over a short twilight.
+  // At sunrise/sunset the original implementation jumped between branches.
+  const daylightBlend = smoothstep(DAY_START, DAY_START + TWILIGHT_MINUTES, m)
+    * (1 - smoothstep(DAY_END - TWILIGHT_MINUTES, DAY_END, m));
 
-  const r = night ? 0.45 : golden ? 1.0 : 1.0;
-  const g = night ? 0.52 : golden ? 0.72 : 0.96;
-  const b = night ? 0.75 : golden ? 0.55 : 0.88;
+  // Warm light in the morning/evening, cooler neutral daylight at noon.
+  const golden = 1 - smoothstep(420, 540, m) *
+    (1 - smoothstep(1020, 1140, m));
+  const dayG = lerp(0.96, 0.72, golden);
+  const dayB = lerp(0.88, 0.55, golden);
 
   return {
     elevation,
-    sunIntensity: night ? 0.12 : 0.35 + 0.8 * elevation,
-    hemiIntensity: night ? 0.28 : 0.55 + 0.3 * elevation,
-    sunColor: [r, g, b],
-    nightFactor: night ? 1 : 1 - elevation,
+    sunIntensity: lerp(0.12, 0.35 + 0.8 * elevation, daylightBlend),
+    hemiIntensity: lerp(0.28, 0.55 + 0.3 * elevation, daylightBlend),
+    sunColor: [
+      lerp(0.45, 1.0, daylightBlend),
+      lerp(0.52, dayG, daylightBlend),
+      lerp(0.75, dayB, daylightBlend),
+    ],
+    nightFactor: 1 - daylightBlend * elevation,
   };
 }
