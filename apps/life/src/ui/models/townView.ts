@@ -24,6 +24,7 @@ const PERIODS: readonly { name: DayPeriodName; start: number; end: number; tagli
 ];
 
 export function minuteOfDay(totalMinutes: number): number {
+  if (!Number.isFinite(totalMinutes)) return 0;
   return ((totalMinutes % 1440) + 1440) % 1440;
 }
 

@@ -1,15 +1,17 @@
 import type { LifeSkillSummary } from "../../simulation/LifeModeAdapter.js";
 
 export function formatClockMinute(minuteOfDay: number): string {
-  const normalized = ((Math.floor(minuteOfDay) % 1440) + 1440) % 1440;
+  const safeMinute = Number.isFinite(minuteOfDay) ? Math.floor(minuteOfDay) : 0;
+  const normalized = ((safeMinute % 1440) + 1440) % 1440;
   const hours = Math.floor(normalized / 60);
   const minutes = normalized % 60;
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 }
 
 export function formatSimMoment(atMinutes: number, nowMinutes: number): string {
+  if (!Number.isFinite(atMinutes)) return "Time unavailable";
   const day = Math.floor(atMinutes / 1440);
-  const nowDay = Math.floor(nowMinutes / 1440);
+  const nowDay = Number.isFinite(nowMinutes) ? Math.floor(nowMinutes / 1440) : day;
   const clock = formatClockMinute(atMinutes);
   if (day === nowDay) return `Today · ${clock}`;
   if (day === nowDay + 1) return `Tomorrow · ${clock}`;
