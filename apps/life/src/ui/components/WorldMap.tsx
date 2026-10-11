@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { useEffect, useRef, type CSSProperties, type KeyboardEvent } from "react";
 import type {
   LifeLocationSummary, LifeResidentPresenceSummary,
 } from "../../simulation/LifeModeAdapter.js";
@@ -20,6 +20,33 @@ interface WorldMapProps {
 }
 
 export function WorldMap(props: WorldMapProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const previousFocus = document.activeElement instanceof HTMLElement
+      ? document.activeElement : null;
+    dialogRef.current?.querySelector<HTMLButtonElement>(".world-map__head button")?.focus();
+    return () => { if (previousFocus?.isConnected) previousFocus.focus(); };
+  }, []);
+
+  const handleDialogKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
+    if (event.key !== "Tab") return;
+    const buttons = [...(dialogRef.current?.querySelectorAll<HTMLButtonElement>(
+      "button:not(:disabled)",
+    ) ?? [])];
+    const first = buttons[0];
+    const last = buttons.at(-1);
+    if (!first || !last) return;
+    if (event.shiftKey && (document.activeElement === first ||
+        !dialogRef.current?.contains(document.activeElement))) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && (document.activeElement === last ||
+        !dialogRef.current?.contains(document.activeElement))) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
   const locations = new Map(props.locations.map((l) => [l.id, l]));
   const controlled = props.residents.find((resident) => resident.id === props.controlledId);
   const selected = props.residents.find((resident) => resident.id === props.selectedId);
@@ -30,7 +57,8 @@ export function WorldMap(props: WorldMapProps) {
   for (const item of props.attractions ?? [])
     attractionCounts.set(item.lotId, (attractionCounts.get(item.lotId) ?? 0) + 1);
   return (
-    <div className="map-overlay" role="dialog" aria-modal="true" aria-label="Town map"
+    <div ref={dialogRef} className="map-overlay" role="dialog" aria-modal="true" aria-label="Town map"
+      onKeyDown={handleDialogKeyDown}
       onPointerDown={(event) => { if (event.target === event.currentTarget) props.onClose(); }}>
       <section className="world-map">
         <header className="world-map__head">
