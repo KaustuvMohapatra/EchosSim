@@ -199,7 +199,7 @@ export function createLifeApp(canvas: HTMLCanvasElement,
 
   engine.runRenderLoop(() => {
     camCtl.update();
-    agents.renderFrame();
+    agents.renderFrame(engine.getDeltaTime() / 1000);
     scene.render();
   });
   const onResize = (): void => engine.resize();
