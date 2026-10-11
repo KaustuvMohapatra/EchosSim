@@ -39,4 +39,36 @@ describe("S46: venue edits", () => {
     expect(loadVenueEdits(storage)).toEqual(edits);
     expect(loadVenueEdits(undefined)).toEqual({});
   });
+  it("ignores corrupt venue edit documents and invalid field types", () => {
+    const storage = (raw: string) => ({ getItem: () => raw });
+    for (const raw of ["{", "null", "[]", '"not an object"']) {
+      expect(loadVenueEdits(storage(raw))).toEqual({});
+    }
+    expect(loadVenueEdits(storage(JSON.stringify({
+      cafe: { displayName: "", capacity: -2, hours: { openMinuteOfDay: -1, closeMinuteOfDay: 600 } },
+      library: null,
+      park: ["invalid"],
+      studio: { displayName: 4, capacity: "unlimited" },
+    })))).toEqual({});
+  });
+
+  it("retains valid fields and venues when other saved fields are malformed", () => {
+    const source = {
+      cafe: {
+        displayName: "Moonlight Cafe", capacity: 0,
+        hours: { openMinuteOfDay: 480, closeMinuteOfDay: 1380 },
+      },
+      park: { capacity: 14.5, displayName: "Evening Park" },
+      library: { capacity: 6, hours: { openMinuteOfDay: "9", closeMinuteOfDay: 1000 } },
+      studio: { capacity: 12, hours: { openMinuteOfDay: 1440, closeMinuteOfDay: 1000 } },
+    };
+    const edits = loadVenueEdits({ getItem: () => JSON.stringify(source) });
+    expect(edits).toEqual({
+      cafe: { displayName: "Moonlight Cafe", hours: { openMinuteOfDay: 480, closeMinuteOfDay: 1380 } },
+      park: { displayName: "Evening Park" },
+      library: { capacity: 6 },
+      studio: { capacity: 12 },
+    });
+  });
+
 });
