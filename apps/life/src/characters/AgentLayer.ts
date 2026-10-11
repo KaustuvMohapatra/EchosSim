@@ -63,11 +63,14 @@ export class AgentLayer {
     private readonly scene: Scene,
     private readonly adapter: LifeModeAdapter,
     private readonly viewerId: () => string = () => adapter.playerId,
+    private readonly showWorld: () => boolean = () => false,
   ) {}
 
   /** World state is read only on adapter emissions, never polled from render FPS. */
   update(): void {
-    const summaries = this.adapter.residentPresenceFor(this.viewerId())
+    const summaries = (this.showWorld()
+      ? this.adapter.worldPresenceFor()
+      : this.adapter.residentPresenceFor(this.viewerId()))
       .flatMap((presence) => presence.current ? [presence.current] : []);
     const seen = new Set(summaries.map((summary) => summary.id));
     for (const summary of summaries) {
