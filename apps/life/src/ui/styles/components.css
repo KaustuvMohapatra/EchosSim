@@ -103,3 +103,7 @@
 .town-attraction span{font-size:10px;color:var(--life-muted);line-height:1.4}
 .town-attraction button{flex:0 0 auto;font-size:10px;min-height:30px}
 @media(max-width:520px){.panel-tabs:has(button:nth-child(5)){gap:1px}.panel-tabs:has(button:nth-child(5)) button{font-size:9px;padding-inline:3px}}
+
+/* Unknown/last-seen residents should not imply a live sighting. */
+.resident-chip.is-out-of-sight .resident-avatar{filter:grayscale(1);opacity:.62}
+.resident-chip.is-out-of-sight .resident-chip__presence{font-style:italic}
