@@ -22,6 +22,14 @@ describe("S56: daylight", () => {
     expect(night.sunColor[2]).toBeGreaterThan(night.sunColor[0]);
   });
 
+  it("keeps night-only lighting off throughout daytime, including sunrise and sunset", () => {
+    for (const minute of [360, 420, 720, 1140, 1200]) {
+      expect(daylightParams(minute).nightFactor).toBe(0);
+    }
+    expect(daylightParams(0).nightFactor).toBe(1);
+    expect(daylightParams(1230).nightFactor).toBe(1);
+  });
+
   it("golden hours are warm (red >= blue)", () => {
     const dawn = daylightParams(420); // 07:00
     expect(dawn.sunColor[0]).toBeGreaterThanOrEqual(dawn.sunColor[2]);
