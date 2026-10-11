@@ -38,7 +38,7 @@ describe("S42: interior construction", () => {
     ], "test");
     // Every wall segment must stay outside the union of these openings.
     for (const wall of result.walls) {
-      const west = wall.x2 < 0 && Math.abs(wall.x1 + 5.15) < 0.001;
+      const west = wall.x2 < 0 && wall.x1 < -5 && wall.x2 > -5;
       if (west) {
         expect(wall.z2 <= -3.5 || wall.z1 >= 2.5).toBe(true);
       }
