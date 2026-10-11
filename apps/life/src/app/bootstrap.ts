@@ -111,7 +111,7 @@ export function createLifeApp(canvas: HTMLCanvasElement,
   const camera = createLifeCamera(scene, canvas);
   scene.activeCamera = camera;
 
-  buildTownMeshes(scene, adapter.town);
+  const scenery = buildTownMeshes(scene, adapter.town);
   const player = new PlayerAgentController(adapter);
   let worldView = true;
   const agents = new AgentLayer(scene, adapter, () => player.controlled, () => worldView);
@@ -253,8 +253,10 @@ export function createLifeApp(canvas: HTMLCanvasElement,
   });
 
   engine.runRenderLoop(() => {
+    const frameSeconds = engine.getDeltaTime() / 1000;
     camCtl.update();
-    agents.renderFrame(engine.getDeltaTime() / 1000);
+    scenery.update(frameSeconds);
+    agents.renderFrame(frameSeconds);
     scene.render();
   });
   const onResize = (): void => engine.resize();
