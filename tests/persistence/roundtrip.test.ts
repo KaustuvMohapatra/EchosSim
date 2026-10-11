@@ -133,8 +133,11 @@ describe("persistence: mid-flight round trip", () => {
     const target = a.rohanId;
     const location = a.town.agentsById.get(viewer)?.currentLocationId ??
       a.town.locations.orderedIds[0]!;
-    a.town.moveAgent(viewer as never, location as never);
-    a.town.moveAgent(target as never, location as never);
+    // Publish a guaranteed participant-observed event. A move to an already
+    // occupied location is a no-op and cannot serve as a perception fixture.
+    a.town.perception.publish(
+      "test_before_save", [viewer, target], location, 0 as never,
+    );
 
     const before = a.town.perception.observationsOf(viewer)
       .map((observation) => ({
