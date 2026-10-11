@@ -87,6 +87,36 @@ describe("S38: interaction flow", () => {
     ic.dispose(); a.dispose();
   });
 
+
+  it("completes a remote venue activity once on arrival, not merely the walk", () => {
+    const a = new LifeModeAdapter({ seed: 7001 });
+    const ic = new InteractionController(a);
+    for (let i = 0; i < 60; i++) a.stepOnce();
+    expect(a.playerLocationId()).not.toBe("library");
+    const r = ic.use("library_shelf_a", "read");
+    expect(r.ok).toBe(true);
+    for (let i = 0; i < 20; i++) a.stepOnce();
+    expect(a.playerLocationId()).toBe("library");
+    expect(a.lastCommandFeedback).not.toMatch(/walking to|heading to/i);
+    const feedback = a.lastCommandFeedback;
+    a.touch();
+    expect(a.lastCommandFeedback).toBe(feedback); // no replay on another tick
+    ic.dispose(); a.dispose();
+  });
+
+  it("supersedes an unfinished remote activity when a new interaction is selected", () => {
+    const a = new LifeModeAdapter({ seed: 7001 });
+    const ic = new InteractionController(a);
+    for (let i = 0; i < 60; i++) a.stepOnce();
+    expect(ic.use("library_shelf_a", "read").ok).toBe(true);
+    // Choose another object before the first remote activity completes.
+    expect(ic.use("cafe_chair_0", "sit").ok).toBe(true);
+    for (let i = 0; i < 20; i++) a.stepOnce();
+    a.touch();
+    expect(a.lastCommandFeedback).not.toMatch(/reading|read book/i);
+    ic.dispose(); a.dispose();
+  });
+
   it("non-seat affordances route their command without seating side effects", () => {
     const a = new LifeModeAdapter({ seed: 7001 });
     const ic = new InteractionController(a);
