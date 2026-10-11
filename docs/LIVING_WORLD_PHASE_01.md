@@ -26,7 +26,7 @@ Babylon renders presentation only. Social cognition, autonomous goals, simulatio
 - Buildings are still simple geometric blocks. Next: coordinated pixel facades, roofs, foliage, ground tiles and environmental animation.
 - World Creator does not yet edit lots/jobs, create households, or configure every appearance trait.
 - Newly placed furniture is not yet fully registered as a simulation-affordance source for autonomous NPC usage.
-- World Observer story feed remains scoped to the player; full god-view chronicle needs a separate storytelling read model.
+- World Observer now reads global recent events and town stories in World mode, while Resident mode retains a viewer-scoped feed. More expressive story grouping and click-to-focus are future work.
 - Browser localStorage has quota limits and no export/import slots yet.
 
 ## Verification
