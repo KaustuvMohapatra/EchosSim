@@ -24,6 +24,7 @@ export class InteractionController {
   });
 
   private pendingSeat: { agentId: string; objectId: string } | null = null;
+  private pendingVenueActivity: { agentId: string; objectId: string; affordanceId: string } | null = null;
   private readonly unsubscribe: () => void;
   private build: BuildController | null = null;
   private pendingBuiltUse: { agentId: string; objectId: string } | null = null;
@@ -81,10 +82,15 @@ export class InteractionController {
       if (this.adapter.playerLocationId(actor) !== def.lotId) {
         const moved = this.adapter.commandMoveTo(def.lotId, actor);
         if (!moved) return { ok: false, feedback: this.adapter.lastCommandFeedback };
+        this.pendingVenueActivity = { agentId: actor, objectId, affordanceId };
         return { ok: true, feedback: `Heading to ${def.lotId.replace("loc_", "")}…` };
       }
-      return performVenueActivity(
+      this.pendingVenueActivity = null;
+      const result = performVenueActivity(
         this.adapter.town, actor, affordance.command.activity as never);
+      this.adapter.lastCommandFeedback = result.feedback;
+      if (result.ok) this.adapter.touch();
+      return result;
     }
 
     if (affordance.command.type !== "move")
@@ -106,6 +112,21 @@ export class InteractionController {
   }
 
   private onTick(): void {
+    const venue = this.pendingVenueActivity;
+    if (venue) {
+      const def = this.objectDef(venue.objectId);
+      const affordance = def?.affordances.find((item) => item.id === venue.affordanceId);
+      if (!def || affordance?.command.type !== "activity") {
+        this.pendingVenueActivity = null;
+      } else if (this.adapter.playerLocationId(venue.agentId) === def.lotId) {
+        // Clear before notifying subscribers: touch() may call onTick synchronously.
+        this.pendingVenueActivity = null;
+        const result = performVenueActivity(this.adapter.town, venue.agentId,
+          affordance.command.activity as never);
+        this.adapter.lastCommandFeedback = result.feedback;
+        if (result.ok) this.adapter.touch();
+      }
+    }
     const built = this.pendingBuiltUse;
     if (built && this.build) {
       const placement = this.build.get(built.objectId);
