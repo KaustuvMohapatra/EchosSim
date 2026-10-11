@@ -766,6 +766,21 @@ export class LifeModeAdapter {
     };
   }
 
+  /** Explicit god-view history, not exposed through resident-scoped observer calls. */
+  worldEventsFor(limit = 80): SimEventEntry[] {
+    return this.inspector.getEvents({ limit }).map((event) => ({ ...event }));
+  }
+
+  worldTownStoriesFor(): LifeTownStorySummary[] {
+    return this.town.stories.all().map((story) => ({
+      id: story.id,
+      day: story.day,
+      text: story.text,
+      participants: [...story.participants],
+      category: story.category,
+    }));
+  }
+
   /** Knowledge-filtered stories; presentation cannot accidentally use all(). */
   townStoriesFor(viewerId = this.playerId): LifeTownStorySummary[] {
     return this.town.stories.visibleTo(viewerId).map((story) => ({
