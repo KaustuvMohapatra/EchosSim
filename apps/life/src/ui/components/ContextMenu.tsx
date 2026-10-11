@@ -96,7 +96,7 @@ export function ContextMenu({ menu, app, onClose, onFlash }: ContextMenuProps) {
     return (
       <div className="context-menu" style={style} data-context-menu="1" role="menu">
         <div className="context-menu__head"><strong>{placed?.kind.replace(/_/g, " ") ?? "Furniture"}</strong></div>
-        {activity && (
+        {!app.buildMode && activity && (
           <button type="button" role="menuitem" data-context-menu="1"
             onClick={() => {
               const result = app.interactions.useBuiltObject(objectId);
@@ -104,13 +104,23 @@ export function ContextMenu({ menu, app, onClose, onFlash }: ContextMenuProps) {
               onClose();
             }}>{activity.label}</button>
         )}
-        <button type="button" role="menuitem" data-context-menu="1"
-          onClick={() => { app.build.rotate(objectId); onClose(); }}>Rotate</button>
-        <button type="button" role="menuitem" className="is-danger" data-context-menu="1"
-          onClick={() => {
-            if (app.build.remove(objectId)) onFlash("Furniture removed.");
-            onClose();
-          }}>Delete</button>
+        {app.buildMode && (
+          <>
+            <button type="button" role="menuitem" data-context-menu="1"
+              onClick={() => {
+                if (!app.buildMode) return;
+                const result = app.build.rotate(objectId);
+                onFlash(result.ok ? "Furniture rotated." : result.reason);
+                onClose();
+              }}>Rotate</button>
+            <button type="button" role="menuitem" className="is-danger" data-context-menu="1"
+              onClick={() => {
+                if (!app.buildMode) return;
+                if (app.build.remove(objectId)) onFlash("Furniture removed.");
+                onClose();
+              }}>Delete</button>
+          </>
+        )}
       </div>
     );
   }
