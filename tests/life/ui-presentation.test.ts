@@ -243,6 +243,36 @@ describe("Life UI presentation models", () => {
     expect(habitText("visit", "Maple & Bean", 4)).toBe("Often visits Maple & Bean");
   });
 
+  it("keeps malformed skill and career progress finite for CSS widths", () => {
+    for (const value of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+      expect(careerRequirementProgress(value, 4)).toBe(0);
+      expect(careerRequirementProgress(2, value)).toBe(0);
+      expect(skillProgress({
+        name: "Cooking", level: 1, xp: value,
+        levelFloorXp: 10, nextLevelXp: 40,
+      })).toBe(0);
+      expect(skillProgress({
+        name: "Cooking", level: 1, xp: 25,
+        levelFloorXp: value, nextLevelXp: 40,
+      })).toBe(0);
+      expect(skillProgress({
+        name: "Cooking", level: 1, xp: 25,
+        levelFloorXp: 10, nextLevelXp: value,
+      })).toBe(0);
+    }
+    expect(careerRequirementProgress(2, 0)).toBe(1);
+    expect(careerRequirementProgress(-7, 4)).toBe(0);
+    expect(careerRequirementProgress(12, 4)).toBe(1);
+    expect(skillProgress({
+      name: "Cooking", level: 1, xp: -10,
+      levelFloorXp: 10, nextLevelXp: 40,
+    })).toBe(0);
+    expect(skillProgress({
+      name: "Cooking", level: 1, xp: 100,
+      levelFloorXp: 10, nextLevelXp: 40,
+    })).toBe(1);
+  });
+
   it("keeps phone contacts and messages resident-scoped and skill state simulation-backed", () => {
     const adapter = new LifeModeAdapter({ seed: 7001n });
     adapter.createResident({
