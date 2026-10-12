@@ -1,7 +1,7 @@
 /** Sprint 41 — HUD model: need shaping + mood derivation (pure). */
 import { describe, expect, it } from "vitest";
 import { characterCard, moodOf, needViews } from "../../apps/life/src/ui/hudModel.js";
-import { relevantNeeds } from "../../apps/life/src/ui/models/residentView.js";
+import { moodOfSummary, relevantNeeds } from "../../apps/life/src/ui/models/residentView.js";
 import type { AgentInspectorSnapshot } from "@echosim/inspector";
 
 function fakeAgent(overrides: {
@@ -97,5 +97,39 @@ describe("S41: mood derivation", () => {
     const card = characterCard(fakeAgent({ valence: 0.5 }));
     expect(card).toMatchObject({ name: "You", money: 42.5, mood: "Happy" });
     expect(card.needs).toHaveLength(7);
+  });
+});
+
+
+describe("Life mood safety for malformed inspector values", () => {
+  it("uses neutral valence when snapshots contain nonfinite emotion readings", () => {
+    for (const valence of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+      const agent = fakeAgent({ valence });
+      expect(moodOf(agent)).toBe("Fine");
+      expect(moodOfSummary(agent.summary)).toBe("Fine");
+    }
+  });
+
+  it("trusts only finite need measurements when selecting contextual moods", () => {
+    const invalidFun = fakeAgent({ valence: 0.3, needs: [
+      { kind: 3, name: "Fun", value: Number.POSITIVE_INFINITY },
+    ] });
+    expect(moodOf(invalidFun)).toBe("Good");
+    const invalidComfort = fakeAgent({ needs: [
+      { kind: 4, name: "Comfort", value: Number.NEGATIVE_INFINITY },
+    ] });
+    expect(moodOf(invalidComfort)).toBe("Fine");
+    const invalidEnergy = fakeAgent({ valence: 0.6, needs: [
+      { kind: 1, name: "Energy", value: Number.POSITIVE_INFINITY },
+    ] });
+    expect(moodOf(invalidEnergy)).toBe("Happy");
+  });
+
+  it("uses normalized energy pressure rather than stale critical flags", () => {
+    const agent = fakeAgent({ valence: 0.2, needs: [
+      { kind: 1, name: "Energy", value: 95 },
+    ] });
+    agent.needs[0]!.critical = false;
+    expect(moodOf(agent)).toBe("Exhausted");
   });
 });
