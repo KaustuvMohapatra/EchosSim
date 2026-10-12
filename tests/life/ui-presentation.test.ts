@@ -176,6 +176,26 @@ describe("Life UI presentation models", () => {
     expect(story?.participants).toEqual(["mira"]);
   });
 
+  it("renders world-object travel intentions without corrupting actor identity", () => {
+    const event: SimEventEntry = {
+      seq: 42, atMinutes: 480, kind: "activity",
+      type: "sim:world-object-trip-started", agent: "npc_mira",
+      location: "studio", text: "paint",
+    };
+    const names = new Map([["npc_mira", "Mira"]]);
+    const locations = new Map([["studio", "Art Studio"]]);
+    expect(eventToStory(event, 510, names, locations)).toEqual({
+      id: "event-42",
+      text: "Mira headed to Art Studio for Paint.",
+      when: "30 min ago",
+      participants: ["npc_mira"],
+      tone: "quiet",
+      category: "town",
+      kind: "live",
+    });
+    expect(liveStories([event], 510, names, locations)).toHaveLength(1);
+  });
+
   it("keeps live observer history tied to actual perception time", () => {
     const adapter = new LifeModeAdapter({ seed: 7001n });
     // At midnight the authored cafe and park may be closed. Force these
