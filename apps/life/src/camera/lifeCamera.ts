@@ -21,12 +21,17 @@ export function createLifeCamera(scene: Scene, canvas: HTMLCanvasElement): ArcRo
   camera.inertia = 0.86;
   camera.attachControl(canvas, true);
 
-  // Soft world bounds on the target.
+  // Soft world bounds on the target. Keep vertical tracking independent
+  // of horizontal panning so follow/shoulder framing is not flattened.
   const clampTarget = (): void => {
     const t = camera.target;
     t.x = Math.max(WORLD_BOUNDS.minX - 20, Math.min(WORLD_BOUNDS.maxX + 20, t.x));
     t.z = Math.max(WORLD_BOUNDS.minZ - 20, Math.min(WORLD_BOUNDS.maxZ + 20, t.z));
-    t.y = 0;
+    // Preserve the tracked elevation in follow/shoulder modes. Flattening y
+    // here fights CameraController.update() every frame and makes the rig
+    // jitter or settle on the ground instead of following the resident.
+    // User panning remains horizontal through panningAxis above.
+    t.y = Math.max(-2, Math.min(12, t.y));
   };
   camera.onViewMatrixChangedObservable.add(clampTarget);
   clampTarget();
