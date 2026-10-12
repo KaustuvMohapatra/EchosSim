@@ -3,6 +3,7 @@
  */
 import type { LifeModeAdapter, AutonomyMode } from "./LifeModeAdapter.js";
 import { SocialActionType } from "@echosim/social";
+import { NavigationPathStatus } from "@echosim/world";
 
 export interface QueuedAction {
   id: number;
@@ -173,6 +174,19 @@ export class PlayerAgentController {
         head.status = "done";
         this.applyGate();
         this.emit();
+        return;
+      }
+      if (head.status === "walking") {
+        // Navigation can be superseded externally (including by an autonomous
+        // command). A stale walking item must not block the rest of the queue.
+        const navigation = this.adapter.town.navigation.getState(this.controlled);
+        if (navigation.status !== NavigationPathStatus.EnRoute ||
+            navigation.destination !== command.locationId) {
+          head.status = "failed";
+          head.detail = "Travel was interrupted before arrival.";
+          this.applyGate();
+          this.emit();
+        }
         return;
       }
       if (head.status === "pending") {
