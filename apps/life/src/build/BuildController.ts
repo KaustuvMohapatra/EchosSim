@@ -298,24 +298,103 @@ export class BuildController {
   }
 
   load(json: string): void {
-    const parsed = JSON.parse(json) as BuildDocumentV2 | BuildPlacement[] | {
-      version?: number;
-      placements?: BuildPlacement[];
-      walls?: WallSegment[];
-      doors?: DoorOpening[];
-      floors?: FloorRect[];
+    // Validate the complete document before touching the live world or undo stack.
+    // Legacy saves were plain placement arrays; v2 adds structural objects.
+    const raw: unknown = JSON.parse(json);
+    if (!Array.isArray(raw) && !isRecord(raw)) throw new Error("Invalid build save.");
+    if (!Array.isArray(raw) && raw.version !== undefined && raw.version !== 1 && raw.version !== 2)
+      throw new Error("Unsupported build save version.");
+
+    const fields = Array.isArray(raw)
+      ? { placements: raw, walls: [], doors: [], floors: [] }
+      : {
+          placements: raw.placements ?? [],
+          walls: raw.walls ?? [],
+          doors: raw.doors ?? [],
+          floors: raw.floors ?? [],
+        };
+    if (!Array.isArray(fields.placements) || !Array.isArray(fields.walls) ||
+        !Array.isArray(fields.doors) || !Array.isArray(fields.floors))
+      throw new Error("Invalid build save collections.");
+
+    const proposed: BuildSnapshot = {
+      placements: fields.placements.map((p: unknown) => {
+        if (!isRecord(p) || !validId(p.objectId) || !validId(p.lotId) ||
+            !Object.hasOwn(FOOTPRINT, p.kind as string) ||
+            !finiteNumbers(p, "dx", "dz") ||
+            ![0, 1, 2, 3].includes(p.rot as number))
+          throw new Error("Invalid furniture in build save.");
+        return p as unknown as BuildPlacement;
+      }).map(copyPlacement),
+      walls: fields.walls.map((w: unknown) => {
+        if (!isRecord(w) || !validId(w.wallId) || !validId(w.lotId) ||
+            !finiteNumbers(w, "x1", "z1", "x2", "z2"))
+          throw new Error("Invalid wall in build save.");
+        return { ...w } as unknown as WallSegment;
+      }),
+      doors: fields.doors.map((d: unknown) => {
+        if (!isRecord(d) || !validId(d.doorId) || !validId(d.lotId) ||
+            !finiteNumbers(d, "x", "z") || (d.axis !== "x" && d.axis !== "z"))
+          throw new Error("Invalid door in build save.");
+        return { ...d } as unknown as DoorOpening;
+      }),
+      floors: fields.floors.map((f: unknown) => {
+        if (!isRecord(f) || !validId(f.floorId) || !validId(f.lotId) ||
+            !finiteNumbers(f, "x1", "z1", "x2", "z2"))
+          throw new Error("Invalid floor in build save.");
+        return { ...f } as unknown as FloorRect;
+      }),
     };
-    if (Array.isArray(parsed)) {
-      this.placements = parsed.map(copyPlacement);
-      this.walls = [];
-      this.doors = [];
-      this.floors = [];
-    } else {
-      this.placements = (parsed.placements ?? []).map(copyPlacement);
-      this.walls = (parsed.walls ?? []).map((x) => ({ ...x }));
-      this.doors = (parsed.doors ?? []).map((x) => ({ ...x }));
-      this.floors = (parsed.floors ?? []).map((x) => ({ ...x }));
+
+    const ids = new Set<string>();
+    const uniqueId = (id: string): void => {
+      if (ids.has(id)) throw new Error("Duplicate ID in build save.");
+      ids.add(id);
+    };
+    for (const p of proposed.placements) {
+      uniqueId(p.objectId);
+      const bounds = this.boundsOf(p.lotId);
+      if (!bounds) throw new Error("Furniture references an unknown lot.");
+      const box = placementBox(p);
+      const halfW = (bounds.x2 - bounds.x1) / 2;
+      const halfD = (bounds.z2 - bounds.z1) / 2;
+      if (box.x1 < -halfW || box.x2 > halfW || box.z1 < -halfD || box.z2 > halfD)
+        throw new Error("Furniture extends beyond its lot.");
+      for (const previous of proposed.placements) {
+        if (previous === p) break;
+        if (previous.lotId === p.lotId && overlap(box, placementBox(previous)))
+          throw new Error("Overlapping furniture in build save.");
+      }
+      for (const fixture of this.authored) {
+        if (fixture.lotId === p.lotId && overlap(box, placementBox(fixture)))
+          throw new Error("Furniture overlaps an authored fixture.");
+      }
     }
+    for (const w of proposed.walls) {
+      uniqueId(w.wallId);
+      const bounds = this.boundsOf(w.lotId);
+      if (!bounds || !relativePointInside(bounds, w.x1, w.z1) ||
+          !relativePointInside(bounds, w.x2, w.z2) ||
+          (w.x1 !== w.x2 && w.z1 !== w.z2) ||
+          Math.hypot(w.x2 - w.x1, w.z2 - w.z1) < GRID)
+        throw new Error("Invalid wall geometry in build save.");
+    }
+    for (const d of proposed.doors) {
+      uniqueId(d.doorId);
+      const bounds = this.boundsOf(d.lotId);
+      if (!bounds || !relativePointInside(bounds, d.x, d.z))
+        throw new Error("Invalid door position in build save.");
+    }
+    for (const f of proposed.floors) {
+      uniqueId(f.floorId);
+      const bounds = this.boundsOf(f.lotId);
+      if (!bounds || !relativePointInside(bounds, f.x1, f.z1) ||
+          !relativePointInside(bounds, f.x2, f.z2) ||
+          f.x2 - f.x1 < GRID || f.z2 - f.z1 < GRID)
+        throw new Error("Invalid floor geometry in build save.");
+    }
+
+    this.restore(proposed);
     this.undoStack = [];
     this.redoStack = [];
     resumeCounters(this.placements, this.walls, this.doors, this.floors);
@@ -377,6 +456,18 @@ export class BuildController {
   }
 
   private changed(): void { this.onChange(); }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function validId(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0;
+}
+
+function finiteNumbers(value: Record<string, unknown>, ...keys: string[]): boolean {
+  return keys.every((key) => typeof value[key] === "number" && Number.isFinite(value[key]));
 }
 
 function centreOf(bounds: LotBounds): { x: number; z: number } {
