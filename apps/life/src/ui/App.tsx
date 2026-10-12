@@ -252,6 +252,11 @@ export function App() {
                 selectedPresence?.lastKnownLocationId}
               attractions={app?.build.list() ?? []}
               onVisitAttraction={(locationId, locationName) => {
+                if (controlled?.summary.locationId === locationId) {
+                  setFlash(`Already at ${locationName}.`);
+                  setPanel(null);
+                  return;
+                }
                 app?.player.enqueueMove(locationId, locationName);
                 setFlash(`Travel queued: ${locationName}.`);
                 setPanel(null);
