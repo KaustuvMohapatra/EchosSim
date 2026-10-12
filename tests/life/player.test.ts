@@ -209,6 +209,22 @@ describe("S40: visit-and-social convenience", () => {
     p.dispose(); a.dispose();
   });
 
+  it("does not greet an NPC who leaves before the queued visit completes", { timeout: 60_000 }, () => {
+    const a = new LifeModeAdapter({ seed: 7001 });
+    const p = new PlayerAgentController(a);
+    steps(a, 40);
+    expect(p.enqueueVisitAndSocial("npc_mira", "Mira", 0 /* Greet */,
+      "apt_a", "Alder Apartments")).toBe(true);
+    // The target moves after this visit was issued. Do not silently use
+    // omniscient position knowledge to follow her to a different venue.
+    a.town.moveAgent("npc_mira" as never, "park" as never);
+    drain(a, p);
+    expect(a.playerLocationId()).toBe("apt_a");
+    expect(p.items().map((q) => q.status)).toEqual(["done", "failed"]);
+    expect(p.items()[1]?.detail).toBe("Mira is no longer here.");
+    p.dispose(); a.dispose();
+  });
+
   it("refuses when target has no location", () => {
     const a = new LifeModeAdapter({ seed: 7001 });
     const p = new PlayerAgentController(a);

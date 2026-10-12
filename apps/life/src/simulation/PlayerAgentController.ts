@@ -11,6 +11,8 @@ export interface QueuedAction {
   /** Human-readable outcome detail from the real command path. */
   detail?: string;
   readonly command: Command;
+  /** Location explicitly selected by the player for a visit-and-social action. */
+  expectedTargetLocationId?: string;
 }
 
 export type Command =
@@ -77,13 +79,15 @@ export class PlayerAgentController {
     this.afterMutation();
   }
 
-  enqueueSocial(targetId: string, targetName: string, action: SocialActionType): void {
+  enqueueSocial(targetId: string, targetName: string, action: SocialActionType,
+    expectedTargetLocationId?: string): void {
     const label = action === SocialActionType.Greet ? `Greet ${targetName}`
       : action === SocialActionType.Chat ? `Talk to ${targetName}`
       : `${SocialActionType[action]} ${targetName}`;
     this.queue.push({
       id: NEXT_ID++, label, status: "pending",
       command: { type: "social", targetId, targetName, action },
+      ...(expectedTargetLocationId ? { expectedTargetLocationId } : {}),
     });
     this.afterMutation();
   }
@@ -128,7 +132,7 @@ export class PlayerAgentController {
     if (!targetLocationId) return false;
     if (this.adapter.playerLocationId(this.controlled) !== targetLocationId)
       this.enqueueMove(targetLocationId, locationName);
-    this.enqueueSocial(targetId, targetName, action);
+    this.enqueueSocial(targetId, targetName, action, targetLocationId);
     return true;
   }
 
@@ -189,6 +193,19 @@ export class PlayerAgentController {
     if (head.status === "pending") {
       head.status = "active";
       const command = head.command;
+      // A visit was planned using a particular observed location, not live
+      // omniscient NPC tracking. Never greet someone who has since left.
+      if (head.expectedTargetLocationId &&
+          this.adapter.playerLocationId(this.controlled) === head.expectedTargetLocationId &&
+          !this.adapter.residentPresenceFor(this.controlled).some((presence) =>
+            presence.id === command.targetId && presence.visibility === "current" &&
+            presence.current?.locationId === head.expectedTargetLocationId)) {
+        head.status = "failed";
+        head.detail = `${command.targetName} is no longer here.`;
+        this.applyGate();
+        this.emit();
+        return;
+      }
       const result = this.adapter.town.social.attempt(
         this.controlled, command.targetId as never, command.action);
       head.status = result.accepted ? "done" : "failed";
