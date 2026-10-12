@@ -36,8 +36,10 @@ export function mapLots(): MapLot[] {
   const spanZ = WORLD_SPAN.maxZ - WORLD_SPAN.minZ;
   return LOTS.map((l) => ({
     locationId: l.locationId,
-    x: (l.x - WORLD_SPAN.minX) / spanX,
-    z: (l.z - WORLD_SPAN.minZ) / spanZ,
+    // CSS rectangles are positioned by their top-left corner, whereas LOTS
+    // records world-space building centres.
+    x: (l.x - l.width / 2 - WORLD_SPAN.minX) / spanX,
+    z: (l.z - l.depth / 2 - WORLD_SPAN.minZ) / spanZ,
     width: l.width / spanX,
     depth: l.depth / spanZ,
     district: districtOf(l.locationId),
