@@ -38,6 +38,34 @@ describe("S37: camera rig", () => {
     expect(s.beta).toBeGreaterThan(f.beta); // more top-down-ish tilt
   });
 
+  it("ignores invalid player positions without corrupting an existing camera target", () => {
+    for (const coordinate of [NaN, Infinity, -Infinity]) {
+      expect(computeRig("follow", { x: coordinate, z: 3 }, POSE)).toBe(POSE);
+      expect(computeRig("shoulder", { x: 2, z: coordinate }, POSE)).toBe(POSE);
+    }
+    const valid = computeRig("follow", { x: 8, z: -4 }, POSE);
+    expect(Number.isFinite(valid.targetX)).toBe(true);
+    expect(Number.isFinite(valid.targetZ)).toBe(true);
+  });
+
+  it("recovers each nonfinite camera channel when the player pose is valid", () => {
+    const corrupt: RigPose = {
+      targetX: NaN, targetZ: Infinity, targetY: -Infinity,
+      radius: NaN, beta: Infinity,
+    };
+    for (const mode of ["follow", "shoulder"] as const) {
+      const recovered = computeRig(mode, { x: 12, z: -5 }, corrupt);
+      for (const value of Object.values(recovered)) expect(Number.isFinite(value)).toBe(true);
+      expect(recovered.targetX).toBe(12);
+      expect(recovered.targetZ).toBeGreaterThanOrEqual(-5);
+      expect(recovered.radius).toBeGreaterThan(0);
+      expect(recovered.beta).toBeGreaterThanOrEqual(0.15);
+      expect(recovered.beta).toBeLessThanOrEqual(1.35);
+      const next = computeRig(mode, { x: 12, z: -5 }, recovered);
+      expect(next.radius).toBeGreaterThan(0);
+    }
+  });
+
   it("beta stays inside sane limits while easing", () => {
     let pose = computeRig("shoulder", { x: 1, z: 1 }, POSE);
     for (let i = 0; i < 300; i++)
