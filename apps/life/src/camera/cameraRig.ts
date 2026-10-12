@@ -37,17 +37,30 @@ export function computeRig(
   current: RigPose,
 ): RigPose {
   if (mode === "life" || !player) return current;
+  // Tracking transiently invalid sprite poses must not corrupt the camera.
+  // Keep its last usable target until the authoritative pose is finite again.
+  if (!Number.isFinite(player.x) || !Number.isFinite(player.z)) return current;
+
+  // Camera input can become invalid after a resize, restore, or external
+  // controller update. Recover individual channels rather than spreading NaN.
+  const safe: RigPose = {
+    targetX: Number.isFinite(current.targetX) ? current.targetX : player.x,
+    targetZ: Number.isFinite(current.targetZ) ? current.targetZ : player.z,
+    targetY: Number.isFinite(current.targetY) ? current.targetY : 1.2,
+    radius: Number.isFinite(current.radius) ? current.radius : 17,
+    beta: Number.isFinite(current.beta) ? current.beta : 1.02,
+  };
 
   const desired = mode === "follow"
     ? { targetX: player.x, targetZ: player.z, targetY: 1.2, radius: 17, beta: 1.02 }
     : { targetX: player.x, targetZ: player.z + 0.4, targetY: 1.5, radius: 5.2, beta: 1.22 };
 
   return {
-    targetX: lerp(current.targetX, desired.targetX),
-    targetZ: lerp(current.targetZ, desired.targetZ),
-    targetY: lerp(current.targetY, desired.targetY),
-    radius: lerp(current.radius, desired.radius),
-    beta: clamp(lerp(current.beta, desired.beta), 0.15, 1.35),
+    targetX: lerp(safe.targetX, desired.targetX),
+    targetZ: lerp(safe.targetZ, desired.targetZ),
+    targetY: lerp(safe.targetY, desired.targetY),
+    radius: lerp(safe.radius, desired.radius),
+    beta: clamp(lerp(safe.beta, desired.beta), 0.15, 1.35),
   };
 }
 
