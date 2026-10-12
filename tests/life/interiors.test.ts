@@ -1,7 +1,7 @@
 /** Sprint 42 — interiors: rings with door gaps, rooms, cutaway selection. */
 import { describe, expect, it } from "vitest";
 import {
-  buildInteriors, pointInRoom, wallsToHide,
+  buildInteriors, pointInRoom, ring, wallsToHide,
 } from "../../apps/life/src/world/interiors.js";
 import { lotOf } from "../../apps/life/src/world/layout.js";
 
@@ -27,6 +27,22 @@ describe("S42: interior construction", () => {
       const isOnSameLine = (w.z1 === w.z2 && Math.abs(w.z1 - door.z) < 0.3) ||
                            (w.x1 === w.x2 && Math.abs(w.x1 - door.x) < 0.3);
       expect(coversX && coversZ && isOnSameLine).toBe(false);
+    }
+  });
+
+  it("unions nested and overlapping door openings without rebuilding walls", () => {
+    const bounds = { x1: -5, z1: -4, x2: 5, z2: 4 };
+    const cases = [
+      { doors: [{ x: -5, z: -1, width: 5 }, { x: -5, z: 0, width: 1 }],
+        expected: [[-4, -3.5], [1.5, 4], [-4, 4]] },
+      { doors: [{ x: -5, z: -1, width: 5 }, { x: -5, z: 0, width: 1 },
+          { x: -5, z: 1.5, width: 2 }],
+        expected: [[-4, -3.5], [2.5, 4], [-4, 4]] },
+    ];
+    for (const { doors, expected } of cases) {
+      const { walls } = ring("overlap", bounds, 0.3, doors, "overlap");
+      const vertical = walls.filter((wall) => wall.id.includes("-v"));
+      expect(vertical.map(({ z1, z2 }) => [z1, z2])).toEqual(expected);
     }
   });
 
