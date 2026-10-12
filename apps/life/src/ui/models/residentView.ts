@@ -67,8 +67,8 @@ export function needViews(agent: AgentInspectorSnapshot): NeedView[] {
 
 /** Broad mood word derived from existing state — never a second emotion system. */
 export function moodOf(agent: AgentInspectorSnapshot): string {
-  const v = agent.emotionValence;
-  if (agent.needs.some((n) => n.critical && n.kind === 1 /* Energy */))
+  const v = Number.isFinite(agent.emotionValence) ? agent.emotionValence : 0;
+  if (agent.needs.some((n) => n.kind === 1 /* Energy */ && needPressure(n.value) >= 80))
     return "Exhausted";
   if (v <= -0.5) return "Angry";
   if (v <= -0.2) return "Tense";
@@ -76,16 +76,16 @@ export function moodOf(agent: AgentInspectorSnapshot): string {
   if (v >= 0.45) return "Happy";
   if (v >= 0.15) {
     const fun = agent.needs.find((n) => n.name === "Fun");
-    if (fun && fun.value > 60) return "Playful";
+    if (fun && needPressure(fun.value) > 60) return "Playful";
     return "Good";
   }
   const focusNeed = agent.needs.find((n) => n.name === "Comfort");
-  if (focusNeed && focusNeed.value < 30) return "Focused";
+  if (focusNeed && Number.isFinite(focusNeed.value) && focusNeed.value < 30) return "Focused";
   return "Fine";
 }
 
 export function moodOfSummary(agent: AgentSummary): string {
-  const v = agent.emotionValence;
+  const v = Number.isFinite(agent.emotionValence) ? agent.emotionValence : 0;
   if (v <= -0.5) return "Angry";
   if (v <= -0.2) return "Tense";
   if (v < -0.05) return "Downbeat";
