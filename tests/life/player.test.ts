@@ -75,6 +75,65 @@ describe("S39: action queue", () => {
     p.dispose(); a.dispose();
   });
 
+  it("cancelAllFor only cancels commands owned by the requested resident", () => {
+    const a = new LifeModeAdapter({ seed: 7001 });
+    const p = new PlayerAgentController(a);
+    steps(a, 40);
+
+    const original = p.controlled;
+    const other = p.householdMembers().find((id) => id !== original)!;
+    expect(other).toBeDefined();
+
+    p.enqueueMove("park", "Park");
+    const first = p.items()[0]!;
+    expect(first.agentId).toBe(original);
+
+    // Cancelling someone else's queue must leave the active journey alone.
+    p.cancelAllFor(other);
+    expect(p.items()[0]!.status).toBe("walking");
+    drain(a, p);
+    expect(p.items()[0]!.status).toBe("done");
+    expect(a.playerLocationId(original)).toBe("park");
+
+    p.dispose(); a.dispose();
+  });
+
+  it("releases the previously controlled resident to autonomous LOD", () => {
+    const a = new LifeModeAdapter({ seed: 7001 });
+    const p = new PlayerAgentController(a);
+    p.setAutonomy("full-manual");
+    const previous = p.controlled;
+    expect(a.lod.levelOf(previous)).toBe(2);
+
+    const next = p.householdMembers().find((id) => id !== previous)!;
+    expect(p.switchTo(next)).toBe(true);
+    expect(a.lod.levelOf(previous)).toBe(0);
+    expect(a.lod.levelOf(next)).toBe(2);
+
+    p.dispose(); a.dispose();
+  });
+
+  it("records the owner of commands across household switching", () => {
+    const a = new LifeModeAdapter({ seed: 7001 });
+    const p = new PlayerAgentController(a);
+    steps(a, 40);
+
+    const first = p.controlled;
+    p.enqueueMove("park", "Park");
+    expect(p.items()[0]!.agentId).toBe(first);
+
+    const second = p.householdMembers().find((id) => id !== first)!;
+    expect(p.switchTo(second)).toBe(true);
+    p.enqueueMove("cafe", "Corner Cafe");
+
+    expect(p.items()).toHaveLength(1);
+    expect(p.items()[0]!.agentId).toBe(second);
+    p.cancelAllFor(first);
+    expect(p.items()[0]!.status).toBe("walking");
+
+    p.dispose(); a.dispose();
+  });
+
   it("cancelAll stops pending work while clearFinished removes history", () => {
     const a = new LifeModeAdapter({ seed: 7001 });
     const p = new PlayerAgentController(a);
