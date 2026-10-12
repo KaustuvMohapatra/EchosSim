@@ -11,7 +11,9 @@ export interface DaylightParams {
 
 /** minuteOfDay in [0,1440). Deterministic and continuous-ish. */
 export function daylightParams(minuteOfDay: number): DaylightParams {
-  const m = ((minuteOfDay % 1440) + 1440) % 1440;
+  // Non-finite clock readings must not propagate NaN into Babylon light state.
+  const safeMinute = Number.isFinite(minuteOfDay) ? minuteOfDay : 0;
+  const m = ((safeMinute % 1440) + 1440) % 1440;
   // Solar phase: sunrise 06:00, sunset 20:00.
   const t = (m - 360) / (840); // 0..1 across daytime
   const day = m >= 360 && m <= 1200;
