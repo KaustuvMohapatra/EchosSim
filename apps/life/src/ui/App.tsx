@@ -256,7 +256,10 @@ export function App() {
                 setFlash(`Travel queued: ${locationName}.`);
                 setPanel(null);
               }}
-              onOpenMap={() => setShowMap(true)}
+              onOpenMap={() => {
+                setPanel(null);
+                setShowMap(true);
+              }}
               onClose={() => setPanel(null)} />
           )}
 
