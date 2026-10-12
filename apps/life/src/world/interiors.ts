@@ -13,7 +13,7 @@ export interface RoomDef {
   type: RoomType;
   /** Footprint-relative bounds (metres, centred on 0 like layout offsets). */
   x1: number; z1: number; x2: number; z2: number;
-  privacy: "Public" | "Guests" | "Household" | "OwnerOnly";
+  privacy: "Public" | "Guests" | "Household" | "OwnerOnly" | "Staff";
 }
 
 export interface WallSegment {
@@ -41,7 +41,7 @@ export interface InteriorDef {
 type Rect = { x1: number; z1: number; x2: number; z2: number };
 
 /** Builds a rectangular wall ring of `thickness` with door gaps at `doors`. */
-function ring(lotId: string, r: Rect, thickness: number,
+export function ring(lotId: string, r: Rect, thickness: number,
   doors: Array<{ x: number; z: number; width: number }>,
   prefix: string): { walls: WallSegment[]; doorPlacements: DoorPlacement[] } {
   const walls: WallSegment[] = [];
@@ -64,7 +64,8 @@ function ring(lotId: string, r: Rect, thickness: number,
     for (const g of axis) {
       const from = Math.max(0, g.at - g.w / 2);
       if (from > cursor) pieces.push({ from: cursor, to: from });
-      cursor = Math.min(length, g.at + g.w / 2);
+      // Overlapping or nested openings must be unioned, never rewinding the cursor.
+      cursor = Math.max(cursor, Math.min(length, g.at + g.w / 2));
     }
     if (cursor < length) pieces.push({ from: cursor, to: length });
 
