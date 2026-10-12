@@ -44,9 +44,14 @@ export function ResidentDetails(props: ResidentDetailsProps) {
   const needs = props.knowledge.privateAccess && agent ? relevantNeeds(agent, 3) : [];
   const relationships = useMemo(() =>
     [...props.knowledge.relationships]
-      .filter((relationship) => relationship.to !== residentId ||
-        relationship.from !== residentId)
-      .slice(0, 10), [props.knowledge]);
+      .filter((relationship) =>
+        relationship.from !== relationship.to &&
+        (relationship.from === residentId || relationship.to === residentId))
+      .map((relationship) => ({
+        ...relationship,
+        otherId: relationship.from === residentId ? relationship.to : relationship.from,
+      }))
+      .slice(0, 10), [props.knowledge, residentId]);
   const memories = props.knowledge.memories.slice(0, 7);
   const presenceView = residentProfilePresenceView(props.presence, props.nowMinutes);
   const tabs: ProfileTab[] = props.life
@@ -143,11 +148,11 @@ export function ResidentDetails(props: ResidentDetailsProps) {
                 ? "No known connections to show yet."
                 : "You have not formed a clear connection with this resident yet."}</p>
             ) : relationships.map((relationship) => (
-              <div className="profile-list__row" key={relationship.to}>
+              <div className="profile-list__row" key={`${relationship.from}:${relationship.to}`}>
                 <span className="resident-avatar resident-avatar--small" aria-hidden="true">
-                  {residentInitials(names.get(relationship.to) ?? relationship.to)}
+                  {residentInitials(names.get(relationship.otherId) ?? relationship.otherId)}
                 </span>
-                <span><strong>{names.get(relationship.to) ?? relationship.to}</strong>
+                <span><strong>{names.get(relationship.otherId) ?? relationship.otherId}</strong>
                   <small>{cleanRelationshipLabel(relationship.label)}</small></span>
               </div>
             ))}
