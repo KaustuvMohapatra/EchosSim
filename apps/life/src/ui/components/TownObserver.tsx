@@ -63,10 +63,10 @@ export function TownObserver(props: TownObserverProps) {
                     <span>{action.label} · {action.skill?.name ?? "Comfort"} benefit</span>
                   </div>
                   <button type="button" className="secondary-button"
-                    disabled={location?.isOpen === false}
+                    disabled={location?.isOpen === false || item.lotId === props.currentLocationId}
                     onClick={() => props.onVisitAttraction(item.lotId,
                       location?.name ?? item.lotId)}>
-                    {location?.isOpen === false ? "Closed" : "Visit"}
+                    {location?.isOpen === false ? "Closed" : item.lotId === props.currentLocationId ? "Here now" : "Visit"}
                   </button>
                 </article>
               );
