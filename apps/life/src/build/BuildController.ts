@@ -298,24 +298,11 @@ export class BuildController {
   }
 
   load(json: string): void {
-    const parsed = JSON.parse(json) as BuildDocumentV2 | BuildPlacement[] | {
-      version?: number;
-      placements?: BuildPlacement[];
-      walls?: WallSegment[];
-      doors?: DoorOpening[];
-      floors?: FloorRect[];
-    };
-    if (Array.isArray(parsed)) {
-      this.placements = parsed.map(copyPlacement);
-      this.walls = [];
-      this.doors = [];
-      this.floors = [];
-    } else {
-      this.placements = (parsed.placements ?? []).map(copyPlacement);
-      this.walls = (parsed.walls ?? []).map((x) => ({ ...x }));
-      this.doors = (parsed.doors ?? []).map((x) => ({ ...x }));
-      this.floors = (parsed.floors ?? []).map((x) => ({ ...x }));
-    }
+    // Validate the complete document before touching live Build Mode state.
+    // Legacy saves are either a placement array or an unversioned snapshot.
+    const parsed: unknown = JSON.parse(json);
+    const snapshot = parseBuildSnapshot(parsed, this.boundsOf);
+    this.restore(snapshot);
     this.undoStack = [];
     this.redoStack = [];
     resumeCounters(this.placements, this.walls, this.doors, this.floors);
@@ -377,6 +364,104 @@ export class BuildController {
   }
 
   private changed(): void { this.onChange(); }
+}
+
+
+/** Reject malformed, future, or non-finite build saves before they reach Babylon. */
+function parseBuildSnapshot(
+  source: unknown,
+  boundsOf: (lotId: string) => LotBounds | undefined,
+): BuildSnapshot {
+  if (!Array.isArray(source) && !isRecord(source)) throw new Error("Invalid Build Mode save.");
+  if (!Array.isArray(source) && source.version !== undefined
+    && source.version !== 1 && source.version !== 2)
+    throw new Error("Unsupported Build Mode save version.");
+
+  const readArray = (value: unknown, label: string): Record<string, unknown>[] => {
+    if (!Array.isArray(value) || !value.every(isRecord))
+      throw new Error(`Invalid Build Mode ${label}.`);
+    return value;
+  };
+  const data = Array.isArray(source) ? { placements: source } : source;
+  const placements = readArray(data.placements ?? [], "placements").map((p) => {
+    if (!validId(p.objectId) || !validId(p.lotId)
+      || !Object.prototype.hasOwnProperty.call(FOOTPRINT, p.kind)
+      || !isFiniteNumber(p.dx) || !isFiniteNumber(p.dz)
+      || !Number.isInteger(p.rot) || (p.rot as number) < 0 || (p.rot as number) > 3)
+      throw new Error("Invalid Build Mode placement.");
+    const bounds = boundsOf(p.lotId as string);
+    if (!bounds || !insidePlacement(bounds, p as unknown as BuildPlacement))
+      throw new Error("Build Mode placement outside a valid lot.");
+    return p as unknown as BuildPlacement;
+  });
+  const walls = readArray(data.walls ?? [], "walls").map((w) => {
+    if (!validId(w.wallId) || !validId(w.lotId)
+      || !coordinates(w, "x1", "z1", "x2", "z2"))
+      throw new Error("Invalid Build Mode wall.");
+    const bounds = boundsOf(w.lotId as string);
+    if (!bounds || !relativePointInside(bounds, w.x1 as number, w.z1 as number)
+      || !relativePointInside(bounds, w.x2 as number, w.z2 as number)
+      || !((w.x1 === w.x2) !== (w.z1 === w.z2)))
+      throw new Error("Invalid Build Mode wall geometry.");
+    return w as unknown as WallSegment;
+  });
+  const doors = readArray(data.doors ?? [], "doors").map((d) => {
+    if (!validId(d.doorId) || !validId(d.lotId)
+      || !coordinates(d, "x", "z") || (d.axis !== "x" && d.axis !== "z"))
+      throw new Error("Invalid Build Mode door.");
+    const bounds = boundsOf(d.lotId as string);
+    if (!bounds || !relativePointInside(bounds, d.x as number, d.z as number))
+      throw new Error("Build Mode door outside a valid lot.");
+    return d as unknown as DoorOpening;
+  });
+  const floors = readArray(data.floors ?? [], "floors").map((f) => {
+    if (!validId(f.floorId) || !validId(f.lotId)
+      || !coordinates(f, "x1", "z1", "x2", "z2")
+      || (f.x2 as number) <= (f.x1 as number)
+      || (f.z2 as number) <= (f.z1 as number))
+      throw new Error("Invalid Build Mode floor.");
+    const bounds = boundsOf(f.lotId as string);
+    if (!bounds || !relativePointInside(bounds, f.x1 as number, f.z1 as number)
+      || !relativePointInside(bounds, f.x2 as number, f.z2 as number))
+      throw new Error("Build Mode floor outside a valid lot.");
+    return f as unknown as FloorRect;
+  });
+  for (const [label, rows, key] of [
+    ["object", placements, "objectId"],
+    ["wall", walls, "wallId"],
+    ["door", doors, "doorId"],
+    ["floor", floors, "floorId"],
+  ] as const) {
+    if (new Set(rows.map((row) => row[key])).size !== rows.length)
+      throw new Error(`Duplicate Build Mode ${label} identifier.`);
+  }
+  for (let i = 0; i < placements.length; i++) {
+    const p = placements[i]!;
+    const box = placementBox(p);
+    if (placements.some((other, j) => i !== j && other.lotId === p.lotId
+      && overlap(box, placementBox(other))))
+      throw new Error("Overlapping Build Mode placements.");
+  }
+  return { placements, walls, doors, floors };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function validId(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0;
+}
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+function coordinates(row: Record<string, unknown>, ...keys: string[]): boolean {
+  return keys.every((key) => isFiniteNumber(row[key]));
+}
+function insidePlacement(bounds: LotBounds, placement: BuildPlacement): boolean {
+  const box = placementBox(placement);
+  const halfW = (bounds.x2 - bounds.x1) / 2;
+  const halfD = (bounds.z2 - bounds.z1) / 2;
+  return box.x1 >= -halfW && box.x2 <= halfW && box.z1 >= -halfD && box.z2 <= halfD;
 }
 
 function centreOf(bounds: LotBounds): { x: number; z: number } {

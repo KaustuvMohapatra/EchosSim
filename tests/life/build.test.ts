@@ -165,6 +165,61 @@ describe("S44: structural build", () => {
   });
 });
 
+describe("Build save integrity", () => {
+  it("loads legacy arrays and unversioned snapshots without changing their format", () => {
+    resetBuildIds();
+    const build = new BuildController(boundsOf);
+    const legacy = [{ objectId: "built_2", kind: "chair", lotId: "cafe", dx: 0, dz: 0, rot: 0 }];
+    build.load(JSON.stringify(legacy));
+    expect(build.list()).toEqual(legacy);
+    build.load(JSON.stringify({ placements: legacy }));
+    expect(build.list()).toEqual(legacy);
+  });
+
+  it("rejects malformed saves without losing world state or undo history", () => {
+    resetBuildIds();
+    const build = new BuildController(boundsOf);
+    expect(build.place("chair", "cafe", 0, 0).ok).toBe(true);
+    const before = build.serialize();
+    const invalid = [
+      "null", "42", "{}", '{"version":3,"placements":[]}',
+      '{"version":2,"placements":{}}',
+      '{"version":2,"placements":[null]}',
+      '{"version":2,"placements":[{"objectId":"bad","kind":"glitch","lotId":"cafe","dx":0,"dz":0,"rot":0}]}',
+      '{"version":2,"placements":[{"objectId":"bad","kind":"chair","lotId":"cafe","dx":100,"dz":0,"rot":0}]}',
+      '{"version":2,"walls":[{"wallId":"w1","lotId":"cafe","x1":0,"z1":0,"x2":2,"z2":2}]}',
+      '{"version":2,"floors":[{"floorId":"f1","lotId":"cafe","x1":4,"z1":0,"x2":1,"z2":2}]}',
+      '{"version":2,"doors":[{"doorId":"d1","lotId":"cafe","x":999,"z":0,"axis":"x"}]}',
+    ];
+    for (const payload of invalid) {
+      expect(() => build.load(payload), payload).toThrow();
+      expect(build.serialize()).toBe(before);
+      expect(build.canUndo).toBe(true);
+    }
+    expect(build.undo()).toBe(true);
+    expect(build.list()).toHaveLength(0);
+  });
+
+  it("rejects colliding restored object identifiers and overlapping furniture", () => {
+    const item = { objectId: "built_1", kind: "chair", lotId: "cafe", dx: 0, dz: 0, rot: 0 };
+    const build = new BuildController(boundsOf);
+    expect(() => build.load(JSON.stringify({ version: 2, placements: [item, item] })))
+      .toThrow(/Duplicate/);
+    expect(() => build.load(JSON.stringify({ version: 2, placements: [
+      item, { ...item, objectId: "built_2" },
+    ] }))).toThrow(/Overlapping/);
+  });
+
+  it("does not announce changes for rejected saves", () => {
+    let count = 0;
+    const build = new BuildController(boundsOf, [], () => { count++; });
+    expect(() => build.load('{"version":99}')).toThrow();
+    expect(count).toBe(0);
+    build.load('{"version":2,"placements":[]}');
+    expect(count).toBe(1);
+  });
+});
+
 function pxInRange(v: number, lo: number, hi: number): boolean {
   return v >= lo && v <= hi;
 }
