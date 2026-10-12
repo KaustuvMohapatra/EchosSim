@@ -60,4 +60,38 @@ describe("Living World pedestrian waypoints", () => {
       { x: 0, z: 0 }, { x: 5, z: 0 }, { x: 5, z: 3 },
     ]);
   });
+
+  it("ignores invalid frame distances instead of corrupting the walking pose", () => {
+    const current = { x: 1, z: 2 };
+    const waypoints = [{ x: 5, z: 2 }];
+    for (const distance of [NaN, Infinity, -Infinity]) {
+      const result = advanceWalk(current, waypoints, distance);
+      expect(result.point).toEqual(current);
+      expect(result.remaining).toEqual(waypoints);
+      expect(result.moving).toBe(true);
+    }
+  });
+
+  it("skips invalid targets in movement and path simplification", () => {
+    const result = advanceWalk({ x: 1, z: 2 }, [
+      { x: NaN, z: 0 }, { x: 3, z: Infinity }, { x: 5, z: 2 },
+    ], 2);
+    expect(result.point).toEqual({ x: 3, z: 2 });
+    expect(result.remaining).toEqual([{ x: 5, z: 2 }]);
+    expect(collapseCollinear([
+      { x: 0, z: 0 }, { x: Infinity, z: 1 }, { x: 2, z: 0 },
+    ])).toEqual([{ x: 0, z: 0 }, { x: 2, z: 0 }]);
+  });
+
+  it("recovers corrupt visual poses and refuses invalid reroute origins", () => {
+    expect(advanceWalk({ x: NaN, z: Infinity }, [
+      { x: Infinity, z: 2 }, { x: 4, z: 5 },
+    ], 10)).toEqual({ point: { x: 4, z: 5 }, remaining: [], moving: false });
+    expect(advanceWalk({ x: NaN, z: Infinity }, [], 10)).toEqual({
+      point: { x: 0, z: 0 }, remaining: [], moving: false,
+    });
+    for (const invalid of [{ x: NaN, z: 0 }, { x: 0, z: Infinity }, { x: -Infinity, z: 0 }]) {
+      expect(routeFromPosition(invalid, "cafe", "npc_mira")).toEqual([]);
+    }
+  });
 });
