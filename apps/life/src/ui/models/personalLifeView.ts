@@ -18,19 +18,28 @@ export function formatSimMoment(atMinutes: number, nowMinutes: number): string {
   return `Day ${day + 1} · ${clock}`;
 }
 
+/** Presentation fallback for incomplete or invalid read-model progress data. */
+function boundedProgress(value: number): number {
+  return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
+}
+
 export function careerRequirementProgress(
   current: number,
   required: number | undefined,
 ): number {
-  if (required === undefined || required <= 0) return 1;
-  return Math.max(0, Math.min(1, current / required));
+  if (required === undefined) return 1;
+  if (!Number.isFinite(required) || !Number.isFinite(current)) return 0;
+  if (required <= 0) return 1;
+  return boundedProgress(current / required);
 }
 
 export function skillProgress(skill: LifeSkillSummary): number {
   if (skill.nextLevelXp === undefined) return 1;
-  const span = skill.nextLevelXp - skill.levelFloorXp;
-  if (span <= 0) return 1;
-  return Math.max(0, Math.min(1, (skill.xp - skill.levelFloorXp) / span));
+  const { xp, levelFloorXp, nextLevelXp } = skill;
+  if (![xp, levelFloorXp, nextLevelXp].every(Number.isFinite)) return 0;
+  const span = nextLevelXp - levelFloorXp;
+  if (!Number.isFinite(span) || span <= 0) return 1;
+  return boundedProgress((xp - levelFloorXp) / span);
 }
 
 
