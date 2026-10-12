@@ -8,9 +8,9 @@
 import { PersonalityProfile } from "@echosim/cognition";
 import { Belief, type SkillName } from "@echosim/social";
 import { Town, PlanningDirector } from "@echosim/simulation";
-import { UnsupportedSaveVersionException } from "./migrations.js";
+import { migrateToCurrent, SUPPORTED_SAVE_VERSION } from "./migrations.js";
 
-export const CURRENT_SAVE_VERSION = 3;
+export const CURRENT_SAVE_VERSION = SUPPORTED_SAVE_VERSION;
 
 export interface SaveLocation {
   id: string; name: string;
@@ -301,8 +301,7 @@ export interface RestoredWorld {
 }
 
 export function deserializeAndRestore(doc: SaveDocument): RestoredWorld {
-  if (doc.version > CURRENT_SAVE_VERSION)
-    throw new UnsupportedSaveVersionException(doc.version);
+  migrateToCurrent({ SchemaVersion: doc.version });
 
   const town = new Town(BigInt(doc.seed));
 
